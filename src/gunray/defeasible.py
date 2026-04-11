@@ -92,9 +92,25 @@ class DefeasibleEvaluator:
                 for rule in rules_by_head.get(atom, [])
                 if rule.kind != "defeater"
             ]
-            if any(set(rule.body) <= proven for rule in support_rules):
+            supported_rules = [
+                rule
+                for rule in support_rules
+                if _attacker_body_available(rule, supported, definitely)
+            ]
+            if not supported_rules:
                 not_defeasibly.add(atom)
-            elif any(set(rule.body) <= supported for rule in support_rules):
+                continue
+            if _has_blocking_peer(
+                atom,
+                supported_rules,
+                supported,
+                definitely,
+                rules_by_head,
+                conflicts,
+                superiority,
+                grounded_strict_rules,
+                specificity_cache,
+            ):
                 undecided.add(atom)
             else:
                 not_defeasibly.add(atom)
@@ -285,6 +301,7 @@ def _supporter_survives(
                 specificity_cache,
             ):
                 return False
+            return False
     return True
 
 
@@ -384,3 +401,53 @@ def _strict_body_closure(
                 changed = True
     cache[seeds] = closure
     return closure
+
+
+def _has_blocking_peer(
+    atom: GroundAtom,
+    support_rules: list[GroundDefeasibleRule],
+    supported: set[GroundAtom],
+    definitely: set[GroundAtom],
+    rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]],
+    conflicts: set[tuple[str, str]],
+    superiority: set[tuple[str, str]],
+    grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
+    specificity_cache: dict[frozenset[GroundAtom], set[GroundAtom]],
+) -> bool:
+    opposing_atoms = {
+        other
+        for other in rules_by_head
+        if (atom.predicate, other.predicate) in conflicts and other.arguments == atom.arguments
+    } | {
+        GroundAtom(predicate=right, arguments=atom.arguments)
+        for left, right in conflicts
+        if left == atom.predicate
+    }
+
+    for supporting_rule in support_rules:
+        for opposing_atom in opposing_atoms:
+            for attacker in rules_by_head.get(opposing_atom, []):
+                if attacker.kind in {"strict", "defeater"}:
+                    continue
+                if not _attacker_body_available(attacker, supported, definitely):
+                    continue
+                if (supporting_rule.rule_id, attacker.rule_id) in superiority:
+                    continue
+                if (attacker.rule_id, supporting_rule.rule_id) in superiority:
+                    continue
+                if _is_more_specific(
+                    supporting_rule,
+                    attacker,
+                    grounded_strict_rules,
+                    specificity_cache,
+                ):
+                    continue
+                if _is_more_specific(
+                    attacker,
+                    supporting_rule,
+                    grounded_strict_rules,
+                    specificity_cache,
+                ):
+                    continue
+                return True
+    return False

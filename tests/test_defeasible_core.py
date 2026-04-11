@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from gunray.defeasible import _expand_candidate_atoms, _is_more_specific
+from gunray.defeasible import (
+    _expand_candidate_atoms,
+    _has_blocking_peer,
+    _is_more_specific,
+    _supporter_survives,
+)
 from gunray.types import GroundAtom, GroundDefeasibleRule
 
 
@@ -43,5 +48,73 @@ def test_is_more_specific_uses_strict_body_closure() -> None:
         supporter,
         attacker,
         (strict_rule,),
+        {},
+    )
+
+
+def test_equally_specific_defeasible_attacker_blocks_supporter() -> None:
+    supporter = GroundDefeasibleRule(
+        rule_id="r2",
+        kind="defeasible",
+        head=GroundAtom(predicate="pacifist", arguments=("nixon",)),
+        body=(GroundAtom(predicate="quaker", arguments=("nixon",)),),
+    )
+    attacker = GroundDefeasibleRule(
+        rule_id="r3",
+        kind="defeasible",
+        head=GroundAtom(predicate="~pacifist", arguments=("nixon",)),
+        body=(GroundAtom(predicate="republican", arguments=("nixon",)),),
+    )
+
+    survives = _supporter_survives(
+        supporter,
+        supporter.head,
+        {
+            GroundAtom(predicate="quaker", arguments=("nixon",)),
+            GroundAtom(predicate="republican", arguments=("nixon",)),
+        },
+        set(),
+        {attacker.head: [attacker]},
+        {attacker.head},
+        set(),
+        (),
+        {},
+    )
+
+    assert not survives
+
+
+def test_equal_strength_opponents_are_classified_as_blocking_peers() -> None:
+    pacifist = GroundDefeasibleRule(
+        rule_id="r2",
+        kind="defeasible",
+        head=GroundAtom(predicate="pacifist", arguments=("nixon",)),
+        body=(GroundAtom(predicate="quaker", arguments=("nixon",)),),
+    )
+    anti_pacifist = GroundDefeasibleRule(
+        rule_id="r3",
+        kind="defeasible",
+        head=GroundAtom(predicate="~pacifist", arguments=("nixon",)),
+        body=(GroundAtom(predicate="republican", arguments=("nixon",)),),
+    )
+
+    assert _has_blocking_peer(
+        pacifist.head,
+        [pacifist],
+        {
+            GroundAtom(predicate="quaker", arguments=("nixon",)),
+            GroundAtom(predicate="republican", arguments=("nixon",)),
+        },
+        set(),
+        {
+            pacifist.head: [pacifist],
+            anti_pacifist.head: [anti_pacifist],
+        },
+        {
+            ("pacifist", "~pacifist"),
+            ("~pacifist", "pacifist"),
+        },
+        set(),
+        (),
         {},
     )
