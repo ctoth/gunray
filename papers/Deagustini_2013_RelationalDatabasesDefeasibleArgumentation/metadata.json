@@ -1,0 +1,17 @@
+{
+  "title": "Relational databases as a massive information source for defeasible argumentation",
+  "authors": [
+    "Cristian A.D. Deagustini",
+    "Santiago E. Fulladoza Dalibón",
+    "Sebastián Gottifredi",
+    "Marcelo A. Falappa",
+    "Carlos I. Chesñevar",
+    "Guillermo R. Simari"
+  ],
+  "year": "2013",
+  "arxiv_id": null,
+  "doi": "10.1016/j.knosys.2013.07.010",
+  "abstract": "Argumentation provides a sophisticated yet powerful mechanism for the formalization of commonsense reasoning in knowledge-based systems, with applications in several areas within Artificial Intelligence. Now-a-days, more argumentation systems build their arguments on the basis of a single, fixed knowledge base, which under the form of a logic program, as in Defeasible Logic Programming, or a knowledge-base as in ASPIC, is a not feasible for many real world environments which involve large amounts of data, usually concept-based or information stored in databases, identifying several relevant aspects. In our setting, different databases can be updated by external, autonomous applications, leading to changes in the spectrum of available arguments. This paper presents a framework that integrates Relational databases techniques with Defeasible Argumentation, called DB-DeLP. Empirical results and running time analysis associated with our approach show that it provides a practical and efficient alternative for implementing argumentation-based applications which require the management of massive amounts of information stored in relational databases, such as Decision Support Systems and Recommender Systems, using argumentation as the core reasoning mechanism.",
+  "url": null,
+  "pdf_url": null
+}

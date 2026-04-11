@@ -1,0 +1,10 @@
+{
+  "title": "Defeasible Reasoning via Datalog",
+  "authors": ["Michael J. Maher"],
+  "year": "2021",
+  "arxiv_id": "2106.10946",
+  "doi": null,
+  "abstract": "We address the problem of compiling defeasible theories to Datalog programs. We prove the correctness of a compilation, for the defeasible logic D(1,1), both directions, that we show to be linear in the size of the defeasible theory. Structural properties of D(1,1) are identified that support efficient implementations and/or approximations of the conclusions of defeasible theories via the logic, compared with other defeasible logics. We also provide well-studied structural properties of logic programs to adapt to incomplete Datalog implementations.",
+  "url": null,
+  "pdf_url": null
+}

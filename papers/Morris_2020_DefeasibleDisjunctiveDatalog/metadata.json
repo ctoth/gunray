@@ -1,0 +1,31 @@
+{
+  "title": "Algorithmic Definitions for KLM-style Defeasible Disjunctive Datalog",
+  "authors": ["Matthew Morris", "Tala Ross", "Thomas Meyer"],
+  "year": 2020,
+  "venue": "South African Computer Journal",
+  "volume": "32",
+  "issue": "2",
+  "pages": "141-170",
+  "doi": "10.18489/sacj.v32i2.846",
+  "issn": "1015-7999",
+  "url": "https://doi.org/10.18489/sacj.v32i2.846",
+  "type": "journal-article",
+  "keywords": [
+    "defeasible reasoning",
+    "Datalog",
+    "KLM properties",
+    "rational closure",
+    "lexicographic closure",
+    "relevant closure",
+    "nonmonotonic reasoning",
+    "disjunctive Datalog",
+    "LM-rationality"
+  ],
+  "affiliations": [
+    "Department of Computer Science, University of Cape Town, South Africa",
+    "Centre for Artificial Intelligence Research, South Africa"
+  ],
+  "received": "30 May 2020",
+  "accepted": "08 December 2020",
+  "published": "December 2020"
+}

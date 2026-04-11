@@ -1,0 +1,13 @@
+{
+  "title": "A Mathematical Treatment of Defeasible Reasoning and its Implementation",
+  "authors": [
+    "Guillermo R. Simari",
+    "Ronald P. Loui"
+  ],
+  "year": "1992",
+  "arxiv_id": null,
+  "doi": "10.1016/0004-3702(92)90069-A",
+  "abstract": "We present a mathematical approach to defeasible reasoning. This approach is based on the notion of specificity introduced by Poole and the theory of warrant presented by Pollock. We combine the ideas of the two. The main contribution of this paper is a precise well-defined system which exhibits correct behavior when applied to the benchmark examples in the literature. We prove that an order relation can be introduced among equivalence classes under the equi-specificity relation. We also prove a theorem that ensures the termination of the process of finding the justified facts. Two more lemmas define a reduced search space for checking specificity. In order to implement the theoretical ideas, the language is restricted to Horn clauses for the evidential context. The language used to represent defeasible rules has been restricted in a similar way. The authors intend this work to unify the various existing approaches to argument-based defeasible reasoning.",
+  "url": "https://www.semanticscholar.org/paper/4d47cd0194fafc21c734bc9ec8a0308caa94004e",
+  "pdf_url": "https://openscholarship.wustl.edu/cgi/viewcontent.cgi?article=1726&context=cse_research"
+}

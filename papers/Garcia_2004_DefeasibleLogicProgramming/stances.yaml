@@ -1,0 +1,43 @@
+source:
+  paper: Garcia_2004_DefeasibleLogicProgramming
+produced_by:
+  agent: "claude-opus-4-6"
+  skill: "extract-stances"
+  timestamp: "2026-04-10T07:52:48Z"
+
+stances:
+  - source_claim: "claim1"
+    target: "Simari_1992_MathematicalTreatmentDefeasibleReasoning:claim1"
+    type: supersedes
+    strength: "strong"
+    note: "DeLP's de.l.p (Pi, Delta) extends and replaces Simari & Loui 1992's (K, Delta) with LP integration, distinguishing strict rules from facts and adding Prolog-like unification."
+
+  - source_claim: "claim2"
+    target: "Simari_1992_MathematicalTreatmentDefeasibleReasoning:claim2"
+    type: supersedes
+    strength: "strong"
+    note: "DeLP's argument structure definition extends Simari & Loui 1992's by using defeasible derivations (LP-style chaining) rather than set-theoretic defeasible entailment."
+
+  - source_claim: "claim9"
+    target: "Simari_1992_MathematicalTreatmentDefeasibleReasoning:claim5"
+    type: supersedes
+    strength: "strong"
+    note: "DeLP's dialectical trees with formal acceptability conditions replace Simari & Loui 1992's simpler dialectical levels S and I, adding circularity detection, concordance, and blocking defeater restrictions."
+
+  - source_claim: "claim22"
+    target: "Dung_1995_AcceptabilityArguments:claim1"
+    type: supports
+    strength: "moderate"
+    note: "DeLP instantiates Dung's abstract framework with a concrete LP-based language and argument construction procedure, providing the missing concrete layer that Dung's abstract formulation intentionally omits."
+
+  - source_claim: "claim11"
+    target: "Dung_1995_AcceptabilityArguments:claim5"
+    type: supports
+    strength: "moderate"
+    note: "DeLP's warrant (root of marked dialectical tree is U) corresponds to membership in the grounded extension of the induced Dung AF, providing a concrete computational procedure for Dung's grounded semantics."
+
+  - source_claim: "claim1"
+    target: "Caminada_2007_EvaluationArgumentationFormalisms:claim2"
+    type: supports
+    strength: "moderate"
+    note: "DeLP's de.l.p (Pi, Delta) with strict and defeasible rules is an instance of Caminada & Amgoud's defeasible theory T = (S, D), providing a concrete LP-grounded instantiation of the general framework."

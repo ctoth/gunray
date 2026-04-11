@@ -1,0 +1,10 @@
+{
+  "title": "Defeasible Logic Programming: An Argumentative Approach",
+  "authors": ["Alejandro J. Garcia", "Guillermo R. Simari"],
+  "year": "2004",
+  "arxiv_id": null,
+  "doi": "10.1017/S1471068403001674",
+  "abstract": "The work reported here introduces Defeasible Logic Programming (DeLP), a formalism that combines results of Logic Programming and Defeasible Argumentation. DeLP provides the possibility of representing information tentatively, in the form of weak rules, which can be used to build arguments for or against a given goal. A dialectical process determines which arguments are ultimately accepted. The language used for knowledge representation extends the language of logic programming, incorporating a defeasible operator in order to distinguish between strict and defeasible knowledge. A defeasible derivation is defined as the construction of an argument by chaining applications of defeasible rules. The definition of argument, counter-argument and defeat is given in terms of defeasible derivations. A dialectical analysis is performed in order to determine if a given argument is defeated. The resulting dialectical trees can be used to determine whether a literal is warranted.",
+  "url": null,
+  "pdf_url": null
+}

@@ -1,0 +1,12 @@
+{
+  "title": "A Datalog Translation for Reasoning on DL-Lite_R with Defeasibility",
+  "authors": ["Loris Bozzato", "Thomas Eiter", "Luciano Serafini"],
+  "year": 2020,
+  "institutions": ["Fondazione Bruno Kessler", "TU Wien"],
+  "venue": "arXiv / Technical Report",
+  "doi": null,
+  "arxiv": "1905.09221",
+  "tags": ["defeasible-reasoning", "description-logics", "datalog", "DL-Lite", "exceptions", "knowledge-representation"],
+  "pages": 13,
+  "source_pdf": "paper.pdf"
+}

@@ -1,0 +1,362 @@
+source:
+  paper: Garcia_2004_DefeasibleLogicProgramming
+produced_by:
+  agent: "claude-opus-4-6"
+  skill: "extract-claims"
+  timestamp: "2026-04-10T07:50:08Z"
+
+claims:
+  - id: claim1
+    type: observation
+    statement: "A DeLP program is a pair (Pi, Delta) where Pi is a set of strict rules and facts representing certain knowledge, and Delta is a set of defeasible rules representing tentative information."
+    concepts:
+      - defeasible_logic_program
+      - strict_rule
+      - defeasible_rule
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 3
+      section: "2. The Language"
+
+  - id: claim2
+    type: observation
+    statement: "An argument structure is a pair (A, h) where A is a minimal, non-contradictory subset of Delta that provides a defeasible derivation for literal h from Pi union A."
+    concepts:
+      - argument_structure
+      - defeasible_derivation
+      - defeasible_rule
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 8
+      section: "3. Defeasible Argumentation"
+      quote_fragment: "Definition 3.1"
+
+  - id: claim3
+    type: observation
+    statement: "Two literals h and h1 disagree if and only if the set Pi union {h, h1} is contradictory, which generalizes complementary literal conflict through strict rules."
+    concepts:
+      - disagreement
+      - strict_rule
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 10
+      section: "3. Defeasible Argumentation"
+      quote_fragment: "Definition 3.3"
+
+  - id: claim4
+    type: observation
+    statement: "A counter-argument attacks another argument at a sub-argument whose conclusion disagrees with the attacker's conclusion, enabling both direct attacks on the root and indirect attacks on internal sub-arguments."
+    concepts:
+      - counter_argument
+      - argument_structure
+      - disagreement
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 10
+      section: "3. Defeasible Argumentation"
+      quote_fragment: "Definition 3.4"
+
+  - id: claim5
+    type: observation
+    statement: "A proper defeater is a counter-argument that is strictly preferred to the disagreement sub-argument it attacks, while a blocking defeater is one where neither is strictly preferred."
+    concepts:
+      - proper_defeater
+      - blocking_defeater
+      - counter_argument
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 16
+      section: "4. Defeaters and argumentation lines"
+      quote_fragment: "Definitions 4.1 and 4.2"
+
+  - id: claim6
+    type: observation
+    statement: "No argument structure in DeLP can be self-defeating because the requirement that Pi union A be non-contradictory prevents any argument from containing a counter-argument point against itself."
+    concepts:
+      - argument_structure
+      - counter_argument
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 18
+      section: "4.1 Acceptable argumentation lines"
+      quote_fragment: "Proposition 4.2"
+
+  - id: claim7
+    type: observation
+    statement: "A strictly derived literal is always warranted and has no possible counter-arguments because arguments with empty defeasible rule sets cannot be attacked."
+    concepts:
+      - warrant
+      - strict_rule
+      - counter_argument
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 11
+      section: "3.1 Rebuttals and counter-arguments"
+      quote_fragment: "Propositions 3.1 and 3.2"
+
+  - id: claim8
+    type: observation
+    statement: "An acceptable argumentation line must satisfy four conditions: finiteness, concordance of supporting and interfering argument sets, no sub-argument reuse, and blocking defeaters cannot defeat blocking defeaters."
+    concepts:
+      - argumentation_line
+      - concordance
+      - blocking_defeater
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 21
+      section: "4.1 Acceptable argumentation lines"
+      quote_fragment: "Definition 4.7"
+
+  - id: claim9
+    type: observation
+    statement: "A dialectical tree for an argument collects all acceptable argumentation lines starting from that argument, where each node's children are the defeaters that maintain line acceptability."
+    concepts:
+      - dialectical_tree
+      - argumentation_line
+      - proper_defeater
+      - blocking_defeater
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 22
+      section: "5. Warrant through dialectical analysis"
+      quote_fragment: "Definition 5.1"
+
+  - id: claim10
+    type: observation
+    statement: "The marking procedure labels dialectical tree leaves as U (undefeated) and inner nodes as D (defeated) if any child is U, otherwise U, enabling bottom-up warrant determination."
+    concepts:
+      - marking_procedure
+      - dialectical_tree
+      - warrant
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 24
+      section: "5. Warrant through dialectical analysis"
+      quote_fragment: "Procedure 5.1"
+
+  - id: claim11
+    type: observation
+    statement: "A literal is warranted from a DeLP program iff there exists an argument structure for it whose root in the marked dialectical tree is labeled U."
+    concepts:
+      - warrant
+      - argument_structure
+      - dialectical_tree
+      - marking_procedure
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 24
+      section: "5. Warrant through dialectical analysis"
+      quote_fragment: "Definition 5.2"
+
+  - id: claim12
+    type: observation
+    statement: "DeLP provides exactly four possible answers to a query: YES (literal warranted), NO (complement warranted), UNDECIDED (arguments exist but none prevails), and UNKNOWN (literal not in program language)."
+    concepts:
+      - query_answer
+      - warrant
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 25
+      section: "5. Warrant through dialectical analysis"
+      quote_fragment: "Definition 5.3"
+
+  - id: claim13
+    type: mechanism
+    statement: "The generalized specificity criterion prefers arguments that use more specific information by counting the proportion of activation scenarios: an argument is preferred if it is activated in at least as many scenarios as its rival and strictly more in at least one."
+    concepts:
+      - generalized_specificity
+      - argument_structure
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 13
+      section: "3.2 Comparing arguments"
+      quote_fragment: "Definition 3.5"
+
+  - id: claim14
+    type: mechanism
+    statement: "The comparison criterion is modular and independent of the derivation mechanism: it can be replaced without changing the argumentation framework, allowing domain-specific preference criteria."
+    concepts:
+      - generalized_specificity
+      - argument_structure
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 14
+      section: "3.2 Comparing arguments"
+
+  - id: claim15
+    type: mechanism
+    statement: "Dialectical trees prevent the oscillation problem found in OSCAR by considering all possible counter-arguments simultaneously rather than processing them sequentially, ensuring warrant status is stable once determined."
+    concepts:
+      - dialectical_tree
+      - warrant
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 35
+      section: "8. Related work"
+
+  - id: claim16
+    type: mechanism
+    statement: "The concordance requirement on argumentation lines prevents contradictory support chains by requiring that the union of supporting argument rule sets with Pi be non-contradictory."
+    concepts:
+      - concordance
+      - argumentation_line
+      - strict_rule
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 20
+      section: "4.1 Acceptable argumentation lines"
+      quote_fragment: "Definition 4.6"
+
+  - id: claim17
+    type: mechanism
+    statement: "The sub-argument exclusion condition prevents circular reasoning by forbidding any argument in an argumentation line from being a sub-argument of an earlier argument in the same line."
+    concepts:
+      - argumentation_line
+      - argument_structure
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 21
+      section: "4.1 Acceptable argumentation lines"
+
+  - id: claim18
+    type: mechanism
+    statement: "The restriction that blocking defeaters cannot defeat blocking defeaters prevents infinite chains of mutually blocking arguments, requiring a proper (strictly preferred) defeater to overcome a blocking defeater."
+    concepts:
+      - blocking_defeater
+      - proper_defeater
+      - argumentation_line
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 21
+      section: "4.1 Acceptable argumentation lines"
+
+  - id: claim19
+    type: mechanism
+    statement: "Extended DeLP integrates default negation (not) with defeasible argumentation by treating default negated literals as additional attack points, where an argument for not-L exists when L is not warranted."
+    concepts:
+      - default_negation
+      - warrant
+      - argument_structure
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 30
+      section: "6.1 DeLP with default negation"
+
+  - id: claim20
+    type: comparison
+    statement: "Unlike OSCAR which processes counter-arguments sequentially and may oscillate between warranted and unwarranted status, DeLP uses dialectical trees to consider all counter-arguments simultaneously, preventing oscillation."
+    concepts:
+      - dialectical_tree
+      - warrant
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 35
+      section: "8.1 Defeasible approaches"
+
+  - id: claim21
+    type: comparison
+    statement: "Unlike Nute's Defeasible Logic which embeds rule priorities directly in the derivation mechanism, DeLP separates the comparison criterion from derivation, making it modular and replaceable."
+    concepts:
+      - generalized_specificity
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 35
+      section: "8.1 Defeasible approaches"
+
+  - id: claim22
+    type: comparison
+    statement: "Unlike Dung's abstract argumentation framework which provides no concrete language or argument construction mechanism, DeLP provides both a logic programming language and a concrete argument construction procedure."
+    concepts:
+      - argument_structure
+      - defeasible_logic_program
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 35
+      section: "8.1 Defeasible approaches"
+
+  - id: claim23
+    type: comparison
+    statement: "Unlike Extended Logic Programming which computes stable models and forces a choice between complementary conclusions in different models, DeLP keeps both and resolves via dialectical analysis without requiring model selection."
+    concepts:
+      - dialectical_tree
+      - defeasible_rule
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 35
+      section: "8.2 Logic programming"
+
+  - id: claim24
+    type: comparison
+    statement: "Unlike Prakken and Sartor's PLP which uses dialectical proof theory with rule-strength-based comparison and different proof procedures, DeLP uses argument-level comparison via generalized specificity and dialectical tree analysis."
+    concepts:
+      - generalized_specificity
+      - dialectical_tree
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 35
+      section: "8.1 Defeasible approaches"
+
+  - id: claim25
+    type: limitation
+    statement: "The generalized specificity comparison criterion may not be suitable for all domains, as it assumes that more specific arguments should be preferred."
+    concepts:
+      - generalized_specificity
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 14
+      section: "3.2 Comparing arguments"
+
+  - id: claim26
+    type: limitation
+    statement: "No computational complexity analysis is provided for dialectical tree construction, which can become expensive for non-trivial programs."
+    concepts:
+      - dialectical_tree
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 34
+      section: "7. Implementation and application"
+
+  - id: claim27
+    type: limitation
+    statement: "No formal semantics connecting DeLP to well-known logic programming semantics such as answer sets or well-founded semantics is provided; comparison is informal only."
+    concepts:
+      - defeasible_logic_program
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 35
+      section: "8.2 Logic programming"
+
+  - id: claim28
+    type: limitation
+    statement: "The rule priority criterion requires explicitly ordered defeasible rules but provides no mechanism for automatically acquiring or learning these priorities."
+    concepts:
+      - defeasible_rule
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 15
+      section: "3.2.2 Argument comparison using rule's priorities"
+
+  - id: claim29
+    type: observation
+    statement: "If two argument structures are equi-specific (neither is more specific than the other) then their conclusions cannot disagree."
+    concepts:
+      - generalized_specificity
+      - argument_structure
+      - disagreement
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 14
+      section: "3.2 Comparing arguments"
+      quote_fragment: "Proposition 3.4"
+
+  - id: claim30
+    type: observation
+    statement: "Equi-specificity is an equivalence relation on argument structures."
+    concepts:
+      - generalized_specificity
+      - argument_structure
+    provenance:
+      paper: Garcia_2004_DefeasibleLogicProgramming
+      page: 14
+      section: "3.2 Comparing arguments"
+      quote_fragment: "Lemma 3.1"

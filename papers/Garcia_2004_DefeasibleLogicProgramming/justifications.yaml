@@ -1,0 +1,191 @@
+source:
+  paper: Garcia_2004_DefeasibleLogicProgramming
+produced_by:
+  agent: "claude-opus-4-6"
+  skill: "extract-justifications"
+  timestamp: "2026-04-10T07:51:30Z"
+
+justifications:
+  - id: just1
+    conclusion: claim2
+    premises:
+      - claim1
+    rule_kind: definition_application
+    provenance:
+      page: 8
+      section: "3. Defeasible Argumentation"
+      quote_fragment: "An argument structure for h is built from the defeasible rules in the de.l.p."
+
+  - id: just2
+    conclusion: claim4
+    premises:
+      - claim2
+      - claim3
+    rule_kind: definition_application
+    provenance:
+      page: 10
+      section: "3. Defeasible Argumentation"
+      quote_fragment: "counter-argues at literal h, if and only if there exists a sub-argument such that h and h1 disagree"
+
+  - id: just3
+    conclusion: claim5
+    premises:
+      - claim4
+      - claim13
+    rule_kind: definition_application
+    provenance:
+      page: 16
+      section: "4. Defeaters and argumentation lines"
+      quote_fragment: "a proper defeater for the argument at literal h iff the counter-argument is strictly preferred"
+
+  - id: just4
+    conclusion: claim6
+    premises:
+      - claim2
+    rule_kind: causal_explanation
+    provenance:
+      page: 18
+      section: "4.1 Acceptable argumentation lines"
+      quote_fragment: "Pi union A would be contradictory, and the pair would not be an argument structure"
+
+  - id: just5
+    conclusion: claim7
+    premises:
+      - claim2
+      - claim3
+    rule_kind: causal_explanation
+    provenance:
+      page: 11
+      section: "3.1 Rebuttals and counter-arguments"
+      quote_fragment: "there is no possible counter-argument for an argument structure with empty A"
+
+  - id: just6
+    conclusion: claim8
+    premises:
+      - claim6
+      - claim16
+      - claim17
+      - claim18
+    rule_kind: definition_application
+    provenance:
+      page: 21
+      section: "4.1 Acceptable argumentation lines"
+      quote_fragment: "Definition 4.7 acceptable argumentation line"
+
+  - id: just7
+    conclusion: claim9
+    premises:
+      - claim8
+      - claim5
+    rule_kind: definition_application
+    provenance:
+      page: 22
+      section: "5. Warrant through dialectical analysis"
+      quote_fragment: "a dialectical tree considers all possible acceptable argumentation lines"
+
+  - id: just8
+    conclusion: claim11
+    premises:
+      - claim9
+      - claim10
+    rule_kind: definition_application
+    provenance:
+      page: 24
+      section: "5. Warrant through dialectical analysis"
+      quote_fragment: "warranted iff the root of the marked dialectical tree is marked U"
+
+  - id: just9
+    conclusion: claim12
+    premises:
+      - claim11
+    rule_kind: definition_application
+    provenance:
+      page: 25
+      section: "5. Warrant through dialectical analysis"
+      quote_fragment: "four possible answers for a query: YES, NO, UNDECIDED, or UNKNOWN"
+
+  - id: just10
+    conclusion: claim14
+    premises:
+      - claim13
+    rule_kind: causal_explanation
+    provenance:
+      page: 14
+      section: "3.2 Comparing arguments"
+      quote_fragment: "the comparison criterion is independent of the derivation process, and could be replaced in a modular way"
+
+  - id: just11
+    conclusion: claim15
+    premises:
+      - claim9
+      - claim10
+    rule_kind: comparison_based_inference
+    provenance:
+      page: 35
+      section: "8.1 Defeasible approaches"
+      quote_fragment: "a conclusion may be warranted and then unwarranted as a result of further reasoning"
+
+  - id: just12
+    conclusion: claim16
+    premises:
+      - claim3
+    rule_kind: causal_explanation
+    provenance:
+      page: 20
+      section: "4.1 Acceptable argumentation lines"
+      quote_fragment: "the set of supporting arguments must be concordant"
+
+  - id: just13
+    conclusion: claim20
+    premises:
+      - claim15
+    rule_kind: comparison_based_inference
+    attack_target:
+      target_claim: claim26
+    provenance:
+      page: 35
+      section: "8.1 Defeasible approaches"
+      quote_fragment: "OSCAR uses a procedural approach; a conclusion may be warranted and then unwarranted"
+
+  - id: just14
+    conclusion: claim21
+    premises:
+      - claim14
+    rule_kind: comparison_based_inference
+    provenance:
+      page: 35
+      section: "8.1 Defeasible approaches"
+      quote_fragment: "the derivation notion is bound to one single comparison criterion"
+
+  - id: just15
+    conclusion: claim22
+    premises:
+      - claim1
+      - claim2
+    rule_kind: comparison_based_inference
+    provenance:
+      page: 35
+      section: "8.1 Defeasible approaches"
+      quote_fragment: "Dung's abstract framework is very general but does not provide a concrete language"
+
+  - id: just16
+    conclusion: claim29
+    premises:
+      - claim2
+      - claim3
+      - claim13
+    rule_kind: definition_application
+    provenance:
+      page: 14
+      section: "3.2 Comparing arguments"
+      quote_fragment: "Proposition 3.4: If two argument structures are equi-specific then their conclusions cannot disagree"
+
+  - id: just17
+    conclusion: claim19
+    premises:
+      - claim11
+    rule_kind: definition_application
+    provenance:
+      page: 30
+      section: "6.1 DeLP with default negation"
+      quote_fragment: "an argument for not L exists when L is not warranted"

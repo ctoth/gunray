@@ -1,0 +1,283 @@
+source:
+  paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+  extraction_model: "claude-opus-4-20250514"
+  extraction_date: "2026-03-24"
+
+claims:
+  - id: claim1
+    type: observation
+    statement: "A Defeasible Logic Structure is a pair (K, Delta) where K is a consistent set of well-formed formulas partitioned into necessary knowledge K_N (sentences with variables) and contingent knowledge K_C (ground sentences), and Delta is a finite set of defeasible rules of the form alpha >- beta."
+    concepts:
+      - defeasible_logic_structure
+      - defeasible_rule
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 5
+      section: "2. Arguments and Specificity"
+      quote_fragment: "The knowledge of agent a is represented in IL by a pair (K, Delta)"
+
+  - id: claim2
+    type: observation
+    statement: "An argument structure <T, h> for conclusion h in context K is a minimal consistent subset T of grounded defeasible rule instances such that K union T defeasibly derives h, K union T does not derive contradiction, and no proper subset of T suffices for the derivation."
+    concepts:
+      - argument_structure
+      - defeasible_logic_structure
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 9
+      section: "2.1 Arguments"
+      quote_fragment: "Definition 2.2 [Revised]"
+
+  - id: claim3
+    type: mechanism
+    statement: "Specificity between argument structures is determined by comparing activation models: argument T1 for h1 is strictly more specific than T2 for h2 when every evidential situation that activates T1 also activates T2, but there exists a situation that activates T2 without activating T1, ensuring the more specific argument uses more detailed information."
+    concepts:
+      - specificity
+      - argument_structure
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 11
+      section: "2.2 Specificity"
+      quote_fragment: "Definition 2.6 Given two argument structures... strictly more specific"
+
+  - id: claim4
+    type: observation
+    statement: "The equi-specificity relation among argument structures is an equivalence relation, and the induced specificity ordering on the quotient set AStruc/~ is a partial order."
+    concepts:
+      - specificity
+      - argument_structure
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 13
+      section: "2.2 Specificity"
+      quote_fragment: "Lemma 2.2 The equi-specificity relation among members of AStruc is an equivalence relation... Lemma 2.3 The relation ⊒ defined in AStruc/~ is a partial order"
+
+  - id: claim5
+    type: observation
+    statement: "Specificity between two argument structures can be checked using only their antecedents: T1 is at least as specific as T2 iff for all x in An(T2), K_N union An(T1) union T2 defeasibly derives x."
+    concepts:
+      - specificity
+      - argument_structure
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 14
+      section: "2.2 Specificity"
+      quote_fragment: "Lemma 2.4"
+    notes: "This lemma reduces the search space for specificity checking from all possible evidential situations to just the antecedents."
+
+  - id: claim6
+    type: observation
+    statement: "The family of subargument structures of a given argument structure, equipped with combination (join) and intersection (meet) operations, forms a lattice."
+    concepts:
+      - argument_structure
+      - concordance
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 20
+      section: "3. An Algebra of Arguments"
+      quote_fragment: "Corollary 3.1 The family F with the intersection and combination operations defined over the argument structures forms a lattice"
+
+  - id: claim7
+    type: observation
+    statement: "Disagreement between two argument structures holds when their conclusions are jointly inconsistent with the context: <T1,h1> disagrees with <T2,h2> iff K union {h1,h2} derives contradiction."
+    concepts:
+      - argument_structure
+      - counterargument
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 22
+      section: "4.1.1 Disagreement"
+      quote_fragment: "Definition 4.1"
+
+  - id: claim8
+    type: mechanism
+    statement: "Defeat combines counterargument with specificity: argument T1 for h1 defeats T2 for h2 iff T1 counterargues T2 at some subargument <T,h> (T1 disagrees with a subargument of T2) and T1 is strictly more specific than that subargument."
+    concepts:
+      - specificity
+      - counterargument
+      - argument_structure
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 23
+      section: "4.1.3 Defeat"
+      quote_fragment: "Definition 4.3"
+
+  - id: claim9
+    type: mechanism
+    statement: "Justification is determined by a dialectical process at successive levels: at level 0 all arguments are both supporting (S-arguments) and interfering (I-arguments); at level n+1 an S-argument survives iff no level-n I-argument counterargues it, and an I-argument survives iff no level-n I-argument defeats it. An argument justifies its conclusion when it stabilizes as an S-argument at some finite level."
+    concepts:
+      - warrant
+      - defeat_level
+      - argument_structure
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 25
+      section: "4.2 Justifying Arguments"
+      quote_fragment: "Definition 4.4... Definition 4.5"
+
+  - id: claim10
+    type: observation
+    statement: "For any Defeasible Logic Structure (K, Delta), there exists a unique stable set of justified facts, and the iterated operator Sigma will find it in finite steps."
+    concepts:
+      - defeasible_logic_structure
+      - warrant
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 26
+      section: "4.2 Justifying Arguments"
+      quote_fragment: "Theorem 4.1 For any Defeasible Logic Structure (K, Delta), there is a unique stable set, and the operator Sigma will find it"
+    notes: "This is the paper's central theoretical result, guaranteeing termination and determinism."
+
+  - id: claim11
+    type: observation
+    statement: "If an argument <T,h> justifies h, then every subargument <R,q> of <T,h> also justifies q."
+    concepts:
+      - argument_structure
+      - warrant
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 25
+      section: "4.2 Justifying Arguments"
+      quote_fragment: "Lemma 4.1"
+
+  - id: claim12
+    type: observation
+    statement: "In the Opus example (penguins don't fly), the system correctly concludes neg F(opus) because the penguin-specific argument is more specific than the bird-general argument, defeating it via specificity."
+    concepts:
+      - specificity
+      - skeptical_reasoning
+      - defeasible_reasoning
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 29
+      section: "6. Some Interesting Examples"
+      quote_fragment: "Example 6.1 [Opus does not fly]"
+
+  - id: claim13
+    type: observation
+    statement: "In the Nixon Diamond (quaker-republican conflict), the system correctly gives no answer because the two argument structures are equi-specific and neither defeats the other, producing skeptical behavior."
+    concepts:
+      - specificity
+      - skeptical_reasoning
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 30
+      section: "6. Some Interesting Examples"
+      quote_fragment: "Example 6.2 [Nixon Diamond]... None of those argument structures defeats the other; they interfere and our reasoner does not give an answer"
+
+  - id: claim14
+    type: observation
+    statement: "In the Cascaded Ambiguities example (extended Nixon Diamond with chained inferences), the system correctly remains skeptical on the direct conflict but does not propagate the ambiguity to dependent conclusions through unrelated inference paths."
+    concepts:
+      - skeptical_reasoning
+      - defeasible_reasoning
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 31
+      section: "6. Some Interesting Examples"
+      quote_fragment: "Example 6.3 [Cascaded Ambiguities]"
+
+  - id: claim15
+    type: comparison
+    statement: "Poole's approach to specificity is correct as a comparative measure of information relevance but stops short of operational completeness — it is impossible to decide when to apply his specificity comparator, and he does not address the complexity of interactions among arguments."
+    concepts:
+      - specificity
+      - defeasible_reasoning
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 5
+      section: "1.1 Poole and Pollock Combined"
+      quote_fragment: "Poole treats specificity... in the right way but stops short in the operational aspects of his system"
+
+  - id: claim16
+    type: comparison
+    statement: "Pollock correctly treats the operational aspects of warrant but rejects specificity as a generalization of the subclass defeater, which places him in an extreme minority in the defeasible reasoning community."
+    concepts:
+      - warrant
+      - specificity
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 6
+      section: "1.1 Poole and Pollock Combined"
+      quote_fragment: "Pollock treats the operational aspects correctly but he rejects specificity as a generalization of the subclass defeater"
+
+  - id: claim17
+    type: comparison
+    statement: "Nute's d-Prolog system introduces absolute rules, defeasible rules, and defeater rules, which amounts to a retreat from the goal of having a declarative language — special rule kinds to handle exceptions undermine declarativeness."
+    concepts:
+      - defeasible_rule
+      - defeasible_reasoning
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 34
+      section: "7. A Justification Finder"
+      quote_fragment: "adding special kinds of defeasible rules amounts to a retreat from the goal of having a declarative language"
+
+  - id: claim18
+    type: limitation
+    statement: "The implementation language is restricted to Horn clauses for the evidential context K and Horn-clause-like syntax for defeasible rules in Delta, limiting expressiveness compared to full first-order logic."
+    concepts:
+      - defeasible_logic_structure
+      - defeasible_rule
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 35
+      section: "7. A Justification Finder"
+      quote_fragment: "the language is restricted to Horn clauses for the evidential context"
+
+  - id: claim19
+    type: limitation
+    statement: "Negation is handled via an explicit 'neg' prefix operator rather than classical negation, which is not related to negation-as-failure and provides only a limited form of first-order negation."
+    concepts:
+      - defeasible_reasoning
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 37
+      section: "7.1 The Language Implemented"
+      quote_fragment: "This form of negation is in no way related to 'negation as failure'"
+
+  - id: claim20
+    type: mechanism
+    statement: "The jf implementation constructs arguments via backward chaining from the query goal, always finding the most specific argument first because unit clauses (facts) are preferred during backward chaining, and less specific arguments are only found through Prolog backtracking."
+    concepts:
+      - argument_structure
+      - specificity
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 40
+      section: "7.2 Finding Justifications"
+      quote_fragment: "the system will always form the most specific argument. If the system is forced to backtrack from an unit clause... it will not attempt to find support for G in other clauses"
+
+  - id: claim21
+    type: observation
+    statement: "If an argument structure T1 covers T2 (T1 is at least as specific as T2 and can derive all consequents of T2), then any subargument <R,p> of T2 has a corresponding subargument <S,p> in T1 with S at least as specific as R, enabling safe pruning of covered arguments from the search space."
+    concepts:
+      - argument_structure
+      - specificity
+    context: ctx_defeasible_argumentation
+    provenance:
+      paper: Simari_1992_MathematicalTreatmentDefeasibleReasoning
+      page: 15
+      section: "2.2 Specificity"
+      quote_fragment: "Lemma 2.5"
+    notes: "The covering lemma is key for efficient implementation — it allows discarding less-specific arguments early."

@@ -1,0 +1,22 @@
+{
+  "title": "DR-Prolog: A System for Defeasible Reasoning with Rules and Ontologies on the Semantic Web",
+  "authors": [
+    "Grigoris Antoniou",
+    "Antonis Bikakis"
+  ],
+  "year": 2007,
+  "venue": "IEEE Transactions on Knowledge and Data Engineering",
+  "doi_url": "https://doi.org/10.1109/TKDE.2007.29",
+  "keywords": [
+    "defeasible reasoning",
+    "semantic web",
+    "nonmonotonic reasoning",
+    "logic programming",
+    "well-founded semantics",
+    "RuleML",
+    "OWL",
+    "Prolog"
+  ],
+  "pages": 35,
+  "source_pdf": "DR-Prolog-TKDE.pdf"
+}

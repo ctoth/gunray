@@ -1,0 +1,10 @@
+{
+  "title": "Deciding Consistency of Databases Containing Defeasible and Strict Information",
+  "authors": ["Moisés Goldszmidt", "Judea Pearl"],
+  "year": "1992",
+  "arxiv_id": "1304.1507",
+  "doi": null,
+  "abstract": "We propose a norm of consistency for a mixed set X of defeasible and strict sentences, based on a probabilistic interpretation of defaults. The criterion clearly delineates a clear distinction between knowledge base designing exceptions and cases containing outright contradictions. We then define a notion of entailment based on consistency and provide results that enable us to provide a characterization of the relation between consistency and entailment. We derive necessary and sufficient conditions for consistency, and provide a simple procedure for testing consistency. The procedure has a nice computational property: given a consistent subset X of X and identifying the inconsistent action of sentences of the first-case that X is not p-consistent. The same procedure can also be used to test whether a sentence is an exception or an inconsistency with respect to the sentences in X are if are Horn clauses, consistency and entailment can be tested in polynomial time.",
+  "url": "https://arxiv.org/abs/1304.1507",
+  "pdf_url": "https://arxiv.org/pdf/1304.1507v1"
+}

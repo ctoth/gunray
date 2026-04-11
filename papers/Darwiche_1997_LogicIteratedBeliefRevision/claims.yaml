@@ -1,0 +1,231 @@
+source:
+  paper: Darwiche_1997_LogicIteratedBeliefRevision
+produced_by:
+  agent: "claude-opus-4-6"
+  skill: "extract-claims"
+  timestamp: "2026-03-29T03:11:58Z"
+
+claims:
+  - id: claim1
+    type: observation
+    statement: "The AGM postulates (R1-R6) are too weak to regulate iterated belief revision because they constrain only belief sets, not epistemic states, thus permitting counterintuitive changes in conditional beliefs across sequences of observations."
+    concepts:
+      - agm_consistency
+      - iterated_belief_revision
+      - belief_state
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 1
+      section: "Abstract"
+      quote_fragment: "the AGM postulates are too weak to ensure the rational preservation of conditional beliefs during belief revision"
+
+  - id: claim2
+    type: mechanism
+    statement: "AGM's failure for iterated revision stems from operating on belief sets rather than epistemic states: belief sets encode only which propositions are currently believed, losing the conditional beliefs and revision strategies needed to determine how beliefs should change upon further evidence."
+    concepts:
+      - belief_state
+      - belief_revision_function
+      - agm_consistency
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 2
+      section: "1. Introduction"
+      quote_fragment: "the AGM postulates place almost no constraints on the preservation of conditional beliefs"
+
+  - id: claim3
+    type: observation
+    statement: "Postulate C1 (DP1): If alpha entails mu, then revising first by mu then by alpha yields the same belief set as revising directly by alpha. More specific evidence makes prior general evidence redundant."
+    concepts:
+      - iterated_belief_revision
+      - belief_revision_function
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 11
+      section: "5. Postulates for iterated revision"
+      quote_fragment: "when two pieces of evidence arrive, the second being more specific than the first, the first is redundant"
+
+  - id: claim4
+    type: observation
+    statement: "Postulate C2 (DP2): If alpha entails not-mu, then revising first by mu then by alpha yields the same belief set as revising directly by alpha. Contradicting later evidence completely overrides earlier evidence."
+    concepts:
+      - iterated_belief_revision
+      - belief_revision_function
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 11
+      section: "5. Postulates for iterated revision"
+      quote_fragment: "when two contradictory pieces of evidence arrive, the last one prevails"
+
+  - id: claim5
+    type: observation
+    statement: "Postulate C3 (DP3): If revising by alpha alone yields a belief set containing mu, then revising first by mu then by alpha also yields a belief set containing mu. Evidence mu should be retained when subsequent evidence alpha supports it."
+    concepts:
+      - iterated_belief_revision
+      - belief_revision_function
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 11
+      section: "5. Postulates for iterated revision"
+      quote_fragment: "an evidence mu should be retained after accommodating a more recent evidence alpha that implies mu"
+
+  - id: claim6
+    type: observation
+    statement: "Postulate C4 (DP4): If revising by alpha alone does not yield not-mu, then revising first by mu then by alpha also does not yield not-mu. No evidence can contribute to its own demise."
+    concepts:
+      - iterated_belief_revision
+      - belief_revision_function
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 11
+      section: "5. Postulates for iterated revision"
+      quote_fragment: "no evidence can contribute to its own demise"
+
+  - id: claim7
+    type: observation
+    statement: "The four DP postulates C1-C4 correspond to four pre-order preservation conditions CR1-CR4: CR1 preserves relative ordering within mu-worlds, CR2 preserves relative ordering within not-mu-worlds, CR3 preserves strict ordering of mu-worlds over not-mu-worlds, CR4 preserves non-strict ordering of mu-worlds over not-mu-worlds."
+    concepts:
+      - iterated_belief_revision
+      - belief_state
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 14
+      section: "Theorem 13"
+      quote_fragment: "A revision operator satisfies postulates (R*1)-(R*6) and (C1)-(C4) iff the operator and its corresponding faithful assignment satisfy"
+
+  - id: claim8
+    type: comparison
+    statement: "Unlike Boutilier's natural revision which preserves all conditional beliefs (postulate CB), the DP postulates C1-C4 selectively preserve only those conditional beliefs that should not be affected by the accommodated evidence, avoiding the counterintuitive results that absolute minimization produces."
+    concepts:
+      - iterated_belief_revision
+      - belief_revision_function
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 10
+      section: "4.2. Is absolute minimization desirable?"
+      quote_fragment: "the postulate is somewhat of an overkill because it does compromise propositional beliefs"
+
+  - id: claim9
+    type: mechanism
+    statement: "Revision by Spohn's bullet operator works by shifting all mu-worlds down by kappa(mu) (normalizing the most plausible mu-world to rank 0) and shifting all not-mu-worlds up by 1, preserving relative ordering within each partition while making all mu-worlds more plausible than all not-mu-worlds."
+    concepts:
+      - belief_revision_function
+      - belief_state
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 15
+      section: "6. Properties of iterated revision postulates"
+      quote_fragment: "conditioning is a shifting process in which the ranks of worlds inside Mods(mu) are all reduced"
+
+  - id: claim10
+    type: observation
+    statement: "The Spohn bullet revision operator satisfies both the modified AGM postulates (R*1-R*6) and all four DP postulates (C1-C4), proving the consistency and joint satisfiability of the proposed postulate system."
+    concepts:
+      - iterated_belief_revision
+      - belief_revision_function
+      - agm_consistency
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 15
+      section: "Theorem 14"
+      quote_fragment: "The revision operator bullet satisfies postulates (R*1)-(R*6) and (C1)-(C4)"
+
+  - id: claim11
+    type: observation
+    statement: "Postulates C3 and C4 are independent of C1: there exists a revision operator (diamond) satisfying R*1-R*6 and C1 but violating both C3 and C4."
+    concepts:
+      - iterated_belief_revision
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 16
+      section: "Theorem 15"
+      quote_fragment: "There is a revision operator that satisfies postulates (R*1)-(R*6) and (C1), but does not satisfy postulate (C3) or (C4)"
+
+  - id: claim12
+    type: comparison
+    statement: "Unlike the original AGM postulate R4 which requires revision to depend only on the current belief set, the weakened R*4 requires identity of epistemic states, allowing two agents with the same beliefs but different revision strategies to revise differently upon receiving the same evidence."
+    concepts:
+      - agm_consistency
+      - belief_state
+      - belief_revision_function
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 7
+      section: "3. Epistemic states versus belief sets"
+      quote_fragment: "it is possible to have two different epistemic states with equivalent belief sets"
+
+  - id: claim13
+    type: limitation
+    statement: "The DP postulates C1-C4 are qualitative and do not account for the strength of evidence triggering the belief change, which limits their applicability when evidence varies in reliability or weight."
+    concepts:
+      - iterated_belief_revision
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 17
+      section: "8. Future work"
+      quote_fragment: "the outcome of belief change depends on the strength of evidence triggering the change"
+
+  - id: claim14
+    type: limitation
+    statement: "Postulates C5 and C6 (absolute minimization of conditional belief change) are too strong: C5 can prohibit legitimate acquisition of conditional beliefs after observing confirming evidence, and C6 can force retention of conditional beliefs that should be retractable."
+    concepts:
+      - iterated_belief_revision
+      - belief_revision_function
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 16
+      section: "7. Legitimate changes in conditional beliefs"
+      quote_fragment: "postulate (C5) can prohibit some legitimate changes in conditional beliefs"
+
+  - id: claim15
+    type: observation
+    statement: "Under the original AGM postulate R4 (where revision depends only on the current belief set, not the full epistemic state), postulate C1 alone is sufficient to imply both C3 and C4, but this requirement is itself too restrictive."
+    concepts:
+      - agm_consistency
+      - iterated_belief_revision
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 16
+      section: "Theorem 15 context"
+      quote_fragment: "the AGM postulates together with postulate (C1) are sufficient to imply postulates (C3) and (C4)"
+
+  - id: claim16
+    type: equation
+    expression: "kappa_bullet_mu(omega) = kappa(omega) - kappa(mu) if omega |= mu; kappa(omega) + 1 if omega |= not-mu"
+    sympy: "Piecewise((kappa_omega - kappa_mu, omega_satisfies_mu), (kappa_omega + 1, True))"
+    variables:
+      - symbol: "kappa(omega)"
+        concept: belief_state
+        role: "dependent"
+      - symbol: "kappa(mu)"
+        concept: belief_state
+        role: "independent"
+      - symbol: "omega"
+        concept: belief_state
+        role: "independent"
+      - symbol: "mu"
+        concept: belief_revision_function
+        role: "independent"
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 15
+      section: "6. Properties of iterated revision postulates"
+
+  - id: claim17
+    type: equation
+    expression: "kappa_(mu,m)(omega) = kappa(omega) - kappa(mu) if omega |= mu; kappa(omega) - kappa(not-mu) + m if omega |= not-mu"
+    sympy: "Piecewise((kappa_omega - kappa_mu, omega_satisfies_mu), (kappa_omega - kappa_neg_mu + m, True))"
+    variables:
+      - symbol: "kappa(omega)"
+        concept: belief_state
+        role: "dependent"
+      - symbol: "kappa(mu)"
+        concept: belief_state
+        role: "independent"
+      - symbol: "m"
+        concept: belief_state
+        role: "parameter"
+    provenance:
+      paper: Darwiche_1997_LogicIteratedBeliefRevision
+      page: 15
+      section: "6. Properties of iterated revision postulates"
+      quote_fragment: "Spohn called kappa_(mu,m) the (mu,m)-conditionalization of kappa"

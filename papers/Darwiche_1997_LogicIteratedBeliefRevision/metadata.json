@@ -1,0 +1,17 @@
+{
+  "title": "On the Logic of Iterated Belief Revision",
+  "authors": [
+    "Adnan Darwiche",
+    "J. Pearl"
+  ],
+  "year": "1997",
+  "doi": "10.1016/S0004-3702(96)00038-0",
+  "arxiv_id": null,
+  "abstract": "We show in this paper that the AGM postulates are too weak to ensure the rational preservation of conditional beliefs during belief revision, thus permitting improper responses to sequences of observations. We remedy this weakness by proposing four additional postulates, which are sound relative to a qualitative version of probabilistic conditioning. Contrary to the AGM framework, the proposed postulates characterize belief revision as a process which may depend on elements of an epistemic state that are not necessarily captured by a belief set. We also show that a simple modification to the AGM framework can allow belief revision to be a function of epistemic states. We establish a model-based representation theorem which characterizes the proposed postulates and constrains, in turn, the way in which entrenchment orderings may be transformed under iterated belief revision.",
+  "url": "https://www.semanticscholar.org/paper/967ce03769c0a57265e25ebb82dc64fb3ac91707",
+  "pdf_url": "https://doi.org/10.1016/s0004-3702(96)00038-0",
+  "venue": "Artificial Intelligence",
+  "venue_type": "journal",
+  "volume": "89",
+  "pages": "1-29"
+}
