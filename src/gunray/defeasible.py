@@ -14,6 +14,7 @@ from datalog_conformance.schema import (
 from .evaluator import SemiNaiveEvaluator
 from .evaluator import _match_positive_body
 from .parser import ground_atom, normalize_facts, parse_defeasible_theory
+from .relation import IndexedRelation
 from .types import DefeasibleRule, GroundAtom, GroundDefeasibleRule
 from .types import variables_in_term
 
@@ -119,17 +120,19 @@ def _strict_rule_to_program_text(head: str, body: list[str]) -> str:
 def _positive_closure(
     facts: dict[str, set[tuple[object, ...]]],
     rules: list[DefeasibleRule],
-) -> dict[str, set[tuple[object, ...]]]:
-    model = {predicate: set(rows) for predicate, rows in facts.items()}
+) -> dict[str, IndexedRelation]:
+    model = {
+        predicate: IndexedRelation(rows)
+        for predicate, rows in facts.items()
+    }
     while True:
         changed = False
         for rule in rules:
             bindings = _match_positive_body(rule.body, model)
             for binding in bindings:
                 grounded = ground_atom(rule.head, binding)
-                bucket = model.setdefault(grounded.predicate, set())
-                if grounded.arguments not in bucket:
-                    bucket.add(grounded.arguments)
+                bucket = model.setdefault(grounded.predicate, IndexedRelation())
+                if bucket.add(grounded.arguments):
                     changed = True
         if not changed:
             return model
@@ -137,7 +140,7 @@ def _positive_closure(
 
 def _ground_rules(
     rules: list[DefeasibleRule],
-    support_model: dict[str, set[tuple[object, ...]]],
+    support_model: dict[str, IndexedRelation],
 ) -> tuple[list[GroundDefeasibleRule], set[GroundAtom]]:
     grounded: list[GroundDefeasibleRule] = []
     unsupported_heads: set[GroundAtom] = set()
@@ -239,7 +242,7 @@ def _supporter_survives(
     return True
 
 
-def _facts_to_atoms(facts: dict[str, set[tuple[object, ...]]]) -> set[GroundAtom]:
+def _facts_to_atoms(facts: dict[str, IndexedRelation]) -> set[GroundAtom]:
     return {
         GroundAtom(predicate=predicate, arguments=tuple(row))
         for predicate, rows in facts.items()

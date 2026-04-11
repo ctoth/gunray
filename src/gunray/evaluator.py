@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
+
 from datalog_conformance.schema import Model, Program as SchemaProgram
 
 from .errors import ArityMismatchError, SafetyViolationError, UnboundVariableError
 from .parser import ground_atom, parse_program
+from .relation import IndexedRelation
 from .semantics import (
     SemanticError,
     add_values,
@@ -37,14 +40,22 @@ class SemiNaiveEvaluator:
         _validate_program(facts, rules)
         strata = stratify(rules)
 
-        model = {predicate: set(rows) for predicate, rows in facts.items()}
+        model = {
+            predicate: IndexedRelation(rows)
+            for predicate, rows in facts.items()
+        }
         for predicates in strata:
             stratum_rules = [
                 rule for rule in rules if rule.heads[0].predicate in predicates
             ]
             _evaluate_stratum(model, stratum_rules)
 
-        return Model(facts=model)
+        return Model(
+            facts={
+                predicate: relation.as_set()
+                for predicate, relation in model.items()
+            }
+        )
 
 
 def _normalize_rules(rules: list[Rule]) -> list[Rule]:
@@ -112,60 +123,307 @@ def _validate_program(facts: dict[str, set[tuple[object, ...]]], rules: list[Rul
 
 
 def _evaluate_stratum(
-    model: dict[str, set[tuple[object, ...]]],
+    model: dict[str, IndexedRelation],
     rules: list[Rule],
 ) -> None:
-    while True:
-        changed = False
+    stratum_predicates = {rule.heads[0].predicate for rule in rules}
+
+    delta = {
+        predicate: IndexedRelation(
+            model.get(predicate, IndexedRelation()).as_set()
+        )
+        for predicate in stratum_predicates
+    }
+    first_iteration = True
+    while first_iteration or any(delta_relation for delta_relation in delta.values()):
+        next_delta = {
+            predicate: IndexedRelation()
+            for predicate in stratum_predicates
+        }
+        previous_only = {
+            predicate: model.get(predicate, IndexedRelation()).difference(delta_relation)
+            for predicate, delta_relation in delta.items()
+        }
         for rule in rules:
-            bindings = _match_positive_body(rule.positive_body, model)
-            for binding in bindings:
-                if not _constraints_hold(rule.constraints, binding):
+            recursive_positions = [
+                index
+                for index, atom in enumerate(rule.positive_body)
+                if atom.predicate in stratum_predicates
+            ]
+            for delta_offset, delta_position in enumerate(recursive_positions):
+                atom = rule.positive_body[delta_position]
+                delta_rows = delta.get(atom.predicate)
+                if delta_rows is None or not delta_rows:
                     continue
-                if not _negative_body_holds(rule.negative_body, binding, model):
-                    continue
-                derived = ground_atom(rule.heads[0], binding)
-                bucket = model.setdefault(derived.predicate, set())
-                if derived.arguments not in bucket:
-                    bucket.add(derived.arguments)
-                    changed = True
-        if not changed:
+                overrides = {delta_position: delta_rows}
+                for earlier_position in recursive_positions[:delta_offset]:
+                    earlier_atom = rule.positive_body[earlier_position]
+                    overrides[earlier_position] = previous_only[earlier_atom.predicate]
+                bindings = _iter_positive_body_matches_with_overrides(
+                    rule.positive_body,
+                    model,
+                    overrides,
+                )
+                _apply_rule(rule, model, next_delta, bindings)
+            if recursive_positions or not first_iteration:
+                continue
+            _apply_rule(
+                rule,
+                model,
+                next_delta,
+                _iter_positive_body_matches(rule.positive_body, model),
+            )
+        if not any(delta_relation for delta_relation in next_delta.values()):
             return
+        for predicate, rows in next_delta.items():
+            bucket = model.setdefault(predicate, IndexedRelation())
+            for row in rows:
+                bucket.add(row)
+        delta = next_delta
+        first_iteration = False
+
+
+def _apply_rule(
+    rule: Rule,
+    model: dict[str, IndexedRelation],
+    delta: dict[str, IndexedRelation],
+    bindings: Iterable[dict[str, object]],
+) -> None:
+    for binding in bindings:
+        if not _constraints_hold(rule.constraints, binding):
+            continue
+        if not _negative_body_holds(rule.negative_body, binding, model):
+            continue
+        derived = ground_atom(rule.heads[0], binding)
+        if derived.arguments in model.get(derived.predicate, IndexedRelation()):
+            continue
+        delta_bucket = delta.setdefault(derived.predicate, IndexedRelation())
+        delta_bucket.add(derived.arguments)
 
 
 def _match_positive_body(
     atoms: tuple[Atom, ...],
-    model: dict[str, set[tuple[object, ...]]],
+    model: dict[str, IndexedRelation],
 ) -> list[dict[str, object]]:
-    if not atoms:
-        return [{}]
+    return list(_iter_positive_body_matches(atoms, model))
 
-    bindings: list[dict[str, object]] = [{}]
-    for atom in atoms:
-        next_bindings: list[dict[str, object]] = []
-        rows = model.get(atom.predicate, set())
-        for binding in bindings:
-            for row in rows:
-                candidate = _unify(atom, row, binding)
-                if candidate is not None:
-                    next_bindings.append(candidate)
-        bindings = next_bindings
-        if not bindings:
-            return []
-    return bindings
+
+def _iter_positive_body_matches(
+    atoms: tuple[Atom, ...],
+    model: dict[str, IndexedRelation],
+) -> Iterator[dict[str, object]]:
+    return _iter_positive_body_matches_with_overrides(atoms, model, {})
+
+
+def _iter_positive_body_matches_with_overrides(
+    atoms: tuple[Atom, ...],
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> Iterator[dict[str, object]]:
+    if not atoms:
+        yield {}
+        return
+
+    ordered_atoms = _order_positive_body(atoms, model, overrides)
+    yield from _iter_matches_from(
+        ordered_atoms,
+        0,
+        {},
+        model,
+        overrides,
+    )
+
+
+def _iter_matches_from(
+    ordered_atoms: list[tuple[int, Atom]],
+    offset: int,
+    binding: dict[str, object],
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> Iterator[dict[str, object]]:
+    if offset >= len(ordered_atoms):
+        yield dict(binding)
+        return
+
+    index, atom = ordered_atoms[offset]
+    rows = overrides.get(index, model.get(atom.predicate, IndexedRelation()))
+    for row in _matching_rows(atom, binding, rows):
+        changes = _bind_row(atom, row, binding)
+        if changes is None:
+            continue
+        yield from _iter_matches_from(
+            ordered_atoms,
+            offset + 1,
+            binding,
+            model,
+            overrides,
+        )
+        _rollback_binding(binding, changes)
+
+
+def _match_positive_body_with_overrides(
+    atoms: tuple[Atom, ...],
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> list[dict[str, object]]:
+    return list(_iter_positive_body_matches_with_overrides(atoms, model, overrides))
+
+
+def _order_positive_body(
+    atoms: tuple[Atom, ...],
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> list[tuple[int, Atom]]:
+    remaining = list(enumerate(atoms))
+    ordered: list[tuple[int, Atom]] = []
+    bound_vars: set[str] = set()
+
+    while remaining:
+        ready = [
+            item
+            for item in remaining
+            if _expression_variables_in_atom(item[1]) <= bound_vars
+        ]
+        if not ready:
+            ready = remaining
+        chosen = min(
+            ready,
+            key=lambda item: _positive_atom_cost(item, bound_vars, model, overrides),
+        )
+        ordered.append(chosen)
+        bound_vars |= _binding_variables_in_atom(chosen[1])
+        remaining.remove(chosen)
+
+    return ordered
+
+
+def _positive_atom_cost(
+    item: tuple[int, Atom],
+    bound_vars: set[str],
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> tuple[int, int, int, str]:
+    index, atom = item
+    rows = overrides.get(index, model.get(atom.predicate, IndexedRelation()))
+    constrained_terms = 0
+    bound_term_variables = 0
+    for term in atom.terms:
+        if isinstance(term, Constant):
+            constrained_terms += 1
+            continue
+        if isinstance(term, Wildcard):
+            continue
+        if isinstance(term, Variable):
+            if term.name in bound_vars:
+                constrained_terms += 1
+                bound_term_variables += 1
+            continue
+        if variables_in_term(term) <= bound_vars:
+            constrained_terms += 1
+
+    return (
+        len(rows),
+        -constrained_terms,
+        -bound_term_variables,
+        atom.predicate,
+    )
+
+
+def _expression_variables_in_atom(atom: Atom) -> set[str]:
+    variables: set[str] = set()
+    for term in atom.terms:
+        if isinstance(term, (AddExpression, SubtractExpression)):
+            variables |= variables_in_term(term)
+    return variables
 
 
 def _negative_body_holds(
     atoms: tuple[Atom, ...],
     binding: dict[str, object],
-    model: dict[str, set[tuple[object, ...]]],
+    model: dict[str, IndexedRelation],
 ) -> bool:
     for atom in atoms:
-        rows = model.get(atom.predicate, set())
-        for row in rows:
+        rows = model.get(atom.predicate, IndexedRelation())
+        for row in _matching_rows(atom, binding, rows):
             if _unify(atom, row, binding) is not None:
                 return False
     return True
+
+
+_UNBOUND = object()
+
+
+def _matching_rows(
+    atom: Atom,
+    binding: dict[str, object],
+    rows: IndexedRelation,
+) -> IndexedRelation | set[tuple[object, ...]]:
+    if not rows:
+        return rows
+
+    columns: list[int] = []
+    values: list[object] = []
+    for index, term in enumerate(atom.terms):
+        value = _bound_term_value(term, binding)
+        if value is _UNBOUND:
+            continue
+        columns.append(index)
+        values.append(value)
+
+    if not columns:
+        return rows
+    return rows.lookup(tuple(columns), tuple(values))
+
+
+def _bound_term_value(term: AtomTerm, binding: dict[str, object]) -> object:
+    if isinstance(term, Constant):
+        return term.value
+    if isinstance(term, Wildcard):
+        return _UNBOUND
+    if isinstance(term, Variable):
+        return binding.get(term.name, _UNBOUND)
+
+    value = _value_from_term(term, binding)
+    if value is None:
+        return _UNBOUND
+    return value
+
+
+def _bind_row(
+    atom: Atom,
+    row: tuple[object, ...],
+    binding: dict[str, object],
+) -> list[str] | None:
+    if len(row) != atom.arity:
+        return None
+
+    assigned: list[str] = []
+    for term, value in zip(atom.terms, row, strict=True):
+        if isinstance(term, Constant):
+            if not values_equal(term.value, value):
+                _rollback_binding(binding, assigned)
+                return None
+            continue
+        if isinstance(term, Wildcard):
+            continue
+        if isinstance(term, Variable):
+            existing = binding.get(term.name, _UNBOUND)
+            if existing is _UNBOUND:
+                binding[term.name] = value
+                assigned.append(term.name)
+            elif not values_equal(existing, value):
+                _rollback_binding(binding, assigned)
+                return None
+            continue
+        if not _expression_matches(term, value, binding):
+            _rollback_binding(binding, assigned)
+            return None
+    return assigned
+
+
+def _rollback_binding(binding: dict[str, object], assigned: list[str]) -> None:
+    for name in reversed(assigned):
+        del binding[name]
 
 
 def _unify(
