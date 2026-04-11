@@ -60,6 +60,19 @@ class IndexedRelation:
         self._indexes[columns] = built
         return built
 
+    def average_lookup_size(
+        self,
+        columns: tuple[int, ...],
+    ) -> float:
+        if not self._rows:
+            return 0.0
+        if not columns:
+            return float(len(self._rows))
+        index = self.ensure_index(columns)
+        if not index:
+            return 0.0
+        return len(self._rows) / len(index)
+
     def as_set(self) -> set[tuple[object, ...]]:
         return set(self._rows)
 

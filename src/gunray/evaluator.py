@@ -385,14 +385,16 @@ def _positive_atom_cost(
     bound_vars: set[str],
     model: dict[str, IndexedRelation],
     overrides: dict[int, IndexedRelation],
-) -> tuple[int, int, int, str]:
+) -> tuple[float, int, int, int, str]:
     index, atom = item
     rows = overrides.get(index, model.get(atom.predicate, IndexedRelation()))
     constrained_terms = 0
     bound_term_variables = 0
-    for term in atom.terms:
+    lookup_columns: list[int] = []
+    for term_index, term in enumerate(atom.terms):
         if isinstance(term, Constant):
             constrained_terms += 1
+            lookup_columns.append(term_index)
             continue
         if isinstance(term, Wildcard):
             continue
@@ -400,11 +402,13 @@ def _positive_atom_cost(
             if term.name in bound_vars:
                 constrained_terms += 1
                 bound_term_variables += 1
+                lookup_columns.append(term_index)
             continue
         if variables_in_term(term) <= bound_vars:
             constrained_terms += 1
 
     return (
+        rows.average_lookup_size(tuple(lookup_columns)),
         len(rows),
         -constrained_terms,
         -bound_term_variables,

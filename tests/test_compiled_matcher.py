@@ -135,3 +135,35 @@ def test_order_positive_body_prefers_delta_atom_when_safe() -> None:
     )
 
     assert ordered[0][0] == 1
+
+
+def test_order_positive_body_prefers_lower_lookup_fanout() -> None:
+    atoms = (
+        Atom("seed", (Variable("x"),)),
+        Atom("small_total_high_fanout", (Variable("x"), Variable("y"))),
+        Atom("large_total_low_fanout", (Variable("x"), Variable("z"))),
+    )
+    model = {
+        "seed": IndexedRelation({("k",)}),
+        "small_total_high_fanout": IndexedRelation(
+            {
+                ("k", 1),
+                ("k", 2),
+                ("k", 3),
+            }
+        ),
+        "large_total_low_fanout": IndexedRelation(
+            {
+                ("k", 1),
+                ("m1", 1),
+                ("m2", 1),
+                ("m3", 1),
+                ("m4", 1),
+                ("m5", 1),
+            }
+        ),
+    }
+
+    ordered = _order_positive_body(atoms, model, {}, preferred_first_index=0)
+
+    assert [item[0] for item in ordered[:2]] == [0, 2]
