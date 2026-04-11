@@ -10,6 +10,7 @@ from datalog_conformance.plugin import _load_multi_case_file, get_tests_dir
 from datalog_conformance.schema import Policy, TestCase
 
 from gunray.adapter import GunrayEvaluator
+from gunray.trace import DefeasibleTrace
 
 
 def main() -> int:
@@ -17,6 +18,7 @@ def main() -> int:
     parser.add_argument("case")
     parser.add_argument("--yaml", required=True)
     parser.add_argument("--engine", choices=("gunray", "depysible"), default="gunray")
+    parser.add_argument("--show-trace", action="store_true")
     args = parser.parse_args()
 
     case = _load_case(args.case, args.yaml)
@@ -24,7 +26,11 @@ def main() -> int:
         raise SystemExit("Only theory cases are supported")
 
     if args.engine == "gunray":
-        model = GunrayEvaluator().evaluate(case.theory, Policy.BLOCKING)
+        if args.show_trace:
+            model, trace = GunrayEvaluator().evaluate_with_trace(case.theory, Policy.BLOCKING)
+        else:
+            model = GunrayEvaluator().evaluate(case.theory, Policy.BLOCKING)
+            trace = None
     else:
         suite_root = Path(__file__).resolve().parents[2] / "datalog-conformance-suite"
         tests_root = suite_root / "tests"
@@ -34,12 +40,30 @@ def main() -> int:
         from depysible_test_support import run_depysible_adapter  # type: ignore[import-not-found]
 
         model = run_depysible_adapter(case.theory, Policy.BLOCKING)
+        trace = None
 
     print(f"case: {case.name}")
     for section, predicates in sorted(model.sections.items()):
         print(f"[{section}]")
         for predicate, rows in sorted(predicates.items()):
             print(f"{predicate}: {sorted(rows)}")
+    if args.show_trace and isinstance(trace, DefeasibleTrace):
+        print("[trace.proof_attempts]")
+        for attempt in trace.proof_attempts:
+            print(
+                f"{attempt.atom.predicate}{attempt.atom.arguments}:"
+                f" result={attempt.result}"
+                f" reason={attempt.reason}"
+                f" supporters={list(attempt.supporter_rule_ids)}"
+                f" attackers={list(attempt.attacker_rule_ids)}"
+            )
+        print("[trace.classifications]")
+        for classification in trace.classifications:
+            print(
+                f"{classification.atom.predicate}{classification.atom.arguments}:"
+                f" result={classification.result}"
+                f" reason={classification.reason}"
+            )
     return 0
 
 

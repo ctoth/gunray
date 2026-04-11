@@ -120,9 +120,24 @@ class DefeasibleEvaluator:
                     )
                 )
                 continue
+            active_support_rules = [
+                rule
+                for rule in supported_rules
+                if _rule_body_available(rule, proven, definitely)
+            ]
+            if not active_support_rules:
+                undecided.add(atom)
+                trace.classifications.append(
+                    ClassificationTrace(
+                        atom=atom,
+                        result="undecided",
+                        reason="supported_only_by_unproved_bodies",
+                    )
+                )
+                continue
             if _has_blocking_peer(
                 atom,
-                supported_rules,
+                active_support_rules,
                 supported,
                 definitely,
                 rules_by_head,

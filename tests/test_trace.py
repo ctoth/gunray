@@ -55,3 +55,31 @@ def test_defeasible_trace_records_blocked_and_undecided_atoms() -> None:
         and classification.result == "undecided"
         for classification in trace.classifications
     )
+
+
+def test_defeasible_trace_marks_supported_but_unproved_body_as_undecided() -> None:
+    evaluator = GunrayEvaluator()
+    theory = DefeasibleTheory(
+        facts={"penguin": {("tweety",)}},
+        strict_rules=[
+            Rule(id="r1", head="bird(X)", body=["penguin(X)"]),
+            Rule(id="r2", head="~flies(X)", body=["penguin(X)"]),
+        ],
+        defeasible_rules=[
+            Rule(id="r3", head="flies(X)", body=["bird(X)"]),
+            Rule(id="r4", head="nests_in_trees(X)", body=["flies(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+    model, trace = evaluator.evaluate_with_trace(theory, Policy.BLOCKING)
+
+    assert model.sections["undecided"]["nests_in_trees"] == {("tweety",)}
+    assert any(
+        classification.atom.predicate == "nests_in_trees"
+        and classification.atom.arguments == ("tweety",)
+        and classification.reason == "supported_only_by_unproved_bodies"
+        for classification in trace.classifications
+    )
