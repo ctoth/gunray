@@ -170,6 +170,7 @@ def _evaluate_stratum(
                     model,
                     next_delta,
                     overrides,
+                    preferred_first_index=delta_position,
                 )
             if recursive_positions or not first_iteration:
                 continue
@@ -178,6 +179,7 @@ def _evaluate_stratum(
                 model,
                 next_delta,
                 {},
+                preferred_first_index=None,
             )
         if not any(delta_relation for delta_relation in next_delta.values()):
             return
@@ -212,8 +214,14 @@ def _apply_rule_with_overrides(
     model: dict[str, IndexedRelation],
     delta: dict[str, IndexedRelation],
     overrides: dict[int, IndexedRelation],
+    preferred_first_index: int | None,
 ) -> None:
-    ordered_atoms = _order_positive_body(rule.positive_body, model, overrides)
+    ordered_atoms = _order_positive_body(
+        rule.positive_body,
+        model,
+        overrides,
+        preferred_first_index=preferred_first_index,
+    )
     if not rule.negative_body and not rule.constraints:
         compiled_rule = compile_simple_rule(rule.heads[0], ordered_atoms)
         if compiled_rule is not None:
@@ -337,10 +345,21 @@ def _order_positive_body(
     atoms: tuple[Atom, ...],
     model: dict[str, IndexedRelation],
     overrides: dict[int, IndexedRelation],
+    preferred_first_index: int | None = None,
 ) -> list[tuple[int, Atom]]:
     remaining = list(enumerate(atoms))
     ordered: list[tuple[int, Atom]] = []
     bound_vars: set[str] = set()
+
+    if preferred_first_index is not None:
+        preferred = next(
+            (item for item in remaining if item[0] == preferred_first_index),
+            None,
+        )
+        if preferred is not None and _expression_variables_in_atom(preferred[1]) <= bound_vars:
+            ordered.append(preferred)
+            bound_vars |= _binding_variables_in_atom(preferred[1])
+            remaining.remove(preferred)
 
     while remaining:
         ready = [

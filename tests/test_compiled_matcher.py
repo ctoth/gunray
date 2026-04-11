@@ -104,6 +104,34 @@ def test_compiled_rule_application_matches_generic_delta() -> None:
     )
 
     compiled_delta = {"path": IndexedRelation()}
-    _apply_rule_with_overrides(rule, model, compiled_delta, overrides)
+    _apply_rule_with_overrides(
+        rule,
+        model,
+        compiled_delta,
+        overrides,
+        preferred_first_index=None,
+    )
 
     assert compiled_delta["path"].as_set() == generic_delta["path"].as_set()
+
+
+def test_order_positive_body_prefers_delta_atom_when_safe() -> None:
+    atoms = (
+        Atom("big", (Variable("x"), Variable("y"))),
+        Atom("delta", (Variable("y"), Variable("z"))),
+        Atom("small", (Variable("z"),)),
+    )
+    model = {
+        "big": IndexedRelation({("a", "b"), ("b", "c"), ("c", "d")}),
+        "delta": IndexedRelation({("b", "c")}),
+        "small": IndexedRelation({("c",)}),
+    }
+
+    ordered = _order_positive_body(
+        atoms,
+        model,
+        {1: model["delta"]},
+        preferred_first_index=1,
+    )
+
+    assert ordered[0][0] == 1

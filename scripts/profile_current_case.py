@@ -14,6 +14,7 @@ from datalog_conformance.schema import TestCase
 from gunray.defeasible import _strict_rule_to_program_text
 from gunray.evaluator import (
     _apply_rule,
+    _apply_rule_with_overrides,
     _iter_positive_body_matches,
     _iter_positive_body_matches_with_overrides,
     _normalize_rules,
@@ -113,18 +114,20 @@ def _profile_stratum(
                             break
                         earlier_atom = rule.positive_body[earlier_position]
                         overrides[earlier_position] = previous_only[earlier_atom.predicate]
-                    bindings = _iter_positive_body_matches_with_overrides(
-                        rule.positive_body,
+                    _apply_rule_with_overrides(
+                        rule,
                         model,
+                        next_delta,
                         overrides,
+                        preferred_first_index=delta_position,
                     )
-                    _apply_rule(rule, model, next_delta, bindings)
             elif first_iteration:
-                _apply_rule(
+                _apply_rule_with_overrides(
                     rule,
                     model,
                     next_delta,
-                    _iter_positive_body_matches(rule.positive_body, model),
+                    {},
+                    preferred_first_index=None,
                 )
             rule_ms = (time.perf_counter() - rule_started) * 1000.0
             added_rows = {
