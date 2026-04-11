@@ -48,16 +48,20 @@ class DefeasibleEvaluator:
             rules_by_head[rule.head].append(rule)
 
         proven = set(definitely)
-        candidates = {
+        proof_candidates = {
             atom
             for atom in rules_by_head
             if any(rule.kind != "defeater" for rule in rules_by_head[atom])
         } | set(definitely)
+        classified_candidates = _expand_candidate_atoms(
+            proof_candidates | set(rules_by_head) | set(definitely),
+            conflicts,
+        )
 
         changed = True
         while changed:
             changed = False
-            for atom in sorted(candidates, key=_atom_sort_key):
+            for atom in sorted(proof_candidates, key=_atom_sort_key):
                 if atom in proven:
                     continue
                 if _can_prove(atom, proven, definitely, rules_by_head, conflicts, superiority):
@@ -66,7 +70,7 @@ class DefeasibleEvaluator:
 
         not_defeasibly: set[GroundAtom] = set()
         undecided: set[GroundAtom] = set()
-        for atom in candidates | unsupported_heads:
+        for atom in classified_candidates | unsupported_heads:
             if atom in proven:
                 continue
             support_rules = [
@@ -255,6 +259,19 @@ def _atoms_to_section(atoms: set[GroundAtom]) -> dict[str, set[tuple[object, ...
     for atom in atoms:
         section[atom.predicate].add(atom.arguments)
     return dict(section)
+
+
+def _expand_candidate_atoms(
+    atoms: set[GroundAtom],
+    conflicts: set[tuple[str, str]],
+) -> set[GroundAtom]:
+    expanded = set(atoms)
+    for atom in list(atoms):
+        for left, right in conflicts:
+            if left != atom.predicate:
+                continue
+            expanded.add(GroundAtom(predicate=right, arguments=atom.arguments))
+    return expanded
 
 
 def _rule_variables(rule: DefeasibleRule) -> set[str]:
