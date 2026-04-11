@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import cast
 
 import yaml
-
 from datalog_conformance.plugin import _load_multi_case_file, get_tests_dir
 from datalog_conformance.schema import Program as SchemaProgram
 from datalog_conformance.schema import TestCase
@@ -14,7 +13,6 @@ from datalog_conformance.schema import TestCase
 from gunray.defeasible import _strict_rule_to_program_text
 from gunray.evaluator import (
     _constraints_hold,
-    _evaluate_stratum,
     _match_positive_body,
     _negative_body_holds,
     _normalize_rules,
@@ -103,7 +101,9 @@ def _instrument_stratum(
             elapsed = time.perf_counter() - started
             if elapsed > max_seconds:
                 raise SystemExit(
-                    f"aborting after {elapsed:.2f}s at iteration {iteration}, rule {index}: {rule.source_text}"
+                    "aborting after "
+                    f"{elapsed:.2f}s at iteration {iteration}, rule {index}: "
+                    f"{rule.source_text}"
                 )
 
             body_counts = [
@@ -145,7 +145,13 @@ def _instrument_stratum(
 def _load_case(name: str, yaml_relpath: str) -> TestCase:
     package_tests_dir = get_tests_dir()
     repo_root = Path(__file__).resolve().parents[1]
-    tests_dir = repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
+    tests_dir = (
+        repo_root.parent
+        / "datalog-conformance-suite"
+        / "src"
+        / "datalog_conformance"
+        / "_tests"
+    )
     if not tests_dir.exists():
         tests_dir = package_tests_dir
     yaml_path = tests_dir / yaml_relpath
@@ -172,7 +178,9 @@ def _case_program(case: TestCase) -> SchemaProgram:
         raise SystemExit("KLM property cases are not supported")
     theory = case.theory
     if theory.defeasible_rules or theory.defeaters or theory.superiority:
-        raise SystemExit("profile_case.py currently supports only program or strict-only theory cases")
+        raise SystemExit(
+            "profile_case.py currently supports only program or strict-only theory cases"
+        )
     return SchemaProgram(
         facts=theory.facts,
         rules=[

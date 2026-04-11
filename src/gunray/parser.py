@@ -26,7 +26,9 @@ from .types import (
 )
 
 
-def normalize_facts(raw_facts: dict[str, list[tuple[Scalar, ...]]]) -> dict[str, set[tuple[Scalar, ...]]]:
+def normalize_facts(
+    raw_facts: dict[str, list[tuple[Scalar, ...]]],
+) -> dict[str, set[tuple[Scalar, ...]]]:
     """Normalize YAML fact rows to a set-based model representation."""
 
     return {
@@ -364,7 +366,8 @@ def _is_constraint(text: str) -> bool:
     stripped = text.strip()
     if stripped.startswith("(") and stripped.endswith(")"):
         stripped = stripped[1:-1].strip()
-    return any(_find_top_level_operator(stripped, operator) != -1 for operator in ("<=", ">=", "==", "!=", "<", ">"))
+    operators = ("<=", ">=", "==", "!=", "<", ">")
+    return any(_find_top_level_operator(stripped, operator) != -1 for operator in operators)
 
 
 def _parse_scalar(text: str) -> Scalar | None:

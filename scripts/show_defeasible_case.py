@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import cast
 
 import yaml
-
 from datalog_conformance.plugin import _load_multi_case_file, get_tests_dir
 from datalog_conformance.schema import Policy, TestCase
 
@@ -70,7 +69,13 @@ def main() -> int:
 def _load_case(name: str, yaml_relpath: str) -> TestCase:
     package_tests_dir = get_tests_dir()
     repo_root = Path(__file__).resolve().parents[1]
-    tests_dir = repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
+    tests_dir = (
+        repo_root.parent
+        / "datalog-conformance-suite"
+        / "src"
+        / "datalog_conformance"
+        / "_tests"
+    )
     if not tests_dir.exists():
         tests_dir = package_tests_dir
     yaml_path = tests_dir / yaml_relpath

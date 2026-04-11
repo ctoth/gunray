@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import cast
 
 import yaml
-
 from datalog_conformance.plugin import _load_multi_case_file
 from datalog_conformance.schema import Program, TestCase
 
@@ -13,7 +12,14 @@ from gunray.parser import parse_program
 
 def suite_root() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
-    return repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests" / "basic"
+    return (
+        repo_root.parent
+        / "datalog-conformance-suite"
+        / "src"
+        / "datalog_conformance"
+        / "_tests"
+        / "basic"
+    )
 
 
 def load_cases() -> list[tuple[Path, TestCase]]:
@@ -23,7 +29,8 @@ def load_cases() -> list[tuple[Path, TestCase]]:
         if not isinstance(raw, dict):
             continue
         if "tests" in raw:
-            cases.extend((yaml_path, case) for case in _load_multi_case_file(cast(dict[object, object], raw), yaml_path))
+            loaded = _load_multi_case_file(cast(dict[object, object], raw), yaml_path)
+            cases.extend((yaml_path, case) for case in loaded)
             continue
         cases.append((yaml_path, TestCase.from_dict(raw)))
     return cases
@@ -46,7 +53,9 @@ def main() -> int:
             if rows and predicate not in visible_predicates:
                 issues.append(f"nonempty expect for invisible predicate {predicate!r}")
             if not program.rules and rows and set(rows) - facts.get(predicate, set()):
-                issues.append(f"nonempty expect for {predicate!r} with no rules and missing fact rows")
+                issues.append(
+                    f"nonempty expect for {predicate!r} with no rules and missing fact rows"
+                )
 
         if issues:
             relative = yaml_path.relative_to(suite_root().parent).as_posix()

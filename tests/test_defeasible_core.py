@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from datalog_conformance.schema import Policy
-from datalog_conformance.schema import DefeasibleTheory, Rule
+from datalog_conformance.schema import DefeasibleTheory, Policy, Rule
 
 from gunray.ambiguity import resolve_ambiguity_policy
-from gunray.defeasible import DefeasibleEvaluator
 from gunray.defeasible import (
+    DefeasibleEvaluator,
     _expand_candidate_atoms,
     _has_blocking_peer,
     _is_more_specific,

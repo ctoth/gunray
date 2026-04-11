@@ -7,7 +7,6 @@ from hypothesis import strategies as st
 from gunray import GunrayEvaluator, TraceConfig
 from gunray.types import GroundAtom
 
-
 _NODES = ("a", "b", "c", "d")
 _FORWARD_EDGES = tuple(
     (_NODES[left], _NODES[right])

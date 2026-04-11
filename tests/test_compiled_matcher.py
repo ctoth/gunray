@@ -30,9 +30,11 @@ def test_compiled_matcher_matches_generic_join() -> None:
     compiled = compile_simple_matcher(ordered_atoms)
 
     assert compiled is not None
-    assert _sorted_bindings(list(iter_compiled_bindings(compiled, model, overrides))) == _sorted_bindings(
+    actual = _sorted_bindings(list(iter_compiled_bindings(compiled, model, overrides)))
+    expected = _sorted_bindings(
         list(_iter_generic_positive_body_matches(ordered_atoms, model, overrides))
     )
+    assert actual == expected
 
 
 def test_compiled_matcher_handles_constants_wildcards_and_same_row_equalities() -> None:

@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypeAlias
 
-
 Scalar: TypeAlias = str | int | float | bool
 Binding: TypeAlias = dict[str, Scalar]
 

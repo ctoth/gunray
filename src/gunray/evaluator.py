@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 
-from datalog_conformance.schema import Model, Program as SchemaProgram
+from datalog_conformance.schema import Model
+from datalog_conformance.schema import Program as SchemaProgram
 
 from .compiled import (
     compile_simple_matcher,
@@ -34,8 +35,8 @@ from .types import (
     SubtractExpression,
     Variable,
     Wildcard,
+    variables_in_term,
 )
-from .types import variables_in_term
 
 
 class SemiNaiveEvaluator:
@@ -113,7 +114,11 @@ def _validate_program(facts: dict[str, set[tuple[object, ...]]], rules: list[Rul
             atom_vars = _binding_variables_in_atom(atom)
             bound_vars |= atom_vars
             positive_vars |= atom_vars
-        head_vars = set().union(*(_variables_in_atom(head) for head in rule.heads)) if rule.heads else set()
+        head_vars = (
+            set().union(*(_variables_in_atom(head) for head in rule.heads))
+            if rule.heads
+            else set()
+        )
         constraint_vars = set().union(
             *(_variables_in_comparison(constraint) for constraint in rule.constraints)
         ) if rule.constraints else set()
@@ -704,7 +709,9 @@ def _validate_head(head: Atom, positive_vars: set[str]) -> None:
 
 def _validate_positive_atom(atom: Atom, bound_vars: set[str]) -> None:
     for term in atom.terms:
-        if isinstance(term, (AddExpression, SubtractExpression)) and variables_in_term(term) - bound_vars:
+        if isinstance(term, (AddExpression, SubtractExpression)) and (
+            variables_in_term(term) - bound_vars
+        ):
             raise UnboundVariableError("Expression variables must be bound earlier in the body")
 
 

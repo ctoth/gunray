@@ -6,17 +6,13 @@ from pathlib import Path
 from typing import cast
 
 import yaml
-
 from datalog_conformance.plugin import _load_multi_case_file, get_tests_dir
 from datalog_conformance.schema import Program as SchemaProgram
 from datalog_conformance.schema import TestCase
 
 from gunray.defeasible import _strict_rule_to_program_text
 from gunray.evaluator import (
-    _apply_rule,
     _apply_rule_with_overrides,
-    _iter_positive_body_matches,
-    _iter_positive_body_matches_with_overrides,
     _normalize_rules,
     _validate_program,
 )
@@ -89,7 +85,9 @@ def _profile_stratum(
             elapsed = time.perf_counter() - started
             if elapsed > max_seconds:
                 raise SystemExit(
-                    f"aborting after {elapsed:.2f}s at iteration {iteration}, rule {rule_index}: {rule.source_text}"
+                    "aborting after "
+                    f"{elapsed:.2f}s at iteration {iteration}, rule {rule_index}: "
+                    f"{rule.source_text}"
                 )
 
             recursive_positions = [
@@ -138,10 +136,15 @@ def _profile_stratum(
                 if len(rows) - before_sizes[predicate] > 0
             }
             if rule_ms >= slow_ms:
+                live_delta_sizes = {
+                    predicate: len(rows)
+                    for predicate, rows in next_delta.items()
+                    if len(rows)
+                }
                 print(
                     f"slow rule {rule_ms:.1f}ms"
                     f" added_rows={added_rows}"
-                    f" next_delta_sizes={ {predicate: len(rows) for predicate, rows in next_delta.items() if len(rows)} }"
+                    f" next_delta_sizes={live_delta_sizes}"
                     f" text={rule.source_text}"
                 )
 
@@ -158,7 +161,13 @@ def _profile_stratum(
 def _load_case(name: str, yaml_relpath: str) -> TestCase:
     package_tests_dir = get_tests_dir()
     repo_root = Path(__file__).resolve().parents[1]
-    tests_dir = repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
+    tests_dir = (
+        repo_root.parent
+        / "datalog-conformance-suite"
+        / "src"
+        / "datalog_conformance"
+        / "_tests"
+    )
     if not tests_dir.exists():
         tests_dir = package_tests_dir
     yaml_path = tests_dir / yaml_relpath

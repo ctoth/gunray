@@ -66,7 +66,8 @@ def compare_values(left: object, operator: str, right: object) -> bool:
             return left > right
     except TypeError as exc:
         raise SemanticError(
-            f"Operator {operator!r} is undefined for {type(left).__name__} and {type(right).__name__}"
+            f"Operator {operator!r} is undefined for "
+            f"{type(left).__name__} and {type(right).__name__}"
         ) from exc
 
     raise SemanticError(f"Unknown comparison operator: {operator}")

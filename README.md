@@ -1,38 +1,52 @@
 # Gunray
 
 Gunray is a pure-Python evaluator for the current `datalog-conformance` Datalog and
-defeasible-Datalog test surface.
+defeasible-Datalog surface.
+
+It targets the suite cloned at `../datalog-conformance-suite`.
 
 ## Scope
 
 - Core Datalog evaluation from `datalog_conformance.schema.Program`
 - Stratified negation with explicit rejection of cyclic negation
-- Blocking-style defeasible reasoning with strict rules, defeasible rules, defeaters,
-  conflicts, and superiority
+- Defeasible reasoning with:
+  - blocking and propagating ambiguity policies
+  - strict rules, defeasible rules, defeaters, conflicts, and superiority
+- Reduced zero-arity closure support for the current conformance fragment:
+  - rational closure
+  - lexicographic closure
+  - relevant closure
+- KLM `Or` checks through the same reduced closure engine
 
-The package currently targets the conformance suite that is cloned at
-`../datalog-conformance-suite`.
+The closure implementation is intentionally narrower than the general defeasible engine. It exists
+to satisfy the current conformance-suite closure and KLM corpus, not as a full general closure
+reasoner for arbitrary first-order theories.
 
-## Explicit Value Semantics
+## Value Semantics
 
-Gunray now routes equality, ordering, and arithmetic through
-`gunray.semantics` instead of relying on ad hoc inline Python operators.
+Gunray routes equality, ordering, and arithmetic through [semantics.py](src/gunray/semantics.py)
+instead of scattering raw Python operators across the evaluator.
 
-The current policy is:
+Current policy:
 
-- Equality and inequality use exact normalized Python scalar equality.
-- Ordering operators use Python ordering when the operand pair is comparable.
+- Equality and inequality use normalized Python scalar equality.
+- Ordering uses Python ordering when the operand pair is comparable.
 - `+` means numeric addition for numeric operands and concatenation otherwise.
 - `-` means numeric subtraction only.
 
-If that policy changes, `src/gunray/semantics.py` is the single place to change
-and review it.
+## Layout
+
+- [adapter.py](src/gunray/adapter.py): conformance-suite entrypoint
+- [evaluator.py](src/gunray/evaluator.py): semi-naive core Datalog engine
+- [defeasible.py](src/gunray/defeasible.py): defeasible evaluator for the main theory surface
+- [ambiguity.py](src/gunray/ambiguity.py): explicit ambiguity-policy handling
+- [closure.py](src/gunray/closure.py): reduced closure and KLM support for the current suite
+- [trace.py](src/gunray/trace.py): execution-trace structures and helpers
 
 ## Verification
 
 ```powershell
 uv sync --extra dev
-uv run pytest
-uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.evaluator.SemiNaiveEvaluator
-uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.defeasible.DefeasibleEvaluator
+uv run pytest tests -q
+uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.adapter.GunrayEvaluator -q
 ```

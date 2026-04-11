@@ -6,16 +6,18 @@ from collections import defaultdict
 
 from datalog_conformance.schema import (
     DefeasibleModel,
-    DefeasibleTheory as SchemaDefeasibleTheory,
     Policy,
+)
+from datalog_conformance.schema import (
+    DefeasibleTheory as SchemaDefeasibleTheory,
+)
+from datalog_conformance.schema import (
     Program as SchemaProgram,
 )
 
-from .ambiguity import attacker_basis_atoms, resolve_ambiguity_policy
-from .ambiguity import AmbiguityPolicy
-from .evaluator import SemiNaiveEvaluator
-from .evaluator import _match_positive_body
-from .parser import ground_atom, normalize_facts, parse_defeasible_theory
+from .ambiguity import AmbiguityPolicy, attacker_basis_atoms, resolve_ambiguity_policy
+from .evaluator import SemiNaiveEvaluator, _match_positive_body
+from .parser import ground_atom, parse_defeasible_theory
 from .relation import IndexedRelation
 from .trace import (
     ClassificationTrace,
@@ -24,8 +26,7 @@ from .trace import (
     ProofAttemptTrace,
     TraceConfig,
 )
-from .types import DefeasibleRule, GroundAtom, GroundDefeasibleRule
-from .types import variables_in_term
+from .types import DefeasibleRule, GroundAtom, GroundDefeasibleRule, variables_in_term
 
 
 class DefeasibleEvaluator:

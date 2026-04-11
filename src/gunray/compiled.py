@@ -9,7 +9,6 @@ from .relation import IndexedRelation
 from .semantics import values_equal
 from .types import Atom, Constant, Variable, Wildcard
 
-
 _UNBOUND = object()
 
 
