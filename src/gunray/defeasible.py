@@ -42,6 +42,10 @@ class DefeasibleEvaluator:
         definitely = _facts_to_atoms(definite_model)
         supported = _facts_to_atoms(support_model)
         grounded_rules, unsupported_heads = _ground_rules(rules, support_model)
+        grounded_strict_rules = tuple(
+            rule for rule in grounded_rules if rule.kind == "strict"
+        )
+        specificity_cache: dict[frozenset[GroundAtom], set[GroundAtom]] = {}
 
         rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]] = defaultdict(list)
         for rule in grounded_rules:
@@ -64,7 +68,17 @@ class DefeasibleEvaluator:
             for atom in sorted(proof_candidates, key=_atom_sort_key):
                 if atom in proven:
                     continue
-                if _can_prove(atom, proven, definitely, rules_by_head, conflicts, superiority):
+                if _can_prove(
+                    atom,
+                    proven,
+                    definitely,
+                    supported,
+                    rules_by_head,
+                    conflicts,
+                    superiority,
+                    grounded_strict_rules,
+                    specificity_cache,
+                ):
                     proven.add(atom)
                     changed = True
 
@@ -172,9 +186,12 @@ def _can_prove(
     atom: GroundAtom,
     proven: set[GroundAtom],
     definitely: set[GroundAtom],
+    supported: set[GroundAtom],
     rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]],
     conflicts: set[tuple[str, str]],
     superiority: set[tuple[str, str]],
+    grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
+    specificity_cache: dict[frozenset[GroundAtom], set[GroundAtom]],
 ) -> bool:
     if atom in definitely:
         return True
@@ -194,7 +211,7 @@ def _can_prove(
     supporting_rules = [
         rule
         for rule in rules_by_head.get(atom, [])
-        if rule.kind != "defeater" and set(rule.body) <= proven
+        if rule.kind != "defeater" and _rule_body_available(rule, proven, definitely)
     ]
     if not supporting_rules:
         return False
@@ -204,7 +221,7 @@ def _can_prove(
         attackers.extend(
             rule
             for rule in rules_by_head.get(opposing_atom, [])
-            if set(rule.body) <= proven
+            if _attacker_body_available(rule, supported, definitely)
         )
 
     if not attackers:
@@ -214,21 +231,30 @@ def _can_prove(
 
     for supporter in supporting_rules:
         if _supporter_survives(
-            supporter, atom, proven, rules_by_head, opposing_atoms, superiority
+            supporter,
+            atom,
+            supported,
+            definitely,
+            rules_by_head,
+            opposing_atoms,
+            superiority,
+            grounded_strict_rules,
+            specificity_cache,
         ):
             return True
-    if not superiority and len(supporting_rules) > len(attackers):
-        return True
     return False
 
 
 def _supporter_survives(
     supporter: GroundDefeasibleRule,
     atom: GroundAtom,
-    proven: set[GroundAtom],
+    supported: set[GroundAtom],
+    definitely: set[GroundAtom],
     rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]],
     opposing_atoms: set[GroundAtom],
     superiority: set[tuple[str, str]],
+    grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
+    specificity_cache: dict[frozenset[GroundAtom], set[GroundAtom]],
 ) -> bool:
     del atom
 
@@ -236,12 +262,28 @@ def _supporter_survives(
         attackers = [
             rule
             for rule in rules_by_head.get(opposing_atom, [])
-            if set(rule.body) <= proven
+            if _attacker_body_available(rule, supported, definitely)
         ]
         for attacker in attackers:
             if attacker.kind == "strict":
                 return False
-            if (supporter.rule_id, attacker.rule_id) not in superiority:
+            if (supporter.rule_id, attacker.rule_id) in superiority:
+                continue
+            if _is_more_specific(
+                supporter,
+                attacker,
+                grounded_strict_rules,
+                specificity_cache,
+            ):
+                continue
+            if attacker.kind == "defeater":
+                return False
+            if _is_more_specific(
+                attacker,
+                supporter,
+                grounded_strict_rules,
+                specificity_cache,
+            ):
                 return False
     return True
 
@@ -286,3 +328,59 @@ def _rule_variables(rule: DefeasibleRule) -> set[str]:
 
 def _atom_sort_key(atom: GroundAtom) -> tuple[str, tuple[object, ...]]:
     return atom.predicate, atom.arguments
+
+
+def _rule_body_available(
+    rule: GroundDefeasibleRule,
+    proven: set[GroundAtom],
+    definitely: set[GroundAtom],
+) -> bool:
+    body = set(rule.body)
+    if rule.kind == "strict":
+        return body <= definitely
+    return body <= proven
+
+
+def _attacker_body_available(
+    rule: GroundDefeasibleRule,
+    supported: set[GroundAtom],
+    definitely: set[GroundAtom],
+) -> bool:
+    body = set(rule.body)
+    if rule.kind == "strict":
+        return body <= definitely
+    return body <= supported
+
+
+def _is_more_specific(
+    left: GroundDefeasibleRule,
+    right: GroundDefeasibleRule,
+    grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
+    cache: dict[frozenset[GroundAtom], set[GroundAtom]],
+) -> bool:
+    left_body = frozenset(left.body)
+    right_body = frozenset(right.body)
+    left_closure = _strict_body_closure(left_body, grounded_strict_rules, cache)
+    right_closure = _strict_body_closure(right_body, grounded_strict_rules, cache)
+    return set(right.body) <= left_closure and not set(left.body) <= right_closure
+
+
+def _strict_body_closure(
+    seeds: frozenset[GroundAtom],
+    grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
+    cache: dict[frozenset[GroundAtom], set[GroundAtom]],
+) -> set[GroundAtom]:
+    cached = cache.get(seeds)
+    if cached is not None:
+        return cached
+
+    closure = set(seeds)
+    changed = True
+    while changed:
+        changed = False
+        for rule in grounded_strict_rules:
+            if set(rule.body) <= closure and rule.head not in closure:
+                closure.add(rule.head)
+                changed = True
+    cache[seeds] = closure
+    return closure
