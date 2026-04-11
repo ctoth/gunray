@@ -93,12 +93,9 @@ class DefeasibleEvaluator:
             conflicts,
         )
 
-        changed = True
-        while changed:
-            changed = False
+        while True:
+            next_proven = set(definitely)
             for atom in sorted(proof_candidates, key=_atom_sort_key):
-                if atom in proven:
-                    continue
                 if _can_prove(
                     atom,
                     proven,
@@ -112,8 +109,10 @@ class DefeasibleEvaluator:
                     specificity_cache,
                     trace,
                 ):
-                    proven.add(atom)
-                    changed = True
+                    next_proven.add(atom)
+            if next_proven == proven:
+                break
+            proven = next_proven
 
         not_defeasibly: set[GroundAtom] = set()
         undecided: set[GroundAtom] = set()

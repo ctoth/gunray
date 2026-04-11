@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datalog_conformance.schema import Policy
+from datalog_conformance.schema import DefeasibleTheory, Rule
 
 from gunray.ambiguity import resolve_ambiguity_policy
+from gunray.defeasible import DefeasibleEvaluator
 from gunray.defeasible import (
     _expand_candidate_atoms,
     _has_blocking_peer,
@@ -126,3 +128,24 @@ def test_equal_strength_opponents_are_classified_as_blocking_peers() -> None:
         (),
         {},
     )
+
+
+def test_blocking_fixed_point_leaves_nixon_conflict_undecided() -> None:
+    theory = DefeasibleTheory(
+        facts={
+            "nixonian": [("nixon",)],
+            "quaker": [("nixon",)],
+        },
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="r1", head="republican(X)", body=["nixonian(X)"]),
+            Rule(id="r2", head="pacifist(X)", body=["quaker(X)"]),
+            Rule(id="r3", head="~pacifist(X)", body=["republican(X)"]),
+        ],
+    )
+
+    model = DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+
+    assert ("nixon",) not in model.sections.get("defeasibly", {}).get("pacifist", set())
+    assert ("nixon",) in model.sections.get("undecided", {}).get("pacifist", set())
+    assert ("nixon",) in model.sections.get("undecided", {}).get("~pacifist", set())
