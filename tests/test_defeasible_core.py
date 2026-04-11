@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datalog_conformance.schema import Policy
+
+from gunray.ambiguity import resolve_ambiguity_policy
 from gunray.defeasible import (
     _expand_candidate_atoms,
     _has_blocking_peer,
@@ -101,6 +104,11 @@ def test_equal_strength_opponents_are_classified_as_blocking_peers() -> None:
     assert _has_blocking_peer(
         pacifist.head,
         [pacifist],
+        resolve_ambiguity_policy(Policy.PROPAGATING),
+        {
+            GroundAtom(predicate="quaker", arguments=("nixon",)),
+            GroundAtom(predicate="republican", arguments=("nixon",)),
+        },
         {
             GroundAtom(predicate="quaker", arguments=("nixon",)),
             GroundAtom(predicate="republican", arguments=("nixon",)),

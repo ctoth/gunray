@@ -11,6 +11,8 @@ from datalog_conformance.schema import (
     Program as SchemaProgram,
 )
 
+from .ambiguity import attacker_basis_atoms, resolve_ambiguity_policy
+from .ambiguity import AmbiguityPolicy
 from .evaluator import SemiNaiveEvaluator
 from .evaluator import _match_positive_body
 from .parser import ground_atom, normalize_facts, parse_defeasible_theory
@@ -39,7 +41,6 @@ class DefeasibleEvaluator:
         policy: Policy,
         trace_config: TraceConfig | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]:
-        del policy
         actual_trace_config = trace_config or TraceConfig()
         trace = DefeasibleTrace(config=actual_trace_config)
         if _is_strict_only_theory(theory):
@@ -56,6 +57,7 @@ class DefeasibleEvaluator:
 
         facts, rules, conflicts = parse_defeasible_theory(theory)
         superiority = {(stronger, weaker) for stronger, weaker in theory.superiority}
+        ambiguity_policy = resolve_ambiguity_policy(policy)
 
         definite_model = _positive_closure(
             facts=facts,
@@ -102,6 +104,7 @@ class DefeasibleEvaluator:
                     proven,
                     definitely,
                     supported,
+                    ambiguity_policy,
                     rules_by_head,
                     conflicts,
                     superiority,
@@ -154,9 +157,33 @@ class DefeasibleEvaluator:
                     )
                 )
                 continue
+            if (
+                ambiguity_policy.name is Policy.PROPAGATING
+                and _has_live_opposition(
+                    atom,
+                    ambiguity_policy,
+                    proven,
+                    supported,
+                    definitely,
+                    rules_by_head,
+                    conflicts,
+                )
+            ):
+                undecided.add(atom)
+                trace.classifications.append(
+                    ClassificationTrace(
+                        atom=atom,
+                        result="undecided",
+                        reason="propagating_live_opposition",
+                        supporter_rule_ids=tuple(rule.rule_id for rule in active_support_rules),
+                    )
+                )
+                continue
             blocking_peer = _find_blocking_peer(
                 atom,
                 active_support_rules,
+                ambiguity_policy,
+                proven,
                 supported,
                 definitely,
                 rules_by_head,
@@ -285,6 +312,7 @@ def _can_prove(
     proven: set[GroundAtom],
     definitely: set[GroundAtom],
     supported: set[GroundAtom],
+    ambiguity_policy: AmbiguityPolicy,
     rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]],
     conflicts: set[tuple[str, str]],
     superiority: set[tuple[str, str]],
@@ -335,12 +363,18 @@ def _can_prove(
         )
         return False
 
+    attacker_basis = attacker_basis_atoms(
+        ambiguity_policy,
+        proven=proven,
+        supported=supported,
+    )
+
     attackers: list[GroundDefeasibleRule] = []
     for opposing_atom in opposing_atoms:
         attackers.extend(
             rule
             for rule in rules_by_head.get(opposing_atom, [])
-            if _attacker_body_available(rule, supported, definitely)
+            if _attacker_body_available(rule, attacker_basis, definitely)
         )
 
     if not attackers:
@@ -370,7 +404,7 @@ def _can_prove(
         if _supporter_survives(
             supporter,
             atom,
-            supported,
+            attacker_basis,
             definitely,
             rules_by_head,
             opposing_atoms,
@@ -403,7 +437,7 @@ def _can_prove(
 def _supporter_survives(
     supporter: GroundDefeasibleRule,
     atom: GroundAtom,
-    supported: set[GroundAtom],
+    attacker_basis: set[GroundAtom],
     definitely: set[GroundAtom],
     rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]],
     opposing_atoms: set[GroundAtom],
@@ -417,7 +451,7 @@ def _supporter_survives(
         attackers = [
             rule
             for rule in rules_by_head.get(opposing_atom, [])
-            if _attacker_body_available(rule, supported, definitely)
+            if _attacker_body_available(rule, attacker_basis, definitely)
         ]
         for attacker in attackers:
             if attacker.kind == "strict":
@@ -576,6 +610,8 @@ def _strict_body_closure(
 def _find_blocking_peer(
     atom: GroundAtom,
     support_rules: list[GroundDefeasibleRule],
+    ambiguity_policy: AmbiguityPolicy,
+    proven: set[GroundAtom],
     supported: set[GroundAtom],
     definitely: set[GroundAtom],
     rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]],
@@ -584,6 +620,11 @@ def _find_blocking_peer(
     grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
     specificity_cache: dict[frozenset[GroundAtom], set[GroundAtom]],
 ) -> tuple[GroundDefeasibleRule, GroundDefeasibleRule] | None:
+    attacker_basis = attacker_basis_atoms(
+        ambiguity_policy,
+        proven=proven,
+        supported=supported,
+    )
     opposing_atoms = {
         other
         for other in rules_by_head
@@ -599,7 +640,7 @@ def _find_blocking_peer(
             for attacker in rules_by_head.get(opposing_atom, []):
                 if attacker.kind in {"strict", "defeater"}:
                     continue
-                if not _attacker_body_available(attacker, supported, definitely):
+                if not _attacker_body_available(attacker, attacker_basis, definitely):
                     continue
                 if (supporting_rule.rule_id, attacker.rule_id) in superiority:
                     continue
@@ -623,9 +664,42 @@ def _find_blocking_peer(
     return None
 
 
+def _has_live_opposition(
+    atom: GroundAtom,
+    ambiguity_policy: AmbiguityPolicy,
+    proven: set[GroundAtom],
+    supported: set[GroundAtom],
+    definitely: set[GroundAtom],
+    rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]],
+    conflicts: set[tuple[str, str]],
+) -> bool:
+    attacker_basis = attacker_basis_atoms(
+        ambiguity_policy,
+        proven=proven,
+        supported=supported,
+    )
+    opposing_atoms = {
+        other
+        for other in rules_by_head
+        if (atom.predicate, other.predicate) in conflicts and other.arguments == atom.arguments
+    } | {
+        other
+        for other in definitely
+        if (atom.predicate, other.predicate) in conflicts and other.arguments == atom.arguments
+    }
+    return any(
+        _attacker_body_available(rule, attacker_basis, definitely)
+        for opposing_atom in opposing_atoms
+        for rule in rules_by_head.get(opposing_atom, [])
+        if rule.kind != "strict"
+    )
+
+
 def _has_blocking_peer(
     atom: GroundAtom,
     support_rules: list[GroundDefeasibleRule],
+    ambiguity_policy: AmbiguityPolicy,
+    proven: set[GroundAtom],
     supported: set[GroundAtom],
     definitely: set[GroundAtom],
     rules_by_head: dict[GroundAtom, list[GroundDefeasibleRule]],
@@ -638,6 +712,8 @@ def _has_blocking_peer(
         _find_blocking_peer(
             atom,
             support_rules,
+            ambiguity_policy,
+            proven,
             supported,
             definitely,
             rules_by_head,
