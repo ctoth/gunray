@@ -75,6 +75,10 @@ def _profile_stratum(
     while first_iteration or any(delta_relation for delta_relation in delta.values()):
         iteration += 1
         next_delta = {predicate: IndexedRelation() for predicate in stratum_predicates}
+        previous_only = {
+            predicate: model.get(predicate, IndexedRelation()).difference(delta_relation)
+            for predicate, delta_relation in delta.items()
+        }
         print(
             "iteration"
             f" {iteration} delta_sizes="
@@ -103,10 +107,16 @@ def _profile_stratum(
                     delta_rows = delta.get(atom.predicate)
                     if delta_rows is None or not delta_rows:
                         continue
+                    overrides = {delta_position: delta_rows}
+                    for earlier_position in recursive_positions:
+                        if earlier_position == delta_position:
+                            break
+                        earlier_atom = rule.positive_body[earlier_position]
+                        overrides[earlier_position] = previous_only[earlier_atom.predicate]
                     bindings = _iter_positive_body_matches_with_overrides(
                         rule.positive_body,
                         model,
-                        {delta_position: delta_rows},
+                        overrides,
                     )
                     _apply_rule(rule, model, next_delta, bindings)
             elif first_iteration:
