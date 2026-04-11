@@ -3,7 +3,13 @@
 from .adapter import GunrayEvaluator
 from .defeasible import DefeasibleEvaluator
 from .evaluator import SemiNaiveEvaluator
-from .trace import ClassificationTrace, DatalogTrace, DefeasibleTrace, ProofAttemptTrace
+from .trace import (
+    ClassificationTrace,
+    DatalogTrace,
+    DefeasibleTrace,
+    ProofAttemptTrace,
+    TraceConfig,
+)
 
 __all__ = [
     "ClassificationTrace",
@@ -13,4 +19,5 @@ __all__ = [
     "GunrayEvaluator",
     "ProofAttemptTrace",
     "SemiNaiveEvaluator",
+    "TraceConfig",
 ]

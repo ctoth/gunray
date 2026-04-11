@@ -23,7 +23,7 @@ from .semantics import (
     values_equal,
 )
 from .stratify import stratify
-from .trace import DatalogTrace, IterationTrace, RuleFireTrace, StratumTrace
+from .trace import DatalogTrace, IterationTrace, RuleFireTrace, StratumTrace, TraceConfig
 from .types import (
     AddExpression,
     Atom,
@@ -45,12 +45,17 @@ class SemiNaiveEvaluator:
         model, _ = self.evaluate_with_trace(program)
         return model
 
-    def evaluate_with_trace(self, program: SchemaProgram) -> tuple[Model, DatalogTrace]:
+    def evaluate_with_trace(
+        self,
+        program: SchemaProgram,
+        trace_config: TraceConfig | None = None,
+    ) -> tuple[Model, DatalogTrace]:
         facts, parsed_rules = parse_program(program)
         rules = _normalize_rules(parsed_rules)
         _validate_program(facts, rules)
         strata = stratify(rules)
-        trace = DatalogTrace()
+        actual_trace_config = trace_config or TraceConfig()
+        trace = DatalogTrace(config=actual_trace_config)
 
         model = {
             predicate: IndexedRelation(rows)
@@ -60,7 +65,7 @@ class SemiNaiveEvaluator:
             stratum_rules = [
                 rule for rule in rules if rule.heads[0].predicate in predicates
             ]
-            _evaluate_stratum(model, stratum_rules, trace)
+            _evaluate_stratum(model, stratum_rules, trace, actual_trace_config)
 
         return Model(
             facts={
@@ -138,7 +143,9 @@ def _evaluate_stratum(
     model: dict[str, IndexedRelation],
     rules: list[Rule],
     trace: DatalogTrace | None = None,
+    trace_config: TraceConfig | None = None,
 ) -> None:
+    actual_trace_config = trace_config or TraceConfig()
     stratum_predicates = {rule.heads[0].predicate for rule in rules}
     stratum_trace = StratumTrace(predicates=tuple(sorted(stratum_predicates)))
     if trace is not None:
@@ -193,6 +200,7 @@ def _evaluate_stratum(
                     overrides,
                     preferred_first_index=delta_position,
                     iteration_trace=iteration_trace,
+                    trace_config=actual_trace_config,
                 )
             if recursive_positions or not first_iteration:
                 continue
@@ -203,6 +211,7 @@ def _evaluate_stratum(
                 {},
                 preferred_first_index=None,
                 iteration_trace=iteration_trace,
+                trace_config=actual_trace_config,
             )
         if not any(delta_relation for delta_relation in next_delta.values()):
             return
@@ -219,8 +228,11 @@ def _apply_rule(
     model: dict[str, IndexedRelation],
     delta: dict[str, IndexedRelation],
     bindings: Iterable[dict[str, object]],
-) -> int:
+    trace_config: TraceConfig | None = None,
+) -> tuple[int, tuple[tuple[object, ...], ...]]:
+    actual_trace_config = trace_config or TraceConfig()
     derived_count = 0
+    captured_rows: list[tuple[object, ...]] = []
     for binding in bindings:
         if not _constraints_hold(rule.constraints, binding):
             continue
@@ -232,7 +244,8 @@ def _apply_rule(
         delta_bucket = delta.setdefault(derived.predicate, IndexedRelation())
         if delta_bucket.add(derived.arguments):
             derived_count += 1
-    return derived_count
+            _capture_derived_row(captured_rows, derived.arguments, actual_trace_config)
+    return derived_count, tuple(captured_rows)
 
 
 def _apply_rule_with_overrides(
@@ -242,7 +255,9 @@ def _apply_rule_with_overrides(
     overrides: dict[int, IndexedRelation],
     preferred_first_index: int | None,
     iteration_trace: IterationTrace | None,
+    trace_config: TraceConfig | None = None,
 ) -> int:
+    actual_trace_config = trace_config or TraceConfig()
     ordered_atoms = _order_positive_body(
         rule.positive_body,
         model,
@@ -252,16 +267,42 @@ def _apply_rule_with_overrides(
     if not rule.negative_body and not rule.constraints:
         compiled_rule = compile_simple_rule(rule.heads[0], ordered_atoms)
         if compiled_rule is not None:
-            derived_count = _apply_compiled_rule(compiled_rule, model, delta, overrides)
-            _record_rule_fire(iteration_trace, rule.source_text, preferred_first_index, derived_count)
+            derived_count, captured_rows = _apply_compiled_rule(
+                compiled_rule,
+                model,
+                delta,
+                overrides,
+                actual_trace_config,
+            )
+            _record_rule_fire(
+                iteration_trace,
+                rule.source_text,
+                rule.heads[0].predicate,
+                preferred_first_index,
+                derived_count,
+                captured_rows,
+            )
             return derived_count
     bindings = _iter_positive_body_matches_from_ordered_atoms(
         ordered_atoms,
         model,
         overrides,
     )
-    derived_count = _apply_rule(rule, model, delta, bindings)
-    _record_rule_fire(iteration_trace, rule.source_text, preferred_first_index, derived_count)
+    derived_count, captured_rows = _apply_rule(
+        rule,
+        model,
+        delta,
+        bindings,
+        actual_trace_config,
+    )
+    _record_rule_fire(
+        iteration_trace,
+        rule.source_text,
+        rule.heads[0].predicate,
+        preferred_first_index,
+        derived_count,
+        captured_rows,
+    )
     return derived_count
 
 
@@ -270,16 +311,20 @@ def _apply_compiled_rule(
     model: dict[str, IndexedRelation],
     delta: dict[str, IndexedRelation],
     overrides: dict[int, IndexedRelation],
-) -> int:
+    trace_config: TraceConfig | None = None,
+) -> tuple[int, tuple[tuple[object, ...], ...]]:
+    actual_trace_config = trace_config or TraceConfig()
     head_rows = model.get(compiled_rule.head_predicate, IndexedRelation())
     delta_bucket = delta.setdefault(compiled_rule.head_predicate, IndexedRelation())
     derived_count = 0
+    captured_rows: list[tuple[object, ...]] = []
     for row in iter_compiled_head_rows(compiled_rule, model, overrides):
         if row in head_rows:
             continue
         if delta_bucket.add(row):
             derived_count += 1
-    return derived_count
+            _capture_derived_row(captured_rows, row, actual_trace_config)
+    return derived_count, tuple(captured_rows)
 
 
 def _match_positive_body(
@@ -342,18 +387,36 @@ def _iter_generic_positive_body_matches(
 def _record_rule_fire(
     iteration_trace: IterationTrace | None,
     rule_text: str,
+    head_predicate: str,
     delta_position: int | None,
     derived_count: int,
+    derived_rows: tuple[tuple[object, ...], ...],
 ) -> None:
     if iteration_trace is None:
         return
     iteration_trace.rule_fires.append(
         RuleFireTrace(
             rule_text=rule_text,
+            head_predicate=head_predicate,
             delta_position=delta_position,
             derived_count=derived_count,
+            derived_rows=derived_rows,
         )
     )
+
+
+def _capture_derived_row(
+    captured_rows: list[tuple[object, ...]],
+    row: tuple[object, ...],
+    trace_config: TraceConfig,
+) -> None:
+    if not trace_config.capture_derived_rows:
+        return
+    if trace_config.max_derived_rows_per_rule_fire <= 0:
+        return
+    if len(captured_rows) >= trace_config.max_derived_rows_per_rule_fire:
+        return
+    captured_rows.append(row)
 
 
 def _iter_matches_from(

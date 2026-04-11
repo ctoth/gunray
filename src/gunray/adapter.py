@@ -6,6 +6,7 @@ from datalog_conformance.schema import DefeasibleTheory, Policy, Program
 
 from .defeasible import DefeasibleEvaluator
 from .evaluator import SemiNaiveEvaluator
+from .trace import TraceConfig
 
 
 class GunrayEvaluator:
@@ -27,10 +28,11 @@ class GunrayEvaluator:
         self,
         item: Program | DefeasibleTheory,
         policy: Policy | None = None,
+        trace_config: TraceConfig | None = None,
     ) -> tuple[object, object]:
         if isinstance(item, Program):
-            return self._datalog.evaluate_with_trace(item)
+            return self._datalog.evaluate_with_trace(item, trace_config)
         if isinstance(item, DefeasibleTheory):
             actual_policy = policy if policy is not None else Policy.BLOCKING
-            return self._defeasible.evaluate_with_trace(item, actual_policy)
+            return self._defeasible.evaluate_with_trace(item, actual_policy, trace_config)
         raise TypeError(f"Unsupported input type: {type(item).__name__}")
