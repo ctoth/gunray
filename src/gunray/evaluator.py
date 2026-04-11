@@ -6,6 +6,7 @@ from collections.abc import Iterable, Iterator
 
 from datalog_conformance.schema import Model, Program as SchemaProgram
 
+from .compiled import compile_simple_matcher, iter_compiled_bindings
 from .errors import ArityMismatchError, SafetyViolationError, UnboundVariableError
 from .parser import ground_atom, parse_program
 from .relation import IndexedRelation
@@ -225,6 +226,18 @@ def _iter_positive_body_matches_with_overrides(
         return
 
     ordered_atoms = _order_positive_body(atoms, model, overrides)
+    compiled = compile_simple_matcher(ordered_atoms)
+    if compiled is not None:
+        yield from iter_compiled_bindings(compiled, model, overrides)
+        return
+    yield from _iter_generic_positive_body_matches(ordered_atoms, model, overrides)
+
+
+def _iter_generic_positive_body_matches(
+    ordered_atoms: list[tuple[int, Atom]],
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> Iterator[dict[str, object]]:
     yield from _iter_matches_from(
         ordered_atoms,
         0,
