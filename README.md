@@ -1,10 +1,37 @@
 # Gunray
 
-Gunray is a pure-Python evaluator for the current `datalog-conformance` Datalog and
-defeasible-Datalog surface.
+Gunray is a pure-Python evaluator for the current `datalog-conformance` test surface.
 
-It is built to run against the conformance suite in the sibling repository
-`../datalog-conformance-suite`, and it exposes the same schema objects the suite uses.
+In practice, this means:
+
+- it reads `Program` and `DefeasibleTheory` objects from the conformance suite
+- it computes the facts those rules imply
+- it gives this repo a concrete engine to run the suite against
+
+If you are opening this repo cold, the shortest explanation is: Gunray is the Python engine behind
+the tests in `ctoth/datalog-conformance-suite`.
+
+## Why This Exists
+
+This repo exists to provide a concrete, inspectable evaluator for the conformance suite.
+
+- It gives the suite a real implementation to run against.
+- It makes semantics work visible in Python instead of burying it in an external engine.
+- It provides a place to experiment with evaluator behavior, traces, and performance while staying
+  aligned with the suite's schema and cases.
+
+## Terms in Plain English
+
+- Datalog: a small rule language. You start with facts, apply rules, and derive more facts.
+- Stratified negation: you can use `not`, but only in programs whose dependency graph has a safe
+  layering. Cyclic negation is rejected.
+- Defeasible reasoning: default-style reasoning where a conclusion can be blocked by contrary
+  evidence or stronger rules.
+- Blocking ambiguity: when equally strong opposing conclusions exist, Gunray leaves the conclusion
+  undecided instead of picking a side.
+- Propagating ambiguity: unresolved conflict can keep downstream conclusions unresolved too.
+- Closure policies: specialized entailment modes for the current reduced propositional test
+  fragment, not the general first-order evaluator.
 
 ## What It Supports
 
@@ -36,7 +63,20 @@ Prerequisites:
 
 - Python 3.11+
 - `uv`
-- A checkout of `datalog-conformance-suite` at `../datalog-conformance-suite`
+- A local clone of `ctoth/datalog-conformance-suite`
+
+The upstream conformance suite is on GitHub:
+
+- `https://github.com/ctoth/datalog-conformance-suite`
+
+This repo's current `uv` configuration expects that suite to be checked out locally at
+`../datalog-conformance-suite`.
+
+One way to set that up is:
+
+```powershell
+git clone https://github.com/ctoth/datalog-conformance-suite.git ../datalog-conformance-suite
+```
 
 Install the environment with:
 
