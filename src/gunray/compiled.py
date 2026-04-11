@@ -32,6 +32,14 @@ class CompiledSimpleMatcher:
     atoms: tuple[CompiledSimpleAtom, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class CompiledSimpleRule:
+    head_predicate: str
+    head_slots: tuple[int | None, ...]
+    head_constants: tuple[object | None, ...]
+    matcher: CompiledSimpleMatcher
+
+
 def compile_simple_matcher(
     ordered_atoms: list[tuple[int, Atom]],
 ) -> CompiledSimpleMatcher | None:
@@ -96,6 +104,41 @@ def compile_simple_matcher(
     )
 
 
+def compile_simple_rule(
+    rule: Atom,
+    ordered_atoms: list[tuple[int, Atom]],
+) -> CompiledSimpleRule | None:
+    matcher = compile_simple_matcher(ordered_atoms)
+    if matcher is None:
+        return None
+
+    head_slots: list[int | None] = []
+    head_constants: list[object | None] = []
+    slot_indexes = {
+        name: index
+        for index, name in enumerate(matcher.slot_names)
+    }
+    for term in rule.terms:
+        if isinstance(term, Constant):
+            head_slots.append(None)
+            head_constants.append(term.value)
+            continue
+        if not isinstance(term, Variable):
+            return None
+        slot = slot_indexes.get(term.name)
+        if slot is None:
+            return None
+        head_slots.append(slot)
+        head_constants.append(None)
+
+    return CompiledSimpleRule(
+        head_predicate=rule.predicate,
+        head_slots=tuple(head_slots),
+        head_constants=tuple(head_constants),
+        matcher=matcher,
+    )
+
+
 def iter_compiled_bindings(
     compiled: CompiledSimpleMatcher,
     model: dict[str, IndexedRelation],
@@ -138,6 +181,52 @@ def _iter_compiled_matches(
         for column, slot in zip(atom.assigned_columns, atom.assigned_slots, strict=True):
             slots[slot] = row[column]
         yield from _iter_compiled_matches(compiled, offset + 1, slots, model, overrides)
+        for slot in reversed(atom.assigned_slots):
+            slots[slot] = _UNBOUND
+
+
+def iter_compiled_head_rows(
+    compiled: CompiledSimpleRule,
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> Iterator[tuple[object, ...]]:
+    slots: list[object] = [_UNBOUND] * len(compiled.matcher.slot_names)
+    yield from _iter_compiled_head_matches(compiled, 0, slots, model, overrides)
+
+
+def _iter_compiled_head_matches(
+    compiled: CompiledSimpleRule,
+    offset: int,
+    slots: list[object],
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> Iterator[tuple[object, ...]]:
+    if offset >= len(compiled.matcher.atoms):
+        yield tuple(
+            slots[slot] if slot is not None else constant
+            for slot, constant in zip(compiled.head_slots, compiled.head_constants, strict=True)
+        )
+        return
+
+    atom = compiled.matcher.atoms[offset]
+    rows = overrides.get(atom.source_index, model.get(atom.predicate, IndexedRelation()))
+    if not rows:
+        return
+
+    candidates = rows
+    if atom.lookup_columns:
+        lookup_values = list(atom.constant_values)
+        lookup_values.extend(slots[slot] for slot in atom.lookup_slots)
+        candidates = rows.lookup(atom.lookup_columns, tuple(lookup_values))
+        if not candidates:
+            return
+
+    for row in candidates:
+        if not _row_equalities_hold(atom, row, slots):
+            continue
+        for column, slot in zip(atom.assigned_columns, atom.assigned_slots, strict=True):
+            slots[slot] = row[column]
+        yield from _iter_compiled_head_matches(compiled, offset + 1, slots, model, overrides)
         for slot in reversed(atom.assigned_slots):
             slots[slot] = _UNBOUND
 

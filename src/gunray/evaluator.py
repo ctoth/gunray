@@ -6,7 +6,12 @@ from collections.abc import Iterable, Iterator
 
 from datalog_conformance.schema import Model, Program as SchemaProgram
 
-from .compiled import compile_simple_matcher, iter_compiled_bindings
+from .compiled import (
+    compile_simple_matcher,
+    compile_simple_rule,
+    iter_compiled_bindings,
+    iter_compiled_head_rows,
+)
 from .errors import ArityMismatchError, SafetyViolationError, UnboundVariableError
 from .parser import ground_atom, parse_program
 from .relation import IndexedRelation
@@ -160,19 +165,19 @@ def _evaluate_stratum(
                 for earlier_position in recursive_positions[:delta_offset]:
                     earlier_atom = rule.positive_body[earlier_position]
                     overrides[earlier_position] = previous_only[earlier_atom.predicate]
-                bindings = _iter_positive_body_matches_with_overrides(
-                    rule.positive_body,
+                _apply_rule_with_overrides(
+                    rule,
                     model,
+                    next_delta,
                     overrides,
                 )
-                _apply_rule(rule, model, next_delta, bindings)
             if recursive_positions or not first_iteration:
                 continue
-            _apply_rule(
+            _apply_rule_with_overrides(
                 rule,
                 model,
                 next_delta,
-                _iter_positive_body_matches(rule.positive_body, model),
+                {},
             )
         if not any(delta_relation for delta_relation in next_delta.values()):
             return
@@ -202,6 +207,40 @@ def _apply_rule(
         delta_bucket.add(derived.arguments)
 
 
+def _apply_rule_with_overrides(
+    rule: Rule,
+    model: dict[str, IndexedRelation],
+    delta: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> None:
+    ordered_atoms = _order_positive_body(rule.positive_body, model, overrides)
+    if not rule.negative_body and not rule.constraints:
+        compiled_rule = compile_simple_rule(rule.heads[0], ordered_atoms)
+        if compiled_rule is not None:
+            _apply_compiled_rule(compiled_rule, model, delta, overrides)
+            return
+    bindings = _iter_positive_body_matches_from_ordered_atoms(
+        ordered_atoms,
+        model,
+        overrides,
+    )
+    _apply_rule(rule, model, delta, bindings)
+
+
+def _apply_compiled_rule(
+    compiled_rule,
+    model: dict[str, IndexedRelation],
+    delta: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> None:
+    head_rows = model.get(compiled_rule.head_predicate, IndexedRelation())
+    delta_bucket = delta.setdefault(compiled_rule.head_predicate, IndexedRelation())
+    for row in iter_compiled_head_rows(compiled_rule, model, overrides):
+        if row in head_rows:
+            continue
+        delta_bucket.add(row)
+
+
 def _match_positive_body(
     atoms: tuple[Atom, ...],
     model: dict[str, IndexedRelation],
@@ -226,6 +265,18 @@ def _iter_positive_body_matches_with_overrides(
         return
 
     ordered_atoms = _order_positive_body(atoms, model, overrides)
+    yield from _iter_positive_body_matches_from_ordered_atoms(
+        ordered_atoms,
+        model,
+        overrides,
+    )
+
+
+def _iter_positive_body_matches_from_ordered_atoms(
+    ordered_atoms: list[tuple[int, Atom]],
+    model: dict[str, IndexedRelation],
+    overrides: dict[int, IndexedRelation],
+) -> Iterator[dict[str, object]]:
     compiled = compile_simple_matcher(ordered_atoms)
     if compiled is not None:
         yield from iter_compiled_bindings(compiled, model, overrides)

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from gunray.compiled import compile_simple_matcher, iter_compiled_bindings
 from gunray.evaluator import (
+    _apply_rule,
+    _apply_rule_with_overrides,
     _iter_generic_positive_body_matches,
     _order_positive_body,
 )
 from gunray.relation import IndexedRelation
-from gunray.types import AddExpression, Atom, Constant, Variable, Wildcard
+from gunray.types import AddExpression, Atom, Constant, Rule, Variable, Wildcard
 
 
 def _sorted_bindings(bindings: list[dict[str, object]]) -> list[tuple[tuple[str, object], ...]]:
@@ -73,3 +75,35 @@ def test_compiled_matcher_rejects_expression_terms() -> None:
     ]
 
     assert compile_simple_matcher(atoms) is None
+
+
+def test_compiled_rule_application_matches_generic_delta() -> None:
+    rule = Rule(
+        heads=(Atom("path", (Variable("x"), Variable("z"))),),
+        positive_body=(
+            Atom("edge", (Variable("x"), Variable("y"))),
+            Atom("edge", (Variable("y"), Variable("z"))),
+        ),
+        negative_body=(),
+        constraints=(),
+        source_text="path(x,z) :- edge(x,y), edge(y,z).",
+    )
+    model = {
+        "edge": IndexedRelation({("a", "b"), ("b", "c"), ("c", "d")}),
+        "path": IndexedRelation({("a", "c")}),
+    }
+    overrides: dict[int, IndexedRelation] = {}
+
+    generic_delta = {"path": IndexedRelation()}
+    ordered_atoms = _order_positive_body(rule.positive_body, model, overrides)
+    _apply_rule(
+        rule,
+        model,
+        generic_delta,
+        _iter_generic_positive_body_matches(ordered_atoms, model, overrides),
+    )
+
+    compiled_delta = {"path": IndexedRelation()}
+    _apply_rule_with_overrides(rule, model, compiled_delta, overrides)
+
+    assert compiled_delta["path"].as_set() == generic_delta["path"].as_set()
