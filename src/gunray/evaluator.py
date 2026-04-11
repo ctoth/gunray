@@ -23,6 +23,7 @@ from .semantics import (
     values_equal,
 )
 from .stratify import stratify
+from .trace import DatalogTrace, IterationTrace, RuleFireTrace, StratumTrace
 from .types import (
     AddExpression,
     Atom,
@@ -41,10 +42,15 @@ class SemiNaiveEvaluator:
     """Evaluate stratified Datalog programs under standard least-model semantics."""
 
     def evaluate(self, program: SchemaProgram) -> Model:
+        model, _ = self.evaluate_with_trace(program)
+        return model
+
+    def evaluate_with_trace(self, program: SchemaProgram) -> tuple[Model, DatalogTrace]:
         facts, parsed_rules = parse_program(program)
         rules = _normalize_rules(parsed_rules)
         _validate_program(facts, rules)
         strata = stratify(rules)
+        trace = DatalogTrace()
 
         model = {
             predicate: IndexedRelation(rows)
@@ -54,14 +60,14 @@ class SemiNaiveEvaluator:
             stratum_rules = [
                 rule for rule in rules if rule.heads[0].predicate in predicates
             ]
-            _evaluate_stratum(model, stratum_rules)
+            _evaluate_stratum(model, stratum_rules, trace)
 
         return Model(
             facts={
                 predicate: relation.as_set()
                 for predicate, relation in model.items()
             }
-        )
+        ), trace
 
 
 def _normalize_rules(rules: list[Rule]) -> list[Rule]:
@@ -131,8 +137,12 @@ def _validate_program(facts: dict[str, set[tuple[object, ...]]], rules: list[Rul
 def _evaluate_stratum(
     model: dict[str, IndexedRelation],
     rules: list[Rule],
+    trace: DatalogTrace | None = None,
 ) -> None:
     stratum_predicates = {rule.heads[0].predicate for rule in rules}
+    stratum_trace = StratumTrace(predicates=tuple(sorted(stratum_predicates)))
+    if trace is not None:
+        trace.strata.append(stratum_trace)
 
     delta = {
         predicate: IndexedRelation(
@@ -141,11 +151,22 @@ def _evaluate_stratum(
         for predicate in stratum_predicates
     }
     first_iteration = True
+    iteration_number = 0
     while first_iteration or any(delta_relation for delta_relation in delta.values()):
+        iteration_number += 1
         next_delta = {
             predicate: IndexedRelation()
             for predicate in stratum_predicates
         }
+        iteration_trace = IterationTrace(
+            iteration=iteration_number,
+            delta_sizes={
+                predicate: len(rows)
+                for predicate, rows in delta.items()
+                if len(rows)
+            },
+        )
+        stratum_trace.iterations.append(iteration_trace)
         previous_only = {
             predicate: model.get(predicate, IndexedRelation()).difference(delta_relation)
             for predicate, delta_relation in delta.items()
@@ -171,6 +192,7 @@ def _evaluate_stratum(
                     next_delta,
                     overrides,
                     preferred_first_index=delta_position,
+                    iteration_trace=iteration_trace,
                 )
             if recursive_positions or not first_iteration:
                 continue
@@ -180,6 +202,7 @@ def _evaluate_stratum(
                 next_delta,
                 {},
                 preferred_first_index=None,
+                iteration_trace=iteration_trace,
             )
         if not any(delta_relation for delta_relation in next_delta.values()):
             return
@@ -196,7 +219,8 @@ def _apply_rule(
     model: dict[str, IndexedRelation],
     delta: dict[str, IndexedRelation],
     bindings: Iterable[dict[str, object]],
-) -> None:
+) -> int:
+    derived_count = 0
     for binding in bindings:
         if not _constraints_hold(rule.constraints, binding):
             continue
@@ -206,7 +230,9 @@ def _apply_rule(
         if derived.arguments in model.get(derived.predicate, IndexedRelation()):
             continue
         delta_bucket = delta.setdefault(derived.predicate, IndexedRelation())
-        delta_bucket.add(derived.arguments)
+        if delta_bucket.add(derived.arguments):
+            derived_count += 1
+    return derived_count
 
 
 def _apply_rule_with_overrides(
@@ -215,7 +241,8 @@ def _apply_rule_with_overrides(
     delta: dict[str, IndexedRelation],
     overrides: dict[int, IndexedRelation],
     preferred_first_index: int | None,
-) -> None:
+    iteration_trace: IterationTrace | None,
+) -> int:
     ordered_atoms = _order_positive_body(
         rule.positive_body,
         model,
@@ -225,14 +252,17 @@ def _apply_rule_with_overrides(
     if not rule.negative_body and not rule.constraints:
         compiled_rule = compile_simple_rule(rule.heads[0], ordered_atoms)
         if compiled_rule is not None:
-            _apply_compiled_rule(compiled_rule, model, delta, overrides)
-            return
+            derived_count = _apply_compiled_rule(compiled_rule, model, delta, overrides)
+            _record_rule_fire(iteration_trace, rule.source_text, preferred_first_index, derived_count)
+            return derived_count
     bindings = _iter_positive_body_matches_from_ordered_atoms(
         ordered_atoms,
         model,
         overrides,
     )
-    _apply_rule(rule, model, delta, bindings)
+    derived_count = _apply_rule(rule, model, delta, bindings)
+    _record_rule_fire(iteration_trace, rule.source_text, preferred_first_index, derived_count)
+    return derived_count
 
 
 def _apply_compiled_rule(
@@ -240,13 +270,16 @@ def _apply_compiled_rule(
     model: dict[str, IndexedRelation],
     delta: dict[str, IndexedRelation],
     overrides: dict[int, IndexedRelation],
-) -> None:
+) -> int:
     head_rows = model.get(compiled_rule.head_predicate, IndexedRelation())
     delta_bucket = delta.setdefault(compiled_rule.head_predicate, IndexedRelation())
+    derived_count = 0
     for row in iter_compiled_head_rows(compiled_rule, model, overrides):
         if row in head_rows:
             continue
-        delta_bucket.add(row)
+        if delta_bucket.add(row):
+            derived_count += 1
+    return derived_count
 
 
 def _match_positive_body(
@@ -303,6 +336,23 @@ def _iter_generic_positive_body_matches(
         {},
         model,
         overrides,
+    )
+
+
+def _record_rule_fire(
+    iteration_trace: IterationTrace | None,
+    rule_text: str,
+    delta_position: int | None,
+    derived_count: int,
+) -> None:
+    if iteration_trace is None:
+        return
+    iteration_trace.rule_fires.append(
+        RuleFireTrace(
+            rule_text=rule_text,
+            delta_position=delta_position,
+            derived_count=derived_count,
+        )
     )
 
 

@@ -120,6 +120,7 @@ def _profile_stratum(
                         next_delta,
                         overrides,
                         preferred_first_index=delta_position,
+                        iteration_trace=None,
                     )
             elif first_iteration:
                 _apply_rule_with_overrides(
@@ -128,6 +129,7 @@ def _profile_stratum(
                     next_delta,
                     {},
                     preferred_first_index=None,
+                    iteration_trace=None,
                 )
             rule_ms = (time.perf_counter() - rule_started) * 1000.0
             added_rows = {

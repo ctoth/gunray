@@ -15,6 +15,7 @@ from .evaluator import SemiNaiveEvaluator
 from .evaluator import _match_positive_body
 from .parser import ground_atom, normalize_facts, parse_defeasible_theory
 from .relation import IndexedRelation
+from .trace import ClassificationTrace, DefeasibleTrace, ProofAttemptTrace
 from .types import DefeasibleRule, GroundAtom, GroundDefeasibleRule
 from .types import variables_in_term
 
@@ -23,9 +24,18 @@ class DefeasibleEvaluator:
     """Evaluate defeasible theories under the suite's blocking-style semantics."""
 
     def evaluate(self, theory: SchemaDefeasibleTheory, policy: Policy) -> DefeasibleModel:
+        model, _ = self.evaluate_with_trace(theory, policy)
+        return model
+
+    def evaluate_with_trace(
+        self,
+        theory: SchemaDefeasibleTheory,
+        policy: Policy,
+    ) -> tuple[DefeasibleModel, DefeasibleTrace]:
         del policy
+        trace = DefeasibleTrace()
         if _is_strict_only_theory(theory):
-            return _evaluate_strict_only_theory(theory)
+            return _evaluate_strict_only_theory(theory), trace
 
         facts, rules, conflicts = parse_defeasible_theory(theory)
         superiority = {(stronger, weaker) for stronger, weaker in theory.superiority}
@@ -41,6 +51,8 @@ class DefeasibleEvaluator:
 
         definitely = _facts_to_atoms(definite_model)
         supported = _facts_to_atoms(support_model)
+        trace.definitely = tuple(sorted(definitely, key=_atom_sort_key))
+        trace.supported = tuple(sorted(supported, key=_atom_sort_key))
         grounded_rules, unsupported_heads = _ground_rules(rules, support_model)
         grounded_strict_rules = tuple(
             rule for rule in grounded_rules if rule.kind == "strict"
@@ -78,6 +90,7 @@ class DefeasibleEvaluator:
                     superiority,
                     grounded_strict_rules,
                     specificity_cache,
+                    trace,
                 ):
                     proven.add(atom)
                     changed = True
@@ -99,6 +112,13 @@ class DefeasibleEvaluator:
             ]
             if not supported_rules:
                 not_defeasibly.add(atom)
+                trace.classifications.append(
+                    ClassificationTrace(
+                        atom=atom,
+                        result="not_defeasibly",
+                        reason="no_supported_rules",
+                    )
+                )
                 continue
             if _has_blocking_peer(
                 atom,
@@ -112,8 +132,22 @@ class DefeasibleEvaluator:
                 specificity_cache,
             ):
                 undecided.add(atom)
+                trace.classifications.append(
+                    ClassificationTrace(
+                        atom=atom,
+                        result="undecided",
+                        reason="equal_strength_peer_conflict",
+                    )
+                )
             else:
                 not_defeasibly.add(atom)
+                trace.classifications.append(
+                    ClassificationTrace(
+                        atom=atom,
+                        result="not_defeasibly",
+                        reason="supported_but_overruled",
+                    )
+                )
 
         sections = {
             "definitely": _atoms_to_section(definitely),
@@ -123,7 +157,7 @@ class DefeasibleEvaluator:
         }
         return DefeasibleModel(
             sections={name: facts_map for name, facts_map in sections.items() if facts_map}
-        )
+        ), trace
 
 
 def _is_strict_only_theory(theory: SchemaDefeasibleTheory) -> bool:
@@ -208,8 +242,10 @@ def _can_prove(
     superiority: set[tuple[str, str]],
     grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
     specificity_cache: dict[frozenset[GroundAtom], set[GroundAtom]],
+    trace: DefeasibleTrace | None,
 ) -> bool:
     if atom in definitely:
+        _record_proof_attempt(trace, atom, "proved", "strict_fact_or_rule", (), ())
         return True
 
     opposing_atoms = {
@@ -222,6 +258,14 @@ def _can_prove(
         if (atom.predicate, other.predicate) in conflicts and other.arguments == atom.arguments
     }
     if opposing_atoms & definitely:
+        _record_proof_attempt(
+            trace,
+            atom,
+            "blocked",
+            "conflict_with_definite_opponent",
+            (),
+            (),
+        )
         return False
 
     supporting_rules = [
@@ -230,6 +274,7 @@ def _can_prove(
         if rule.kind != "defeater" and _rule_body_available(rule, proven, definitely)
     ]
     if not supporting_rules:
+        _record_proof_attempt(trace, atom, "blocked", "no_active_support_rule", (), ())
         return False
 
     attackers: list[GroundDefeasibleRule] = []
@@ -241,8 +286,24 @@ def _can_prove(
         )
 
     if not attackers:
+        _record_proof_attempt(
+            trace,
+            atom,
+            "proved",
+            "unopposed_support",
+            tuple(rule.rule_id for rule in supporting_rules),
+            (),
+        )
         return True
     if any(attacker.kind == "strict" for attacker in attackers):
+        _record_proof_attempt(
+            trace,
+            atom,
+            "blocked",
+            "strict_attacker",
+            tuple(rule.rule_id for rule in supporting_rules),
+            tuple(rule.rule_id for rule in attackers),
+        )
         return False
 
     for supporter in supporting_rules:
@@ -257,7 +318,23 @@ def _can_prove(
             grounded_strict_rules,
             specificity_cache,
         ):
+            _record_proof_attempt(
+                trace,
+                atom,
+                "proved",
+                f"surviving_supporter:{supporter.rule_id}",
+                (supporter.rule_id,),
+                tuple(rule.rule_id for rule in attackers),
+            )
             return True
+    _record_proof_attempt(
+        trace,
+        atom,
+        "blocked",
+        "all_supporters_overruled",
+        tuple(rule.rule_id for rule in supporting_rules),
+        tuple(rule.rule_id for rule in attackers),
+    )
     return False
 
 
@@ -345,6 +422,27 @@ def _rule_variables(rule: DefeasibleRule) -> set[str]:
 
 def _atom_sort_key(atom: GroundAtom) -> tuple[str, tuple[object, ...]]:
     return atom.predicate, atom.arguments
+
+
+def _record_proof_attempt(
+    trace: DefeasibleTrace | None,
+    atom: GroundAtom,
+    result: str,
+    reason: str,
+    supporter_rule_ids: tuple[str, ...],
+    attacker_rule_ids: tuple[str, ...],
+) -> None:
+    if trace is None:
+        return
+    trace.proof_attempts.append(
+        ProofAttemptTrace(
+            atom=atom,
+            result=result,
+            reason=reason,
+            supporter_rule_ids=supporter_rule_ids,
+            attacker_rule_ids=attacker_rule_ids,
+        )
+    )
 
 
 def _rule_body_available(

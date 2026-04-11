@@ -110,6 +110,7 @@ def test_compiled_rule_application_matches_generic_delta() -> None:
         compiled_delta,
         overrides,
         preferred_first_index=None,
+        iteration_trace=None,
     )
 
     assert compiled_delta["path"].as_set() == generic_delta["path"].as_set()
