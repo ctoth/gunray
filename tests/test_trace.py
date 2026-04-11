@@ -1,9 +1,30 @@
 from __future__ import annotations
 
 from datalog_conformance.schema import DefeasibleTheory, Policy, Program, Rule
+from hypothesis import given
+from hypothesis import strategies as st
 
 from gunray import GunrayEvaluator, TraceConfig
 from gunray.types import GroundAtom
+
+
+_NODES = ("a", "b", "c", "d")
+_FORWARD_EDGES = tuple(
+    (_NODES[left], _NODES[right])
+    for left in range(len(_NODES))
+    for right in range(left + 1, len(_NODES))
+)
+
+
+@st.composite
+def _edge_sets(draw: st.DrawFn) -> set[tuple[str, str]]:
+    return set(draw(st.lists(st.sampled_from(_FORWARD_EDGES), unique=True)))
+
+
+def _edge_facts(edges: set[tuple[str, str]]) -> dict[str, set[tuple[str, str]]]:
+    if not edges:
+        return {}
+    return {"edge": edges}
 
 
 def test_datalog_trace_records_rule_fires() -> None:
@@ -171,3 +192,95 @@ def test_strict_only_trace_exposes_underlying_datalog_trace() -> None:
     )
     assert strict_fires
     assert any(("a", "c") in fire.derived_rows for fire in strict_fires)
+
+
+@given(edges=_edge_sets(), row_limit=st.integers(min_value=0, max_value=3))
+def test_datalog_trace_property_captured_rows_land_in_final_model(
+    edges: set[tuple[str, str]],
+    row_limit: int,
+) -> None:
+    evaluator = GunrayEvaluator()
+    program = Program(
+        facts=_edge_facts(edges),
+        rules=["path(X, Y) :- edge(X, Y).", "path(X, Z) :- edge(X, Y), path(Y, Z)."],
+    )
+
+    model, trace = evaluator.evaluate_with_trace(
+        program,
+        trace_config=TraceConfig(
+            capture_derived_rows=True,
+            max_derived_rows_per_rule_fire=row_limit,
+        ),
+    )
+
+    all_fires = trace.all_rule_fires()
+    path_rows = model.facts.get("path", set())
+    for fire in all_fires:
+        assert len(fire.derived_rows) <= row_limit
+        assert all(row in path_rows for row in fire.derived_rows)
+
+
+@given(
+    edges=_edge_sets(),
+    minimum_count=st.integers(min_value=0, max_value=3),
+    head_predicate=st.sampled_from(("path", "edge", "missing")),
+)
+def test_datalog_trace_property_find_rule_fires_matches_manual_filter(
+    edges: set[tuple[str, str]],
+    minimum_count: int,
+    head_predicate: str,
+) -> None:
+    evaluator = GunrayEvaluator()
+    program = Program(
+        facts=_edge_facts(edges),
+        rules=["path(X, Y) :- edge(X, Y).", "path(X, Z) :- edge(X, Y), path(Y, Z)."],
+    )
+
+    _, trace = evaluator.evaluate_with_trace(program)
+
+    expected = tuple(
+        fire
+        for fire in trace.all_rule_fires()
+        if fire.head_predicate == head_predicate and fire.derived_count >= minimum_count
+    )
+
+    assert trace.find_rule_fires(
+        head_predicate=head_predicate,
+        derived_count_at_least=minimum_count,
+    ) == expected
+
+
+@given(edges=_edge_sets(), row_limit=st.integers(min_value=0, max_value=3))
+def test_strict_only_trace_property_matches_definite_section(
+    edges: set[tuple[str, str]],
+    row_limit: int,
+) -> None:
+    evaluator = GunrayEvaluator()
+    theory = DefeasibleTheory(
+        facts=_edge_facts(edges),
+        strict_rules=[
+            Rule(id="r1", head="path(X, Y)", body=["edge(X, Y)"]),
+            Rule(id="r2", head="path(X, Z)", body=["edge(X, Y)", "path(Y, Z)"]),
+        ],
+        defeasible_rules=[],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+    model, trace = evaluator.evaluate_with_trace(
+        theory,
+        Policy.BLOCKING,
+        trace_config=TraceConfig(
+            capture_derived_rows=True,
+            max_derived_rows_per_rule_fire=row_limit,
+        ),
+    )
+
+    assert trace.strict_trace is not None
+    assert set(trace.definitely) == set(trace.supported)
+
+    definitely_path_rows = model.sections.get("definitely", {}).get("path", set())
+    for fire in trace.strict_trace.find_rule_fires(head_predicate="path"):
+        assert len(fire.derived_rows) <= row_limit
+        assert all(row in definitely_path_rows for row in fire.derived_rows)
