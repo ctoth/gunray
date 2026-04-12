@@ -1,11 +1,8 @@
-"""Bottom-up Datalog evaluation for the conformance-suite program schema."""
+"""Bottom-up Datalog evaluation for the Gunray program schema."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-
-from datalog_conformance.schema import Model
-from datalog_conformance.schema import Program as SchemaProgram
 
 from .compiled import (
     compile_simple_matcher,
@@ -16,6 +13,8 @@ from .compiled import (
 from .errors import ArityMismatchError, SafetyViolationError, UnboundVariableError
 from .parser import ground_atom, parse_program
 from .relation import IndexedRelation
+from .schema import Model
+from .schema import Program as SchemaProgram
 from .semantics import (
     SemanticError,
     add_values,

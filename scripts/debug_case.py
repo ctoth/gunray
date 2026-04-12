@@ -25,7 +25,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--evaluator",
-        default="gunray.adapter.GunrayEvaluator",
+        default="gunray.conformance_adapter.GunrayConformanceEvaluator",
         help="Import path for the evaluator under test",
     )
     args = parser.parse_args()

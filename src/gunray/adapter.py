@@ -1,17 +1,16 @@
-"""Single-object protocol adapter for the conformance suite."""
+"""Single-object dispatcher over Gunray-owned input types."""
 
 from __future__ import annotations
-
-from datalog_conformance.schema import DefeasibleTheory, Policy, Program
 
 from .closure import ClosureEvaluator
 from .defeasible import DefeasibleEvaluator
 from .evaluator import SemiNaiveEvaluator
+from .schema import DefeasibleTheory, Policy, Program
 from .trace import TraceConfig
 
 
 class GunrayEvaluator:
-    """Dispatch conformance-suite inputs to the right engine."""
+    """Dispatch Gunray inputs to the right engine."""
 
     def __init__(self) -> None:
         self._datalog = SemiNaiveEvaluator()

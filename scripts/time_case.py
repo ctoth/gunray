@@ -11,7 +11,7 @@ from datalog_conformance.plugin import _load_multi_case_file, get_tests_dir
 from datalog_conformance.runner import _extract_defeasible_sections, _extract_model_facts
 from datalog_conformance.schema import TestCase
 
-from gunray.adapter import GunrayEvaluator
+from gunray.conformance_adapter import GunrayConformanceEvaluator
 
 
 def main() -> int:
@@ -27,7 +27,7 @@ def main() -> int:
     args = parser.parse_args()
 
     case = _load_case(args.case, args.yaml)
-    evaluator = GunrayEvaluator()
+    evaluator = GunrayConformanceEvaluator()
     if args.dump_after > 0:
         faulthandler.dump_traceback_later(args.dump_after, repeat=True)
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from datalog_conformance.schema import DefeasibleTheory, Policy, Rule
-
+from gunray import DefeasibleTheory, Policy, Rule
 from gunray.closure import ClosureEvaluator
 
 

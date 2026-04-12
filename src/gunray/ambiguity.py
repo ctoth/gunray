@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from datalog_conformance.schema import Policy
-
+from .schema import Policy
 from .types import GroundAtom
 
 
@@ -18,7 +17,7 @@ class AmbiguityPolicy:
 
 
 def resolve_ambiguity_policy(policy: Policy) -> AmbiguityPolicy:
-    """Map a conformance-suite policy to the evaluator's attacker basis."""
+    """Map a Gunray policy to the evaluator's attacker basis."""
 
     if policy is Policy.BLOCKING:
         return AmbiguityPolicy(name=policy, attacker_basis="proved")

@@ -1,14 +1,13 @@
-"""Parser for the current conformance-suite Datalog and defeasible rule surface."""
+"""Parser for the current Gunray Datalog and defeasible rule surface."""
 
 from __future__ import annotations
 
 from ast import literal_eval
 
-from datalog_conformance.schema import DefeasibleTheory as SchemaDefeasibleTheory
-from datalog_conformance.schema import Program as SchemaProgram
-from datalog_conformance.schema import Rule as SchemaRule
-
 from .errors import ParseError
+from .schema import DefeasibleTheory as SchemaDefeasibleTheory
+from .schema import Program as SchemaProgram
+from .schema import Rule as SchemaRule
 from .semantics import add_values, subtract_values
 from .types import (
     AddExpression,
@@ -41,7 +40,7 @@ def normalize_facts(
 
 
 def parse_program(program: SchemaProgram) -> tuple[dict[str, set[tuple[Scalar, ...]]], list[Rule]]:
-    """Parse a conformance-suite program into normalized facts and rules."""
+    """Parse a Gunray program into normalized facts and rules."""
 
     facts = normalize_facts(program.facts)
     rules = [parse_rule_text(rule_text) for rule_text in program.rules]
@@ -51,7 +50,7 @@ def parse_program(program: SchemaProgram) -> tuple[dict[str, set[tuple[Scalar, .
 def parse_defeasible_theory(
     theory: SchemaDefeasibleTheory,
 ) -> tuple[dict[str, set[tuple[Scalar, ...]]], list[DefeasibleRule], set[tuple[str, str]]]:
-    """Parse a conformance-suite defeasible theory."""
+    """Parse a Gunray defeasible theory."""
 
     facts = normalize_facts(theory.facts)
     rules: list[DefeasibleRule] = []

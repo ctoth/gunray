@@ -25,12 +25,10 @@ dependencies = [
 name = "gunray"
 version = "0.1.0"
 source = { editable = "." }
-dependencies = [
-    { name = "datalog-conformance" },
-]
 
 [package.optional-dependencies]
 dev = [
+    { name = "datalog-conformance" },
     { name = "hypothesis" },
     { name = "pyright" },
     { name = "pytest" },
@@ -40,7 +38,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datalog-conformance", git = "https://github.com/ctoth/datalog-conformance-suite" },
+    { name = "datalog-conformance", marker = "extra == 'dev'", git = "https://github.com/ctoth/datalog-conformance-suite" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },

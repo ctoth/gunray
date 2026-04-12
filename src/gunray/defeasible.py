@@ -1,24 +1,16 @@
-"""Blocking defeasible evaluation for the current conformance-suite theory fragment."""
+"""Blocking defeasible evaluation for the current Gunray theory fragment."""
 
 from __future__ import annotations
 
 from collections import defaultdict
 
-from datalog_conformance.schema import (
-    DefeasibleModel,
-    Policy,
-)
-from datalog_conformance.schema import (
-    DefeasibleTheory as SchemaDefeasibleTheory,
-)
-from datalog_conformance.schema import (
-    Program as SchemaProgram,
-)
-
 from .ambiguity import AmbiguityPolicy, attacker_basis_atoms, resolve_ambiguity_policy
 from .evaluator import SemiNaiveEvaluator, _match_positive_body
 from .parser import ground_atom, parse_defeasible_theory
 from .relation import IndexedRelation
+from .schema import DefeasibleModel, Policy
+from .schema import DefeasibleTheory as SchemaDefeasibleTheory
+from .schema import Program as SchemaProgram
 from .trace import (
     ClassificationTrace,
     DatalogTrace,
@@ -30,7 +22,7 @@ from .types import DefeasibleRule, GroundAtom, GroundDefeasibleRule, variables_i
 
 
 class DefeasibleEvaluator:
-    """Evaluate defeasible theories under the suite's blocking-style semantics."""
+    """Evaluate defeasible theories under Gunray's supported semantics."""
 
     def evaluate(self, theory: SchemaDefeasibleTheory, policy: Policy) -> DefeasibleModel:
         model, _ = self.evaluate_with_trace(theory, policy)

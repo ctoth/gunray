@@ -6,11 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-    "datalog-conformance @ git+https://github.com/ctoth/datalog-conformance-suite",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "datalog-conformance @ git+https://github.com/ctoth/datalog-conformance-suite",
     "hypothesis>=6.0",
     "pyright>=1.1.0",
     "pytest>=8.0",

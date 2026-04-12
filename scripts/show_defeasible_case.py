@@ -8,7 +8,7 @@ import yaml
 from datalog_conformance.plugin import _load_multi_case_file, get_tests_dir
 from datalog_conformance.schema import Policy, TestCase
 
-from gunray.adapter import GunrayEvaluator
+from gunray.conformance_adapter import GunrayConformanceEvaluator
 from gunray.trace import DefeasibleTrace
 
 
@@ -25,10 +25,11 @@ def main() -> int:
         raise SystemExit("Only theory cases are supported")
 
     if args.engine == "gunray":
+        evaluator = GunrayConformanceEvaluator()
         if args.show_trace:
-            model, trace = GunrayEvaluator().evaluate_with_trace(case.theory, Policy.BLOCKING)
+            model, trace = evaluator.evaluate_with_trace(case.theory, Policy.BLOCKING)
         else:
-            model = GunrayEvaluator().evaluate(case.theory, Policy.BLOCKING)
+            model = evaluator.evaluate(case.theory, Policy.BLOCKING)
             trace = None
     else:
         suite_root = Path(__file__).resolve().parents[2] / "datalog-conformance-suite"

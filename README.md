@@ -6,8 +6,7 @@ hand it a bird that happens to also be a penguin, and it does the right
 thing:
 
 ```python
-from datalog_conformance.schema import DefeasibleTheory, Policy, Rule
-from gunray import GunrayEvaluator
+from gunray import DefeasibleTheory, GunrayEvaluator, Policy, Rule
 
 theory = DefeasibleTheory(
     facts={"bird": {("tweety",), ("opus",)}, "penguin": {("opus",)}},
@@ -53,8 +52,13 @@ defeasible evaluator instead.
 ## Install
 
 Python 3.11+ and [`uv`](https://docs.astral.sh/uv/). The conformance suite
-is a git-pinned dependency in `pyproject.toml`, so you don't need a sibling
-checkout:
+is not part of Gunray's base runtime install:
+
+```powershell
+uv sync
+```
+
+For development, tests, and suite-driven verification:
 
 ```powershell
 uv sync --extra dev
@@ -66,8 +70,7 @@ uv sync --extra dev
 handles strict programs:
 
 ```python
-from datalog_conformance.schema import Program
-from gunray import GunrayEvaluator
+from gunray import GunrayEvaluator, Program
 
 model = GunrayEvaluator().evaluate(Program(
     facts={"edge": {("a", "b"), ("b", "c")}},
@@ -113,7 +116,7 @@ uv run pytest tests -q
 Full conformance corpus against Gunray:
 
 ```powershell
-uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.adapter.GunrayEvaluator -q
+uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q
 ```
 
 To pick apart a single defeasible case by hand:
@@ -124,7 +127,8 @@ uv run python scripts/show_defeasible_case.py --help
 
 ## Where things live
 
-- [`adapter.py`](src/gunray/adapter.py) — `GunrayEvaluator`, the suite-facing dispatcher
+- [`adapter.py`](src/gunray/adapter.py) — `GunrayEvaluator`, the Gunray-owned dispatcher
+- [`conformance_adapter.py`](src/gunray/conformance_adapter.py) — optional suite bridge
 - [`evaluator.py`](src/gunray/evaluator.py) — semi-naive Datalog engine
 - [`defeasible.py`](src/gunray/defeasible.py) — defeasible evaluator
 - [`closure.py`](src/gunray/closure.py) — reduced closure and KLM `Or`

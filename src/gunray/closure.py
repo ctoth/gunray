@@ -1,4 +1,4 @@
-"""Reduced closure operators for the current conformance-suite surface."""
+"""Reduced closure operators for the current Gunray surface."""
 
 from __future__ import annotations
 
@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from itertools import combinations, product
 from typing import Callable
 
-from datalog_conformance.schema import DefeasibleModel, DefeasibleTheory, Policy, Rule
-
+from .schema import DefeasibleModel, DefeasibleTheory, Policy, Rule
 from .trace import DefeasibleTrace, TraceConfig
 
 World = frozenset[str]

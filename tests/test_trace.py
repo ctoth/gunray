@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from datalog_conformance.schema import DefeasibleTheory, Policy, Program, Rule
 from hypothesis import given
 from hypothesis import strategies as st
 
-from gunray import GunrayEvaluator, TraceConfig
+from gunray import DefeasibleTheory, GunrayEvaluator, Policy, Program, Rule, TraceConfig
 from gunray.types import GroundAtom
 
 _NODES = ("a", "b", "c", "d")
