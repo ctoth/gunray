@@ -1,109 +1,110 @@
 # Gunray
 
-Pure-Python evaluator for the `datalog-conformance` test suite. If you landed
-here cold, this is the engine that the cases in
-[`ctoth/datalog-conformance-suite`](https://github.com/ctoth/datalog-conformance-suite)
-run against.
+Gunray is a defeasible logic engine — one that can make sense of rules that
+contradict each other. Tell it *birds fly*, tell it *penguins don't fly*,
+hand it a bird that happens to also be a penguin, and it does the right
+thing:
 
-Gunray covers stratified Datalog with negation, defeasible reasoning under
-blocking and propagating ambiguity, and the reduced closure fragment the suite
-currently exercises: rational, lexicographic, and relevant closure, plus KLM
-`Or` checks through the same path.
+```python
+from datalog_conformance.schema import DefeasibleTheory, Policy, Rule
+from gunray import GunrayEvaluator
 
-The closure engine is intentionally narrow. It only handles the zero-arity
-propositional fragment and rejects defeaters, superiority, and explicit
-conflict sets. Everything else — strict rules, defeasible rules, defeaters,
-superiority, conflicts — goes through the main defeasible evaluator, not the
-closure path.
+theory = DefeasibleTheory(
+    facts={"bird": {("tweety",), ("opus",)}, "penguin": {("opus",)}},
+    strict_rules=[Rule(id="s1", head="bird(X)", body=["penguin(X)"])],
+    defeasible_rules=[
+        Rule(id="r1", head="flies(X)",  body=["bird(X)"]),
+        Rule(id="r2", head="~flies(X)", body=["penguin(X)"]),
+    ],
+    defeaters=[], superiority=[], conflicts=[],
+)
 
-## Setup
+model = GunrayEvaluator().evaluate(theory, Policy.BLOCKING)
+# model.sections["defeasibly"] contains flies(tweety) and ~flies(opus).
+```
 
-Python 3.11+ and `uv`. The conformance suite is declared as a git dependency
-in `pyproject.toml`, so a sibling checkout isn't required:
+The reason that works is that `~flies(X) :- penguin(X)` is a *defeasible*
+rule rather than a strict one. It is weaker than anything classical logic
+would let you write — but strong enough to win against the competing
+`flies(X) :- bird(X)` for the penguin case without contradicting the strict
+fact that penguins are still birds. Gunray's job is to work out which
+defeasible conclusions survive, which get blocked by opposing evidence, and
+— if you ask — why.
+
+## The conformance suite
+
+Gunray is the Python evaluator behind
+[`ctoth/datalog-conformance-suite`](https://github.com/ctoth/datalog-conformance-suite),
+a fixed corpus of cases that pins down how a conforming defeasible evaluator
+is supposed to behave. The suite is the spec; Gunray is a readable
+implementation you can run against it. If a case and the engine disagree,
+one of them is wrong and the test run says which.
+
+Under the hood, Gunray is a semi-naive Datalog core with stratified negation,
+a defeasible layer implementing both ambiguity-blocking and
+ambiguity-propagating semantics, and a closure engine covering rational,
+lexicographic, and relevant closure (plus KLM `Or`) for the fragment the
+suite exercises. The closure engine is intentionally narrow: it handles only
+the zero-arity propositional fragment and rejects defeaters, superiority,
+and explicit conflict sets at that path. Everything non-trivial — defeaters,
+superiority, conflict sets, higher-arity literals — goes through the full
+defeasible evaluator instead.
+
+## Install
+
+Python 3.11+ and [`uv`](https://docs.astral.sh/uv/). The conformance suite
+is a git-pinned dependency in `pyproject.toml`, so you don't need a sibling
+checkout:
 
 ```powershell
 uv sync --extra dev
 ```
 
-## Usage
+## Plain Datalog works too
 
-`GunrayEvaluator` is the suite-facing entry point and dispatches on whether
-you hand it a `Program` or a `DefeasibleTheory`:
+`GunrayEvaluator.evaluate` dispatches on the input type, so the same object
+handles strict programs:
 
 ```python
-from datalog_conformance.schema import DefeasibleTheory, Policy, Program, Rule
-
+from datalog_conformance.schema import Program
 from gunray import GunrayEvaluator
 
-evaluator = GunrayEvaluator()
-
-program = Program(
+model = GunrayEvaluator().evaluate(Program(
     facts={"edge": {("a", "b"), ("b", "c")}},
     rules=[
         "path(X, Y) :- edge(X, Y).",
         "path(X, Z) :- edge(X, Y), path(Y, Z).",
     ],
-)
-model = evaluator.evaluate(program)
-
-theory = DefeasibleTheory(
-    facts={"bird": {("tweety",)}, "penguin": {("tweety",)}},
-    strict_rules=[Rule(id="s1", head="bird(X)", body=["penguin(X)"])],
-    defeasible_rules=[
-        Rule(id="r1", head="flies(X)", body=["bird(X)"]),
-        Rule(id="r2", head="~flies(X)", body=["penguin(X)"]),
-    ],
-    defeaters=[],
-    superiority=[],
-    conflicts=[],
-)
-theory_model = evaluator.evaluate(theory, Policy.BLOCKING)
+))
+# model.facts["path"] == {("a", "b"), ("b", "c"), ("a", "c")}
 ```
 
-`SemiNaiveEvaluator` and `DefeasibleEvaluator` are also exported from
-`gunray` if you want to skip dispatch and drive one engine directly.
+If you'd rather skip the dispatcher, `SemiNaiveEvaluator` and
+`DefeasibleEvaluator` are exported from `gunray` directly.
 
-## Traces
+## Traces: why did it decide that?
 
-Both engines can return structured traces through `evaluate_with_trace`:
+Defeasible reasoning is exactly the kind of thing where *what* was concluded
+is less useful than *why*. Both engines can return a structured trace
+alongside the model:
 
 ```python
 from gunray import GunrayEvaluator, TraceConfig
 
 model, trace = GunrayEvaluator().evaluate_with_trace(
-    program,
-    trace_config=TraceConfig(
-        capture_derived_rows=True,
-        max_derived_rows_per_rule_fire=2,
-    ),
+    program, trace_config=TraceConfig(capture_derived_rows=True),
 )
-fires = trace.find_rule_fires(head_predicate="path", derived_count_at_least=1)
+fires = trace.find_rule_fires(head_predicate="path")
 ```
 
-Defeasible traces carry proof attempts, final classifications, supporting and
-attacking rule ids, and the atoms in conflict. When a theory has no
-defeasible content, the strict-only Datalog trace is returned directly.
+Defeasible traces carry each proof attempt, its final classification
+(`defeasibly`, `not_defeasibly`, `definitely`), the rule ids that supported
+and attacked it, and the atoms in conflict. For theories with no defeasible
+content, you get the strict Datalog trace in its place.
 
-## Value semantics
+## Running the tests
 
-Equality, ordering, and arithmetic go through
-[`semantics.py`](src/gunray/semantics.py) rather than being scattered across
-the evaluator. Equality normalizes Python scalars, ordering defers to Python
-when the operand pair is comparable, `+` is numeric addition for numeric
-operands and concatenation otherwise, and `-` is numeric subtraction only.
-
-## Layout
-
-- [`adapter.py`](src/gunray/adapter.py) — `GunrayEvaluator`, suite-facing dispatcher
-- [`evaluator.py`](src/gunray/evaluator.py) — semi-naive Datalog engine
-- [`defeasible.py`](src/gunray/defeasible.py) — defeasible evaluator
-- [`closure.py`](src/gunray/closure.py) — reduced closure and KLM `Or`
-- [`trace.py`](src/gunray/trace.py) — trace types and helpers
-- [`tests/test_conformance.py`](tests/test_conformance.py) — conformance harness
-
-## Running tests
-
-Local suite:
+Local unit suite:
 
 ```powershell
 uv run pytest tests -q
@@ -115,8 +116,18 @@ Full conformance corpus against Gunray:
 uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.adapter.GunrayEvaluator -q
 ```
 
-For poking at individual defeasible cases by hand:
+To pick apart a single defeasible case by hand:
 
 ```powershell
 uv run python scripts/show_defeasible_case.py --help
 ```
+
+## Where things live
+
+- [`adapter.py`](src/gunray/adapter.py) — `GunrayEvaluator`, the suite-facing dispatcher
+- [`evaluator.py`](src/gunray/evaluator.py) — semi-naive Datalog engine
+- [`defeasible.py`](src/gunray/defeasible.py) — defeasible evaluator
+- [`closure.py`](src/gunray/closure.py) — reduced closure and KLM `Or`
+- [`trace.py`](src/gunray/trace.py) — trace types and helpers
+- [`semantics.py`](src/gunray/semantics.py) — equality, ordering, and arithmetic routed through one place
+- [`tests/test_conformance.py`](tests/test_conformance.py) — conformance harness
