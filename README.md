@@ -63,20 +63,10 @@ Prerequisites:
 
 - Python 3.11+
 - `uv`
-- A local clone of `ctoth/datalog-conformance-suite`
 
-The upstream conformance suite is on GitHub:
+Gunray depends on the upstream conformance suite hosted on GitHub:
 
 - `https://github.com/ctoth/datalog-conformance-suite`
-
-This repo's current `uv` configuration expects that suite to be checked out locally at
-`../datalog-conformance-suite`.
-
-One way to set that up is:
-
-```powershell
-git clone https://github.com/ctoth/datalog-conformance-suite.git ../datalog-conformance-suite
-```
 
 Install the environment with:
 
@@ -84,11 +74,13 @@ Install the environment with:
 uv sync --extra dev
 ```
 
-`pyproject.toml` wires `datalog-conformance` from that sibling checkout:
+`pyproject.toml` declares that dependency directly, so normal installs and hatchling builds do not
+require a sibling checkout:
 
 ```toml
-[tool.uv.sources]
-datalog-conformance = { path = "../datalog-conformance-suite" }
+dependencies = [
+    "datalog-conformance @ git+https://github.com/ctoth/datalog-conformance-suite",
+]
 ```
 
 ## Quick Start

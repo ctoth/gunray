@@ -14,31 +14,23 @@ wheels = [
 [[package]]
 name = "datalog-conformance"
 version = "0.1.0"
-source = { directory = "../datalog-conformance-suite" }
+source = { git = "https://github.com/ctoth/datalog-conformance-suite#d3c1b18d69a017057600e837dc21dd0debc6d5df" }
 dependencies = [
     { name = "hypothesis" },
     { name = "pytest" },
     { name = "pyyaml" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "hypothesis", specifier = ">=6.0" },
-    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.0" },
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.0" },
-]
-provides-extras = ["dev"]
-
 [[package]]
 name = "gunray"
 version = "0.1.0"
 source = { editable = "." }
+dependencies = [
+    { name = "datalog-conformance" },
+]
 
 [package.optional-dependencies]
 dev = [
-    { name = "datalog-conformance" },
     { name = "hypothesis" },
     { name = "pyright" },
     { name = "pytest" },
@@ -48,7 +40,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datalog-conformance", marker = "extra == 'dev'", directory = "../datalog-conformance-suite" },
+    { name = "datalog-conformance", git = "https://github.com/ctoth/datalog-conformance-suite" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },

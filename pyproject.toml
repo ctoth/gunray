@@ -5,11 +5,12 @@ description = "Defeasible Datalog evaluator with stratified negation"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-dependencies = []
+dependencies = [
+    "datalog-conformance @ git+https://github.com/ctoth/datalog-conformance-suite",
+]
 
 [project.optional-dependencies]
 dev = [
-    "datalog-conformance",
     "hypothesis>=6.0",
     "pyright>=1.1.0",
     "pytest>=8.0",
@@ -20,6 +21,9 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gunray"]
@@ -41,6 +45,3 @@ select = ["E", "F", "W", "I"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 include = ["src", "tests"]
-
-[tool.uv.sources]
-datalog-conformance = { path = "../datalog-conformance-suite" }
