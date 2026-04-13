@@ -409,10 +409,8 @@ def _is_formula_possible(
     antecedent: Formula,
 ) -> bool:
     rules = [*strict_rules, *defaults]
-    return any(
-        _branch_satisfiable(branch, rules)
-        for branch in _formula_branches(antecedent)
-    )
+    atoms = _atoms_for_rules_and_formulas(rules, antecedent)
+    return _model_exists(atoms, rules, antecedent, forbidden_consequent=None)
 
 
 def _classically_entails(
@@ -422,15 +420,163 @@ def _classically_entails(
     consequent: Formula,
 ) -> bool:
     rules = [*strict_rules, *defaults]
-    satisfiable_branch_seen = False
-    for branch in _formula_branches(antecedent):
-        if not _branch_satisfiable(branch, rules):
-            continue
-        satisfiable_branch_seen = True
-        closure = _branch_closure(branch, rules)
-        if not _formula_true_in_closure(consequent, closure):
+    atoms = _atoms_for_rules_and_formulas(rules, antecedent, consequent)
+    return not _model_exists(atoms, rules, antecedent, forbidden_consequent=consequent)
+
+
+def _atoms_for_rules_and_formulas(
+    rules: list[Rule],
+    *formulae: Formula,
+) -> tuple[str, ...]:
+    atoms: set[str] = set()
+    for rule in rules:
+        atoms.add(_positive_atom(rule.head))
+        atoms.update(_positive_atom(item) for item in rule.body)
+    for formula in formulae:
+        atoms.update(_formula_atoms(formula))
+    return tuple(sorted(atoms))
+
+
+def _formula_atoms(formula: Formula) -> set[str]:
+    if formula.kind == "true":
+        return set()
+    if formula.kind == "literal":
+        assert formula.literal is not None
+        return {_positive_atom(formula.literal)}
+    if formula.kind in {"and", "or"}:
+        assert formula.left is not None
+        assert formula.right is not None
+        return _formula_atoms(formula.left) | _formula_atoms(formula.right)
+    raise ValueError(f"Unsupported formula kind: {formula.kind}")
+
+
+def _model_exists(
+    atoms: tuple[str, ...],
+    rules: list[Rule],
+    antecedent: Formula,
+    *,
+    forbidden_consequent: Formula | None,
+) -> bool:
+    return _search_model(
+        atoms,
+        rules,
+        antecedent,
+        forbidden_consequent,
+        assignment={},
+    )
+
+
+def _search_model(
+    atoms: tuple[str, ...],
+    rules: list[Rule],
+    antecedent: Formula,
+    forbidden_consequent: Formula | None,
+    *,
+    assignment: dict[str, bool],
+) -> bool:
+    propagated = _propagate_assignment(rules, assignment)
+    if propagated is None:
+        return False
+
+    antecedent_status = _formula_status(antecedent, propagated)
+    if antecedent_status is False:
+        return False
+
+    if forbidden_consequent is not None:
+        consequent_status = _formula_status(forbidden_consequent, propagated)
+        if antecedent_status is True and consequent_status is True:
             return False
-    return True if satisfiable_branch_seen else True
+
+    unassigned = next((atom for atom in atoms if atom not in propagated), None)
+    if unassigned is None:
+        if antecedent_status is not True:
+            return False
+        if forbidden_consequent is None:
+            return True
+        return _formula_status(forbidden_consequent, propagated) is False
+
+    for value in (False, True):
+        next_assignment = dict(propagated)
+        next_assignment[unassigned] = value
+        if _search_model(
+            atoms,
+            rules,
+            antecedent,
+            forbidden_consequent,
+            assignment=next_assignment,
+        ):
+            return True
+    return False
+
+
+def _propagate_assignment(
+    rules: list[Rule],
+    assignment: dict[str, bool],
+) -> dict[str, bool] | None:
+    current = dict(assignment)
+    changed = True
+    while changed:
+        changed = False
+        for rule in rules:
+            body_statuses = [_literal_status(item, current) for item in rule.body]
+            if any(status is False for status in body_statuses):
+                continue
+            if any(status is None for status in body_statuses):
+                continue
+            forced = _force_literal(rule.head, current)
+            if forced is None:
+                return None
+            changed = changed or forced
+    return current
+
+
+def _force_literal(literal: str, assignment: dict[str, bool]) -> bool | None:
+    atom = _positive_atom(literal)
+    value = not literal.startswith("~")
+    existing = assignment.get(atom)
+    if existing is not None:
+        if existing is not value:
+            return None
+        return False
+    assignment[atom] = value
+    return True
+
+
+def _literal_status(literal: str, assignment: dict[str, bool]) -> bool | None:
+    atom = _positive_atom(literal)
+    value = assignment.get(atom)
+    if value is None:
+        return None
+    return not value if literal.startswith("~") else value
+
+
+def _formula_status(formula: Formula, assignment: dict[str, bool]) -> bool | None:
+    if formula.kind == "true":
+        return True
+    if formula.kind == "literal":
+        assert formula.literal is not None
+        return _literal_status(formula.literal, assignment)
+    if formula.kind == "and":
+        assert formula.left is not None
+        assert formula.right is not None
+        left = _formula_status(formula.left, assignment)
+        right = _formula_status(formula.right, assignment)
+        if left is False or right is False:
+            return False
+        if left is True and right is True:
+            return True
+        return None
+    if formula.kind == "or":
+        assert formula.left is not None
+        assert formula.right is not None
+        left = _formula_status(formula.left, assignment)
+        right = _formula_status(formula.right, assignment)
+        if left is True or right is True:
+            return True
+        if left is False and right is False:
+            return False
+        return None
+    raise ValueError(f"Unsupported formula kind: {formula.kind}")
 
 
 def _branch_satisfiable(
@@ -495,6 +641,11 @@ def _formula_true_in_closure(formula: Formula, closure: set[str]) -> bool:
         return True
     if formula.kind == "literal":
         assert formula.literal is not None
+        if formula.literal.startswith("~"):
+            # The reduced closure fragment still uses the paper's two-valued
+            # world semantics: a negative literal holds exactly when its
+            # positive atom is absent from the current world/closure state.
+            return formula.literal[1:] not in closure
         return formula.literal in closure
     if formula.kind == "and":
         assert formula.left is not None

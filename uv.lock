@@ -14,7 +14,7 @@ wheels = [
 [[package]]
 name = "datalog-conformance"
 version = "0.1.0"
-source = { git = "https://github.com/ctoth/datalog-conformance-suite#78e0b0b338943ff5ebdb0a05225ab95c761af681" }
+source = { git = "https://github.com/ctoth/datalog-conformance-suite#795f2a7e5bc8328ce273095d3a757631fa379a38" }
 dependencies = [
     { name = "hypothesis" },
     { name = "pytest" },
