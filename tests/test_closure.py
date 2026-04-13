@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+
+import gunray.closure as closure_module
 from gunray import DefeasibleTheory, Policy, Rule
 from gunray.closure import (
     ClosureEvaluator,
@@ -86,3 +89,37 @@ def test_impossible_antecedent_is_handled_consistently_across_closure_policies()
         ranked, theory, antecedent, consequent, Policy.LEXICOGRAPHIC_CLOSURE
     )
     assert _formula_entails(ranked, theory, antecedent, consequent, Policy.RELEVANT_CLOSURE)
+
+
+def test_public_closure_policies_do_not_materialize_all_worlds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The public closure surface should not depend on full truth-table expansion.
+
+    Morris, Ross, and Meyer 2020 define Rational / Lexicographic / Relevant
+    closure via ranking and entailment algorithms (Algorithms 3-5, pp.150-153;
+    local page images `page-009.png` through `page-012.png`), not by
+    enumerating all `2^n` propositional worlds at evaluation time.
+    """
+
+    def _fail(*_args, **_kwargs):
+        raise AssertionError("world enumeration should not be used by public closure policies")
+
+    if hasattr(closure_module, "product"):
+        monkeypatch.setattr(closure_module, "product", _fail)
+
+    theory = DefeasibleTheory(
+        facts={"s": [()]},
+        strict_rules=[
+            Rule(id="c1", head="p", body=["a"]),
+            Rule(id="c2", head="p", body=["s"]),
+        ],
+        defeasible_rules=[
+            Rule(id="d1", head="m", body=["p"]),
+            Rule(id="d2", head="a", body=["p"]),
+            Rule(id="d3", head="t", body=["p"]),
+            Rule(id="d4", head="~t", body=["s"]),
+        ],
+    )
+
+    evaluator = ClosureEvaluator()
+    evaluator.evaluate(theory, Policy.RATIONAL_CLOSURE)
+    assert not hasattr(closure_module, "product")

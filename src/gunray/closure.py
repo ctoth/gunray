@@ -1,16 +1,18 @@
-"""Reduced closure operators for the current Gunray surface."""
+"""Reduced symbolic closure operators for Gunray's zero-arity fragment.
+
+The implementation follows the ranking / exceptionality structure of Morris,
+Ross, and Meyer 2020 (Algorithms 3-5, pp. 150-153) but specializes it to the
+current zero-arity Horn-like literal surface used by Gunray. This removes the
+old `2^n` world enumeration path while keeping the existing Formula/test API.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import combinations, product
-from typing import Callable
+from itertools import combinations
 
 from .schema import DefeasibleModel, DefeasibleTheory, Policy, Rule
 from .trace import DefeasibleTrace, TraceConfig
-from .types import GroundAtom
-
-World = frozenset[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,7 +20,6 @@ class RankedDefaults:
     """Ranked propositional default theory."""
 
     atoms: tuple[str, ...]
-    worlds: tuple[World, ...]
     finite_ranks: tuple[tuple[Rule, ...], ...]
     infinite_rank: tuple[Rule, ...]
 
@@ -143,9 +144,16 @@ def _ensure_zero_arity_literal(text: str) -> None:
 
 
 def _ranked_defaults(theory: DefeasibleTheory) -> RankedDefaults:
-    atoms = tuple(sorted(_positive_atoms(theory)))
-    worlds = tuple(_all_worlds(atoms))
+    """Partition defaults by exceptionality without enumerating worlds.
 
+    Morris, Ross, and Meyer 2020 Algorithm 3 (p. 150 / local
+    ``page-009.png``): BaseRankDatalog repeatedly removes the defeasible
+    rules whose antecedents are still satisfiable against the current
+    classical-plus-defeasible theory, leaving the permanently exceptional
+    defaults at infinite rank.
+    """
+
+    atoms = tuple(sorted(_positive_atoms(theory)))
     remaining: list[Rule] = list(theory.defeasible_rules)
     finite_ranks: list[tuple[Rule, ...]] = []
     while remaining:
@@ -153,7 +161,7 @@ def _ranked_defaults(theory: DefeasibleTheory) -> RankedDefaults:
         current_rank_items = [
             rule
             for rule in remaining
-            if _has_supporting_world(worlds, active_rules, set(rule.body))
+            if _branch_satisfiable(frozenset(rule.body), active_rules)
         ]
         current_rank = tuple(current_rank_items)
         if not current_rank:
@@ -164,7 +172,6 @@ def _ranked_defaults(theory: DefeasibleTheory) -> RankedDefaults:
 
     return RankedDefaults(
         atoms=atoms,
-        worlds=worlds,
         finite_ranks=tuple(finite_ranks),
         infinite_rank=tuple(remaining),
     )
@@ -182,22 +189,6 @@ def _positive_atoms(theory: DefeasibleTheory) -> set[str]:
 def _literal_universe(theory: DefeasibleTheory) -> set[str]:
     atoms = _positive_atoms(theory)
     return {literal for atom in atoms for literal in (atom, _complement(atom))}
-
-
-def _all_worlds(atoms: tuple[str, ...]) -> list[World]:
-    worlds: list[World] = []
-    for truth_values in product((False, True), repeat=len(atoms)):
-        worlds.append(
-            frozenset(atom for atom, truthy in zip(atoms, truth_values, strict=True) if truthy)
-        )
-    return worlds
-
-
-def _has_supporting_world(worlds: tuple[World, ...], rules: list[Rule], body: set[str]) -> bool:
-    return any(
-        _world_satisfies_literals(world, body) and _world_satisfies_rules(world, rules)
-        for world in worlds
-    )
 
 
 def _fact_literals(theory: DefeasibleTheory) -> set[str]:
@@ -238,57 +229,52 @@ def _formula_entails(
     policy: Policy,
 ) -> bool:
     if policy is Policy.RATIONAL_CLOSURE:
-        return _ranked_formula_entails(
-            ranked,
-            theory,
-            antecedent,
-            consequent,
-            score=_rational_score,
-        )
+        return _rational_formula_entails(ranked, theory, antecedent, consequent)
     if policy is Policy.LEXICOGRAPHIC_CLOSURE:
-        return _ranked_formula_entails(
-            ranked,
-            theory,
-            antecedent,
-            consequent,
-            score=_lexicographic_score,
-        )
+        return _lexicographic_formula_entails(ranked, theory, antecedent, consequent)
     if policy is Policy.RELEVANT_CLOSURE:
         return _relevant_formula_entails(ranked, theory, antecedent, consequent)
     raise ValueError(f"Unsupported closure policy: {policy.value}")
 
 
-def _ranked_formula_entails(
+def _rational_formula_entails(
     ranked: RankedDefaults,
     theory: DefeasibleTheory,
     antecedent: Formula,
     consequent: Formula,
-    *,
-    score: Callable[[RankedDefaults, World], int | tuple[int, ...]],
 ) -> bool:
-    context_worlds = [
-        world
-        for world in ranked.worlds
-        if _formula_holds(world, antecedent) and _world_satisfies_rules(world, theory.strict_rules)
-    ]
-    if not context_worlds:
-        # Morris, Ross, and Meyer 2020 Algorithm 4 (p.151) and the
-        # corresponding Relevant Closure algorithm on p.153 both end in a
-        # classical entailment check of alpha -> beta after removing
-        # exceptional levels. When alpha is impossible, that implication is
-        # vacuously true, so the ranked policies must agree with the classical
-        # branch instead of treating the empty context as an automatic failure.
-        return _classically_entails(
-            ranked.worlds,
-            theory.strict_rules,
-            list(theory.defeasible_rules),
-            antecedent,
-            consequent,
-        )
+    """Morris, Ross, and Meyer 2020 Algorithm 4 (p. 151 / ``page-010.png``)."""
 
-    best_score = min(score(ranked, world) for world in context_worlds)
-    preferred = [world for world in context_worlds if score(ranked, world) == best_score]
-    return all(_formula_holds(world, consequent) for world in preferred)
+    active_defaults = list(theory.defeasible_rules)
+    for level in ranked.finite_ranks:
+        if not _is_exceptional(theory.strict_rules, active_defaults, antecedent):
+            break
+        level_ids = {rule.id for rule in level}
+        active_defaults = [rule for rule in active_defaults if rule.id not in level_ids]
+
+    return _classically_entails(theory.strict_rules, active_defaults, antecedent, consequent)
+
+
+def _lexicographic_formula_entails(
+    ranked: RankedDefaults,
+    theory: DefeasibleTheory,
+    antecedent: Formula,
+    consequent: Formula,
+) -> bool:
+    """Subset-based symbolic lexicographic closure over ranked defaults.
+
+    Morris, Ross, and Meyer 2020 describe lexicographic closure as a ranking
+    refinement over the BaseRank partition (pp. 156-158). For Gunray's current
+    zero-arity Horn fragment we can compute the lexicographically preferred
+    default sets directly by keeping, rank by rank, the largest subsets still
+    consistent with the antecedent.
+    """
+
+    preferred_default_sets = _lexicographic_preferred_default_sets(ranked, theory, antecedent)
+    return all(
+        _classically_entails(theory.strict_rules, defaults, antecedent, consequent)
+        for defaults in preferred_default_sets
+    )
 
 
 def _relevant_formula_entails(
@@ -301,7 +287,7 @@ def _relevant_formula_entails(
     active_defaults = list(theory.defeasible_rules)
 
     for level in ranked.finite_ranks:
-        if not _is_exceptional(ranked.worlds, theory.strict_rules, active_defaults, antecedent):
+        if not _is_exceptional(theory.strict_rules, active_defaults, antecedent):
             break
         active_defaults = [
             rule
@@ -309,13 +295,66 @@ def _relevant_formula_entails(
             if rule.id not in relevant_ids or rule not in level
         ]
 
-    return _classically_entails(
-        ranked.worlds,
-        theory.strict_rules,
-        active_defaults,
-        antecedent,
-        consequent,
-    )
+    return _classically_entails(theory.strict_rules, active_defaults, antecedent, consequent)
+
+
+def _lexicographic_preferred_default_sets(
+    ranked: RankedDefaults,
+    theory: DefeasibleTheory,
+    antecedent: Formula,
+) -> list[list[Rule]]:
+    """Return the lexicographically preferred default sets for ``antecedent``.
+
+    Each iteration keeps only the largest subsets of the current rank that
+    remain satisfiable together with the already retained more-exceptional
+    defaults. This matches the subset-ranking intent of Morris et al. 2020
+    without enumerating truth-table worlds.
+    """
+
+    selected_sets: list[tuple[Rule, ...]] = [tuple(ranked.infinite_rank)]
+    for level in reversed(ranked.finite_ranks):
+        next_sets: list[tuple[Rule, ...]] = []
+        best_size = -1
+        seen: set[tuple[str, ...]] = set()
+        level_items = tuple(level)
+
+        for selected in selected_sets:
+            satisfiable_subsets: list[tuple[Rule, ...]] = []
+            chosen_size = -1
+            for size in range(len(level_items), -1, -1):
+                current = [
+                    subset
+                    for subset in combinations(level_items, size)
+                    if _is_formula_possible(
+                        theory.strict_rules,
+                        list(selected) + list(subset),
+                        antecedent,
+                    )
+                ]
+                if current:
+                    satisfiable_subsets = current
+                    chosen_size = size
+                    break
+
+            if chosen_size < best_size:
+                continue
+            if chosen_size > best_size:
+                best_size = chosen_size
+                next_sets = []
+                seen.clear()
+
+            for subset in satisfiable_subsets:
+                combined = tuple(sorted((*selected, *subset), key=lambda rule: rule.id))
+                key = tuple(rule.id for rule in combined)
+                if key in seen:
+                    continue
+                seen.add(key)
+                next_sets.append(combined)
+
+        if next_sets:
+            selected_sets = next_sets
+
+    return [list(selected) for selected in selected_sets]
 
 
 def _minimal_relevant_rule_ids(
@@ -334,7 +373,7 @@ def _minimal_relevant_rule_ids(
                 for existing in justifications
             ):
                 continue
-            if not _is_exceptional(ranked.worlds, theory.strict_rules, list(subset), antecedent):
+            if not _is_exceptional(theory.strict_rules, list(subset), antecedent):
                 continue
             justifications.append(subset)
 
@@ -357,76 +396,119 @@ def _rule_rank(ranked: RankedDefaults, target: Rule) -> int:
 
 
 def _is_exceptional(
-    worlds: tuple[World, ...],
     strict_rules: list[Rule],
     defaults: list[Rule],
     antecedent: Formula,
 ) -> bool:
-    return not any(
-        _formula_holds(world, antecedent)
-        and _world_satisfies_rules(world, [*strict_rules, *defaults])
-        for world in worlds
+    return not _is_formula_possible(strict_rules, defaults, antecedent)
+
+
+def _is_formula_possible(
+    strict_rules: list[Rule],
+    defaults: list[Rule],
+    antecedent: Formula,
+) -> bool:
+    rules = [*strict_rules, *defaults]
+    return any(
+        _branch_satisfiable(branch, rules)
+        for branch in _formula_branches(antecedent)
     )
 
 
 def _classically_entails(
-    worlds: tuple[World, ...],
     strict_rules: list[Rule],
     defaults: list[Rule],
     antecedent: Formula,
     consequent: Formula,
 ) -> bool:
     rules = [*strict_rules, *defaults]
-    return all(
-        not _formula_holds(world, antecedent) or _formula_holds(world, consequent)
-        for world in worlds
-        if _world_satisfies_rules(world, rules)
-    )
+    satisfiable_branch_seen = False
+    for branch in _formula_branches(antecedent):
+        if not _branch_satisfiable(branch, rules):
+            continue
+        satisfiable_branch_seen = True
+        closure = _branch_closure(branch, rules)
+        if not _formula_true_in_closure(consequent, closure):
+            return False
+    return True if satisfiable_branch_seen else True
 
 
-def _rational_score(ranked: RankedDefaults, world: World) -> int:
-    if any(_violates(world, rule) for rule in ranked.infinite_rank):
-        return len(ranked.finite_ranks) + 1
-
-    worst_rank = -1
-    for index, level in enumerate(ranked.finite_ranks):
-        if any(_violates(world, rule) for rule in level):
-            worst_rank = index
-    return worst_rank + 1
+def _branch_satisfiable(
+    branch: frozenset[str],
+    rules: list[Rule],
+) -> bool:
+    return _is_consistent(_branch_closure(branch, rules))
 
 
-def _lexicographic_score(ranked: RankedDefaults, world: World) -> tuple[int, ...]:
-    if any(_violates(world, rule) for rule in ranked.infinite_rank):
-        width = max(len(ranked.finite_ranks), 1)
-        worst = len(ranked.infinite_rank) + sum(len(level) for level in ranked.finite_ranks) + 1
-        return tuple(worst for _ in range(width))
-
-    return tuple(
-        sum(1 for rule in level if _violates(world, rule))
-        for level in reversed(ranked.finite_ranks)
-    )
-
-
-def _world_satisfies_rules(world: World, rules: list[Rule]) -> bool:
-    return all(
-        not _world_satisfies_literals(world, set(rule.body)) or _literal_holds(world, rule.head)
-        for rule in rules
-    )
+def _branch_closure(
+    branch: frozenset[str],
+    rules: list[Rule],
+) -> set[str]:
+    closure = set(branch)
+    changed = True
+    while changed:
+        changed = False
+        for rule in rules:
+            if rule.head in closure:
+                continue
+            if set(rule.body) <= closure:
+                closure.add(rule.head)
+                changed = True
+    return closure
 
 
-def _world_satisfies_literals(world: World, literals: set[str]) -> bool:
-    return all(_literal_holds(world, literal) for literal in literals)
+def _is_consistent(literals: set[str]) -> bool:
+    return all(_complement(literal) not in literals for literal in literals)
 
 
-def _literal_holds(world: World, literal: str) -> bool:
-    positive = _positive_atom(literal)
-    if literal.startswith("~"):
-        return positive not in world
-    return positive in world
+def _formula_branches(formula: Formula) -> tuple[frozenset[str], ...]:
+    """Convert Formula to a deduplicated DNF branch list.
+
+    Gunray's closure tests only use literals, conjunctions, disjunctions, and
+    `true`, so a direct branch expansion is simpler than general SAT encoding.
+    """
+
+    if formula.kind == "true":
+        return (frozenset(),)
+    if formula.kind == "literal":
+        assert formula.literal is not None
+        return (frozenset({formula.literal}),)
+    if formula.kind == "and":
+        assert formula.left is not None
+        assert formula.right is not None
+        branches: set[frozenset[str]] = set()
+        for left in _formula_branches(formula.left):
+            for right in _formula_branches(formula.right):
+                branches.add(left | right)
+        return tuple(sorted(branches, key=lambda branch: tuple(sorted(branch))))
+    if formula.kind == "or":
+        assert formula.left is not None
+        assert formula.right is not None
+        branches = set(_formula_branches(formula.left))
+        branches.update(_formula_branches(formula.right))
+        return tuple(sorted(branches, key=lambda branch: tuple(sorted(branch))))
+    raise ValueError(f"Unsupported formula kind: {formula.kind}")
 
 
-def _violates(world: World, rule: Rule) -> bool:
-    return _world_satisfies_literals(world, set(rule.body)) and not _literal_holds(world, rule.head)
+def _formula_true_in_closure(formula: Formula, closure: set[str]) -> bool:
+    if formula.kind == "true":
+        return True
+    if formula.kind == "literal":
+        assert formula.literal is not None
+        return formula.literal in closure
+    if formula.kind == "and":
+        assert formula.left is not None
+        assert formula.right is not None
+        return _formula_true_in_closure(formula.left, closure) and _formula_true_in_closure(
+            formula.right, closure
+        )
+    if formula.kind == "or":
+        assert formula.left is not None
+        assert formula.right is not None
+        return _formula_true_in_closure(formula.left, closure) or _formula_true_in_closure(
+            formula.right, closure
+        )
+    raise ValueError(f"Unsupported formula kind: {formula.kind}")
 
 
 def _literal_formula(literal: str) -> Formula:
@@ -446,28 +528,13 @@ def _or_formula(left: Formula, right: Formula) -> Formula:
     return Formula(kind="or", left=left, right=right)
 
 
-def _formula_holds(world: World, formula: Formula) -> bool:
-    if formula.kind == "true":
-        return True
-    if formula.kind == "literal":
-        assert formula.literal is not None
-        return _literal_holds(world, formula.literal)
-    if formula.kind == "and":
-        assert formula.left is not None
-        assert formula.right is not None
-        return _formula_holds(world, formula.left) and _formula_holds(world, formula.right)
-    if formula.kind == "or":
-        assert formula.left is not None
-        assert formula.right is not None
-        return _formula_holds(world, formula.left) or _formula_holds(world, formula.right)
-    raise ValueError(f"Unsupported formula kind: {formula.kind}")
-
-
 def _atoms_to_section(atoms: set[str]) -> dict[str, set[tuple[()]]]:
     return {atom: {()} for atom in sorted(atoms)}
 
 
-def _ground_atoms_from_literals(literals: set[str]) -> list[GroundAtom]:
+def _ground_atoms_from_literals(literals: set[str]) -> list[object]:
+    from .types import GroundAtom
+
     return [GroundAtom(predicate=literal, arguments=()) for literal in sorted(literals)]
 
 
