@@ -86,8 +86,10 @@ def parse_rule_text(text: str) -> Rule:
 
     body_text = ""
     head_text = stripped.removesuffix(".")
-    if ":-" in head_text:
-        head_text, body_text = head_text.split(":-", 1)
+    separator_index = _find_top_level_operator(head_text, ":-")
+    if separator_index != -1:
+        body_text = head_text[separator_index + 2 :]
+        head_text = head_text[:separator_index]
 
     heads = tuple(parse_atom_text(chunk) for chunk in split_top_level(head_text))
     positive_body: list[Atom] = []
@@ -120,11 +122,11 @@ def parse_atom_text(text: str) -> Atom:
     if not stripped:
         raise ParseError("Empty atom")
 
-    if "(" not in stripped:
+    bounds = _find_atom_argument_bounds(stripped)
+    if bounds is None:
         return Atom(predicate=stripped, terms=())
 
-    open_index = stripped.find("(")
-    close_index = stripped.rfind(")")
+    open_index, close_index = bounds
     if open_index <= 0 or close_index < open_index:
         raise ParseError(f"Unsupported atom syntax: {text}")
 
@@ -205,36 +207,12 @@ def parse_constraint_text(text: str) -> Comparison:
 def split_top_level(text: str) -> list[str]:
     """Split a comma-separated sequence while respecting nesting and quotes."""
 
+    top_level_mask = _scan_top_level_mask(text)
     items: list[str] = []
     current: list[str] = []
-    depth = 0
-    in_string = False
-    escaped = False
 
-    for character in text:
-        if in_string:
-            current.append(character)
-            if escaped:
-                escaped = False
-            elif character == "\\":
-                escaped = True
-            elif character == '"':
-                in_string = False
-            continue
-
-        if character == '"':
-            in_string = True
-            current.append(character)
-            continue
-        if character == "(":
-            depth += 1
-            current.append(character)
-            continue
-        if character == ")":
-            depth -= 1
-            current.append(character)
-            continue
-        if character == "," and depth == 0:
+    for index, character in enumerate(text):
+        if character == "," and top_level_mask[index]:
             item = "".join(current).strip()
             if item:
                 items.append(item)
@@ -306,88 +284,26 @@ def _complement(predicate: str) -> str | None:
 
 
 def _find_top_level_binary(text: str, operator: str) -> int:
-    depth = 0
-    in_string = False
-    escaped = False
-    for index, character in enumerate(text):
-        if in_string:
-            if escaped:
-                escaped = False
-            elif character == "\\":
-                escaped = True
-            elif character == '"':
-                in_string = False
-            continue
-        if character == '"':
-            in_string = True
-            continue
-        if character == "(":
-            depth += 1
-            continue
-        if character == ")":
-            depth -= 1
-            continue
-        if character == operator and depth == 0 and index > 0:
-            return index
-    return -1
+    index, _ = _find_top_level_token(
+        text,
+        (operator,),
+        require_left_operand=True,
+    )
+    return index
 
 
 def _find_rightmost_top_level_binary(text: str, operators: str) -> tuple[int, str | None]:
-    depth = 0
-    in_string = False
-    escaped = False
-    last_index = -1
-    last_operator: str | None = None
-    for index, character in enumerate(text):
-        if in_string:
-            if escaped:
-                escaped = False
-            elif character == "\\":
-                escaped = True
-            elif character == '"':
-                in_string = False
-            continue
-        if character == '"':
-            in_string = True
-            continue
-        if character == "(":
-            depth += 1
-            continue
-        if character == ")":
-            depth -= 1
-            continue
-        if character in operators and depth == 0 and index > 0:
-            last_index = index
-            last_operator = character
-    return last_index, last_operator
+    return _find_top_level_token(
+        text,
+        tuple(operators),
+        from_right=True,
+        require_left_operand=True,
+    )
 
 
 def _find_top_level_operator(text: str, operator: str) -> int:
-    depth = 0
-    in_string = False
-    escaped = False
-    span = len(operator)
-    for index, character in enumerate(text):
-        if in_string:
-            if escaped:
-                escaped = False
-            elif character == "\\":
-                escaped = True
-            elif character == '"':
-                in_string = False
-            continue
-        if character == '"':
-            in_string = True
-            continue
-        if character == "(":
-            depth += 1
-            continue
-        if character == ")":
-            depth -= 1
-            continue
-        if depth == 0 and text[index : index + span] == operator:
-            return index
-    return -1
+    index, _ = _find_top_level_token(text, (operator,))
+    return index
 
 
 def _is_constraint(text: str) -> bool:
@@ -396,6 +312,74 @@ def _is_constraint(text: str) -> bool:
         stripped = stripped[1:-1].strip()
     operators = ("<=", ">=", "==", "!=", "<", ">")
     return any(_find_top_level_operator(stripped, operator) != -1 for operator in operators)
+
+
+def _find_atom_argument_bounds(text: str) -> tuple[int, int] | None:
+    _scan_top_level_mask(text)
+    open_index = text.find("(")
+    if open_index == -1:
+        return None
+
+    close_index = text.rfind(")")
+    if close_index != len(text) - 1:
+        raise ParseError(f"Unsupported atom syntax: {text}")
+    return open_index, close_index
+
+
+def _find_top_level_token(
+    text: str,
+    tokens: tuple[str, ...],
+    *,
+    from_right: bool = False,
+    require_left_operand: bool = False,
+) -> tuple[int, str | None]:
+    top_level_mask = _scan_top_level_mask(text)
+    ordered_tokens = tuple(sorted(tokens, key=len, reverse=True))
+    indexes = range(len(text) - 1, -1, -1) if from_right else range(len(text))
+
+    for index in indexes:
+        if not top_level_mask[index]:
+            continue
+        if require_left_operand and index == 0:
+            continue
+        for token in ordered_tokens:
+            if text.startswith(token, index):
+                return index, token
+    return -1, None
+
+
+def _scan_top_level_mask(text: str) -> tuple[bool, ...]:
+    top_level: list[bool] = []
+    depth = 0
+    in_string = False
+    escaped = False
+
+    for character in text:
+        top_level.append(not in_string and depth == 0)
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+            continue
+        if character == "(":
+            depth += 1
+            continue
+        if character == ")":
+            depth -= 1
+            if depth < 0:
+                raise ParseError(f"Unbalanced parentheses: {text}")
+
+    if in_string:
+        raise ParseError(f"Unterminated string literal: {text}")
+    if depth != 0:
+        raise ParseError(f"Unbalanced parentheses: {text}")
+    return tuple(top_level)
 
 
 def _parse_scalar(text: str) -> Scalar | None:
