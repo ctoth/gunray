@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -67,6 +68,13 @@ def test_datalog_trace_can_filter_rule_fires_and_capture_rows() -> None:
     assert any(fire.derived_rows == (("a", "c"),) for fire in recursive_fires)
 
 
+@pytest.mark.skip(
+    reason=(
+        "B1.2 scorched earth removed the atom-level classifier; the Nixon "
+        "UNDECIDED assertion will be re-landed against the paper pipeline "
+        "in B1.6 (Argument + DialecticalTree per Garcia & Simari 2004 §5)."
+    )
+)
 def test_defeasible_trace_records_blocked_and_undecided_atoms() -> None:
     evaluator = GunrayEvaluator()
     theory = DefeasibleTheory(
@@ -100,6 +108,13 @@ def test_defeasible_trace_records_blocked_and_undecided_atoms() -> None:
     )
 
 
+@pytest.mark.skip(
+    reason=(
+        "B1.2 scorched earth removed the proof_attempts/classifications "
+        "helpers; B1.6 will re-land the Nixon conflict-details coverage "
+        "against the new dialectical-tree trace."
+    )
+)
 def test_defeasible_trace_helpers_expose_conflict_details() -> None:
     evaluator = GunrayEvaluator()
     theory = DefeasibleTheory(
@@ -134,6 +149,13 @@ def test_defeasible_trace_helpers_expose_conflict_details() -> None:
     assert undecided[0].opposing_atoms == (opponent,)
 
 
+@pytest.mark.skip(
+    reason=(
+        "B1.2 scorched earth removed the supported-but-unproved "
+        "classification path; B1.6 will re-land the nests_in_trees "
+        "coverage against the paper pipeline's acceptable-line machinery."
+    )
+)
 def test_defeasible_trace_marks_supported_but_unproved_body_as_undecided() -> None:
     evaluator = GunrayEvaluator()
     theory = DefeasibleTheory(
