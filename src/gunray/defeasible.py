@@ -18,6 +18,7 @@ for Gunray's defeasible evaluator.
 from __future__ import annotations
 
 from collections import defaultdict
+from itertools import product
 from typing import cast
 
 from .ambiguity import AmbiguityPolicy, attacker_basis_atoms, resolve_ambiguity_policy
@@ -295,24 +296,73 @@ def _ground_rules(
 ) -> tuple[list[GroundDefeasibleRule], set[GroundAtom]]:
     grounded: list[GroundDefeasibleRule] = []
     unsupported_heads: set[GroundAtom] = set()
+    constants = _constant_universe(support_model)
 
     for rule in rules:
         bindings = _match_positive_body(rule.body, support_model)
+        grounded_heads_for_rule: set[GroundAtom] = set()
         if not bindings:
             if not _rule_variables(rule):
-                unsupported_heads.add(ground_atom(rule.head, {}))
-            continue
+                grounded_head = ground_atom(rule.head, {})
+                unsupported_heads.add(grounded_head)
+                grounded_heads_for_rule.add(grounded_head)
         for binding in bindings:
+            grounded_head = ground_atom(rule.head, binding)
+            grounded_heads_for_rule.add(grounded_head)
             grounded.append(
                 GroundDefeasibleRule(
                     rule_id=rule.rule_id,
                     kind=rule.kind,
-                    head=ground_atom(rule.head, binding),
+                    head=grounded_head,
                     body=tuple(ground_atom(atom, binding) for atom in rule.body),
                 )
             )
+        for binding in _candidate_head_bindings(rule, support_model, constants):
+            grounded_head = ground_atom(rule.head, binding)
+            if grounded_head not in grounded_heads_for_rule:
+                unsupported_heads.add(grounded_head)
 
     return grounded, unsupported_heads
+
+
+def _constant_universe(support_model: dict[str, IndexedRelation]) -> tuple[object, ...]:
+    constants = {
+        value
+        for relation in support_model.values()
+        for row in relation
+        for value in row
+    }
+    return tuple(sorted(constants, key=repr))
+
+
+def _candidate_head_bindings(
+    rule: DefeasibleRule,
+    support_model: dict[str, IndexedRelation],
+    constants: tuple[object, ...],
+) -> list[dict[str, object]]:
+    variables = sorted(_rule_variables(rule))
+    if not variables:
+        return [{}]
+
+    available_body = [atom for atom in rule.body if atom.predicate in support_model]
+    partial_bindings = _match_positive_body(available_body, support_model) if available_body else [{}]
+    if not constants:
+        return [binding for binding in partial_bindings if set(variables) <= set(binding)]
+
+    candidate_bindings: list[dict[str, object]] = []
+    seen: set[tuple[tuple[str, object], ...]] = set()
+    for partial in partial_bindings:
+        missing = [name for name in variables if name not in partial]
+        for values in product(constants, repeat=len(missing)):
+            binding = dict(partial)
+            for name, value in zip(missing, values, strict=True):
+                binding[name] = value
+            key = tuple(sorted(binding.items()))
+            if key in seen:
+                continue
+            seen.add(key)
+            candidate_bindings.append(binding)
+    return candidate_bindings
 
 
 def _can_prove(

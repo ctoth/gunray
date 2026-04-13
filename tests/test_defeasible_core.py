@@ -157,3 +157,19 @@ def test_blocking_fixed_point_leaves_nixon_conflict_undecided() -> None:
     assert ("nixon",) not in model.sections.get("defeasibly", {}).get("pacifist", set())
     assert ("nixon",) in model.sections.get("undecided", {}).get("pacifist", set())
     assert ("nixon",) in model.sections.get("undecided", {}).get("~pacifist", set())
+
+
+def test_missing_body_literal_still_classifies_head_as_not_defeasibly() -> None:
+    theory = DefeasibleTheory(
+        facts={
+            "bird": [("tweety",)],
+        },
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="r1", head="flies(X)", body=["bird(X)", "injured(X)"]),
+        ],
+    )
+
+    model = DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+
+    assert ("tweety",) in model.sections.get("not_defeasibly", {}).get("flies", set())
