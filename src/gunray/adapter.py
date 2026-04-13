@@ -16,6 +16,16 @@ class GunrayEvaluator:
         self._datalog = SemiNaiveEvaluator()
         self._defeasible = DefeasibleEvaluator()
         self._closure = ClosureEvaluator()
+        self._bridge: object | None = None
+
+    def _suite_bridge(self) -> object:
+        if self._bridge is None:
+            from .conformance_adapter import GunrayConformanceEvaluator
+
+            bridge = GunrayConformanceEvaluator()
+            bridge._core = self  # reuse this evaluator's engines
+            self._bridge = bridge
+        return self._bridge
 
     def evaluate(self, item: Program | DefeasibleTheory, policy: Policy | None = None) -> object:
         if isinstance(item, Program):
@@ -29,7 +39,7 @@ class GunrayEvaluator:
             }:
                 return self._closure.evaluate(item, actual_policy)
             return self._defeasible.evaluate(item, actual_policy)
-        raise TypeError(f"Unsupported input type: {type(item).__name__}")
+        return self._suite_bridge().evaluate(item, policy)  # type: ignore[attr-defined]
 
     def evaluate_with_trace(
         self,
@@ -48,7 +58,7 @@ class GunrayEvaluator:
             }:
                 return self._closure.evaluate_with_trace(item, actual_policy, trace_config)
             return self._defeasible.evaluate_with_trace(item, actual_policy, trace_config)
-        raise TypeError(f"Unsupported input type: {type(item).__name__}")
+        return self._suite_bridge().evaluate_with_trace(item, policy, trace_config)  # type: ignore[attr-defined]
 
     def satisfies_klm_property(
         self,
@@ -56,4 +66,6 @@ class GunrayEvaluator:
         property_name: str,
         policy: Policy,
     ) -> bool:
-        return self._closure.satisfies_klm_property(theory, property_name, policy)
+        if isinstance(theory, DefeasibleTheory):
+            return self._closure.satisfies_klm_property(theory, property_name, policy)
+        return self._suite_bridge().satisfies_klm_property(theory, property_name, policy)  # type: ignore[attr-defined]
