@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from gunray import DefeasibleTheory, Policy, Rule
 from gunray.ambiguity import resolve_ambiguity_policy
 from gunray.defeasible import (
@@ -10,6 +12,14 @@ from gunray.defeasible import (
     _supporter_survives,
 )
 from gunray.types import GroundAtom, GroundDefeasibleRule
+
+
+def test_readme_discloses_reduced_specificity_and_defeat_contract() -> None:
+    readme = Path(__file__).resolve().parents[1] / "README.md"
+    text = " ".join(readme.read_text(encoding="utf-8").split())
+
+    assert "strict-body specificity heuristic" in text
+    assert "not full DeLP/ASPIC-style dialectical argument comparison" in text
 
 
 def test_expand_candidate_atoms_adds_conflicting_complements() -> None:

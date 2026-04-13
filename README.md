@@ -49,6 +49,14 @@ and explicit conflict sets at that path. Everything non-trivial — defeaters,
 superiority, conflict sets, higher-arity literals — goes through the full
 defeasible evaluator instead.
 
+The defeasible evaluator is also intentionally narrower than full DeLP/ASPIC
+style structured argumentation. Its rule comparison uses a strict-body specificity
+heuristic, not full DeLP/ASPIC-style dialectical argument comparison, and its
+defeat check is a direct live-attacker blocker rather than a full argument-tree
+warrant procedure. That is a deliberate contract surface, not an implicit claim
+that `gunray/defeasible.py` implements the full Simari-Loui 1992 specificity and
+defeat machinery.
+
 ## Install
 
 Python 3.11+ and [`uv`](https://docs.astral.sh/uv/). The conformance suite

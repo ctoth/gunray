@@ -1,4 +1,19 @@
-"""Blocking defeasible evaluation for the current Gunray theory fragment."""
+"""Blocking defeasible evaluation for the current Gunray theory fragment.
+
+This evaluator is intentionally narrower than full Simari-Loui / DeLP style
+argumentation. In particular:
+
+- specificity is a strict-body specificity heuristic, not the full
+  argument-structure comparison of Simari and Loui 1992 Definition 2.6 and
+  Lemma 2.4 (pp. 11 and 14 in the local paper notes / page-image-derived
+  materials)
+- defeat is resolved by direct live-attacker blocking at the grounded-rule
+  level, not by the full defeat and dialectical-level definitions of Simari
+  and Loui 1992 Definition 4.3 and Definitions 4.4-4.5 (pp. 23-25)
+
+The conformance suite treats this reduced rule-local semantics as the contract
+for Gunray's defeasible evaluator.
+"""
 
 from __future__ import annotations
 
