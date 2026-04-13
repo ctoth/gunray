@@ -79,7 +79,11 @@ def _top_level_items(draw: st.DrawFn) -> str:
 def _integer_expression_chains(draw: st.DrawFn) -> tuple[str, int]:
     values = draw(st.lists(st.integers(min_value=0, max_value=20), min_size=2, max_size=6))
     operators = draw(
-        st.lists(st.sampled_from(tuple(_INTEGER_OPERATORS)), min_size=len(values) - 1, max_size=len(values) - 1)
+        st.lists(
+            st.sampled_from(tuple(_INTEGER_OPERATORS)),
+            min_size=len(values) - 1,
+            max_size=len(values) - 1,
+        )
     )
     expression = str(values[0])
     expected = values[0]

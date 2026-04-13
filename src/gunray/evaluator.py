@@ -113,14 +113,6 @@ def _validate_program(facts: dict[str, set[tuple[object, ...]]], rules: list[Rul
             atom_vars = _binding_variables_in_atom(atom)
             bound_vars |= atom_vars
             positive_vars |= atom_vars
-        head_vars = (
-            set().union(*(_variables_in_atom(head) for head in rule.heads))
-            if rule.heads
-            else set()
-        )
-        constraint_vars = set().union(
-            *(_variables_in_comparison(constraint) for constraint in rule.constraints)
-        ) if rule.constraints else set()
         for atom in rule.negative_body:
             _check_arity(arities, atom.predicate, atom.arity)
             if _variables_in_atom(atom) - positive_vars:
