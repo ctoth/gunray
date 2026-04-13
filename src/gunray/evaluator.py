@@ -123,17 +123,7 @@ def _validate_program(facts: dict[str, set[tuple[object, ...]]], rules: list[Rul
         ) if rule.constraints else set()
         for atom in rule.negative_body:
             _check_arity(arities, atom.predicate, atom.arity)
-            shared_negative_vars = set().union(
-                *(
-                    _variables_in_atom(other)
-                    for other in rule.negative_body
-                    if other is not atom
-                )
-            ) if len(rule.negative_body) > 1 else set()
-            required_positive_vars = _variables_in_atom(atom) & (
-                positive_vars | head_vars | constraint_vars | shared_negative_vars
-            )
-            if required_positive_vars - positive_vars:
+            if _variables_in_atom(atom) - positive_vars:
                 raise SafetyViolationError("Variables in negated literals must be positively bound")
         for constraint in rule.constraints:
             if _variables_in_comparison(constraint) - positive_vars:
