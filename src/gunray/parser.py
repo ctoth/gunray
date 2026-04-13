@@ -164,17 +164,16 @@ def parse_value_term(text: str) -> Variable | Constant | AddExpression | Subtrac
     """Parse a term that can appear in a value-producing position."""
 
     stripped = text.strip()
-    plus_index = _find_top_level_binary(stripped, "+")
-    if plus_index != -1:
+    operator_index, operator = _find_rightmost_top_level_binary(stripped, "+-")
+    if operator_index != -1 and operator == "+":
         return AddExpression(
-            left=parse_value_term(stripped[:plus_index]),
-            right=parse_value_term(stripped[plus_index + 1 :]),
+            left=parse_value_term(stripped[:operator_index]),
+            right=parse_value_term(stripped[operator_index + 1 :]),
         )
-    minus_index = _find_top_level_binary(stripped, "-")
-    if minus_index != -1:
+    if operator_index != -1 and operator == "-":
         return SubtractExpression(
-            left=parse_value_term(stripped[:minus_index]),
-            right=parse_value_term(stripped[minus_index + 1 :]),
+            left=parse_value_term(stripped[:operator_index]),
+            right=parse_value_term(stripped[operator_index + 1 :]),
         )
 
     scalar = _parse_scalar(stripped)
@@ -333,6 +332,36 @@ def _find_top_level_binary(text: str, operator: str) -> int:
     return -1
 
 
+def _find_rightmost_top_level_binary(text: str, operators: str) -> tuple[int, str | None]:
+    depth = 0
+    in_string = False
+    escaped = False
+    last_index = -1
+    last_operator: str | None = None
+    for index, character in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+            continue
+        if character == "(":
+            depth += 1
+            continue
+        if character == ")":
+            depth -= 1
+            continue
+        if character in operators and depth == 0 and index > 0:
+            last_index = index
+            last_operator = character
+    return last_index, last_operator
+
+
 def _find_top_level_operator(text: str, operator: str) -> int:
     depth = 0
     in_string = False
@@ -376,18 +405,12 @@ def _parse_scalar(text: str) -> Scalar | None:
         parsed = literal_eval(text)
         if not isinstance(parsed, str):
             raise ParseError(f"Expected quoted string literal, got {text}")
-        return _normalize_scalar_value(parsed)
+        return parsed
     return _parse_unquoted_scalar(text)
 
 
 def _normalize_scalar_value(value: Scalar) -> Scalar:
-    if not isinstance(value, str):
-        return value
-
-    normalized = _parse_unquoted_scalar(value)
-    if normalized is None:
-        return value
-    return normalized
+    return value
 
 
 def _parse_unquoted_scalar(text: str) -> Scalar | None:
