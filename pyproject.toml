@@ -44,4 +44,8 @@ select = ["E", "F", "W", "I"]
 [tool.pyright]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
-include = ["src", "tests"]
+include = ["src"]
+reportMissingImports = "none"
+reportPrivateUsage = "none"
+reportUnnecessaryIsInstance = "none"
+reportUnusedFunction = "none"

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from ast import literal_eval
+from collections.abc import Mapping
+from typing import cast
 
 from .errors import ParseError
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
+from .schema import PredicateFacts
 from .schema import Program as SchemaProgram
 from .schema import Rule as SchemaRule
 from .semantics import add_values, subtract_values
@@ -26,7 +29,7 @@ from .types import (
 
 
 def normalize_facts(
-    raw_facts: dict[str, list[tuple[Scalar, ...]]],
+    raw_facts: PredicateFacts,
 ) -> dict[str, set[tuple[Scalar, ...]]]:
     """Normalize YAML fact rows to a set-based model representation."""
 
@@ -226,7 +229,7 @@ def split_top_level(text: str) -> list[str]:
     return items
 
 
-def ground_atom(atom: Atom, binding: dict[str, Scalar]) -> GroundAtom:
+def ground_atom(atom: Atom, binding: Mapping[str, object]) -> GroundAtom:
     """Instantiate a parsed atom under a binding."""
 
     return GroundAtom(
@@ -235,13 +238,13 @@ def ground_atom(atom: Atom, binding: dict[str, Scalar]) -> GroundAtom:
     )
 
 
-def evaluate_term(term: AtomTerm, binding: dict[str, Scalar]) -> Scalar:
+def evaluate_term(term: AtomTerm, binding: Mapping[str, object]) -> Scalar:
     """Evaluate a head/body term under a concrete variable binding."""
 
     if isinstance(term, Constant):
         return term.value
     if isinstance(term, Variable):
-        return binding[term.name]
+        return cast(Scalar, binding[term.name])
     if isinstance(term, Wildcard):
         raise KeyError(f"Wildcard term {term.token!r} cannot be evaluated as a value")
 

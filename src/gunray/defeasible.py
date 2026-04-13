@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import cast
 
 from .ambiguity import AmbiguityPolicy, attacker_basis_atoms, resolve_ambiguity_policy
 from .evaluator import SemiNaiveEvaluator, _match_positive_body
 from .parser import ground_atom, parse_defeasible_theory
 from .relation import IndexedRelation
-from .schema import DefeasibleModel, Policy
+from .schema import DefeasibleModel, FactTuple, ModelFacts, Policy
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
 from .schema import Program as SchemaProgram
 from .trace import (
@@ -253,7 +254,7 @@ def _strict_rule_to_program_text(head: str, body: list[str]) -> str:
 
 
 def _positive_closure(
-    facts: dict[str, set[tuple[object, ...]]],
+    facts: dict[str, set[FactTuple]],
     rules: list[DefeasibleRule],
 ) -> dict[str, IndexedRelation]:
     model = {
@@ -472,22 +473,22 @@ def _supporter_survives(
 
 def _facts_to_atoms(facts: dict[str, IndexedRelation]) -> set[GroundAtom]:
     return {
-        GroundAtom(predicate=predicate, arguments=tuple(row))
+        GroundAtom(predicate=predicate, arguments=cast(FactTuple, tuple(row)))
         for predicate, rows in facts.items()
         for row in rows
     }
 
 
-def _atoms_to_section(atoms: set[GroundAtom]) -> dict[str, set[tuple[object, ...]]]:
-    section: dict[str, set[tuple[object, ...]]] = defaultdict(set)
+def _atoms_to_section(atoms: set[GroundAtom]) -> dict[str, set[FactTuple]]:
+    section: dict[str, set[FactTuple]] = defaultdict(set)
     for atom in atoms:
         section[atom.predicate].add(atom.arguments)
     return dict(section)
 
 
-def _section_to_atoms(section: dict[str, set[tuple[object, ...]]]) -> set[GroundAtom]:
+def _section_to_atoms(section: ModelFacts) -> set[GroundAtom]:
     return {
-        GroundAtom(predicate=predicate, arguments=tuple(arguments))
+        GroundAtom(predicate=predicate, arguments=arguments)
         for predicate, rows in section.items()
         for arguments in rows
     }
@@ -516,7 +517,7 @@ def _rule_variables(rule: DefeasibleRule) -> set[str]:
     return variables
 
 
-def _atom_sort_key(atom: GroundAtom) -> tuple[str, tuple[object, ...]]:
+def _atom_sort_key(atom: GroundAtom) -> tuple[str, FactTuple]:
     return atom.predicate, atom.arguments
 
 

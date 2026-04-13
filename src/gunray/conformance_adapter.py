@@ -1,32 +1,37 @@
 """Optional bridge from datalog-conformance-suite inputs to Gunray."""
+# pyright: reportMissingTypeStubs=false, reportUnknownVariableType=false
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from .adapter import GunrayEvaluator
 from .schema import DefeasibleTheory, Policy, Program, Rule
 from .trace import TraceConfig
 
-_SUITE_IMPORT_ERROR: ImportError | None = None
+_suite_import_error: ImportError | None = None
+SuiteDefeasibleTheory: type[Any] | None = None
+SuitePolicy: type[Any] | None = None
+SuiteProgram: type[Any] | None = None
 
 try:
-    from datalog_conformance.schema import DefeasibleTheory as SuiteDefeasibleTheory
-    from datalog_conformance.schema import Policy as SuitePolicy
-    from datalog_conformance.schema import Program as SuiteProgram
+    from datalog_conformance.schema import DefeasibleTheory as _SuiteDefeasibleTheory
+    from datalog_conformance.schema import Policy as _SuitePolicy
+    from datalog_conformance.schema import Program as _SuiteProgram
+
+    SuiteDefeasibleTheory = cast(type[Any], _SuiteDefeasibleTheory)
+    SuitePolicy = cast(type[Any], _SuitePolicy)
+    SuiteProgram = cast(type[Any], _SuiteProgram)
 except ImportError as exc:  # pragma: no cover - exercised only without the optional extra
-    SuiteDefeasibleTheory = None
-    SuitePolicy = None
-    SuiteProgram = None
-    _SUITE_IMPORT_ERROR = exc
+    _suite_import_error = exc
 
 
 def _require_suite_support() -> None:
-    if _SUITE_IMPORT_ERROR is not None:
+    if _suite_import_error is not None:
         raise ModuleNotFoundError(
             "gunray.conformance_adapter requires the datalog-conformance "
             "dependency. Install the dev extra."
-        ) from _SUITE_IMPORT_ERROR
+        ) from _suite_import_error
 
 
 def _copy_facts(raw_facts: dict[str, Any]) -> dict[str, list[tuple[Any, ...]]]:

@@ -14,6 +14,10 @@ implicitly spread across the evaluator.
 
 from __future__ import annotations
 
+from typing import Any, cast
+
+from .schema import Scalar
+
 
 class SemanticError(ValueError):
     """Raised when an operation is outside Gunray's explicit value semantics."""
@@ -31,7 +35,7 @@ def values_not_equal(left: object, right: object) -> bool:
     return not values_equal(left, right)
 
 
-def add_values(left: object, right: object) -> object:
+def add_values(left: object, right: object) -> Scalar:
     """Evaluate `left + right` under Gunray semantics."""
 
     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
@@ -39,7 +43,7 @@ def add_values(left: object, right: object) -> object:
     return f"{left}{right}"
 
 
-def subtract_values(left: object, right: object) -> object:
+def subtract_values(left: object, right: object) -> Scalar:
     """Evaluate `left - right` under Gunray semantics."""
 
     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
@@ -56,14 +60,16 @@ def compare_values(left: object, operator: str, right: object) -> bool:
         return values_not_equal(left, right)
 
     try:
+        left_value = cast(Any, left)
+        right_value = cast(Any, right)
         if operator == "<=":
-            return left <= right
+            return cast(bool, left_value <= right_value)
         if operator == "<":
-            return left < right
+            return cast(bool, left_value < right_value)
         if operator == ">=":
-            return left >= right
+            return cast(bool, left_value >= right_value)
         if operator == ">":
-            return left > right
+            return cast(bool, left_value > right_value)
     except TypeError as exc:
         raise SemanticError(
             f"Operator {operator!r} is undefined for "

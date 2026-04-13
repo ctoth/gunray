@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable, TypeAlias
+from typing import TypeAlias
 
 Scalar: TypeAlias = str | int | float | bool
 FactTuple: TypeAlias = tuple[Scalar, ...]
-PredicateFacts: TypeAlias = dict[str, Iterable[FactTuple]]
-ModelFacts: TypeAlias = dict[str, set[FactTuple]]
-DefeasibleSections: TypeAlias = dict[str, ModelFacts]
+PredicateFacts: TypeAlias = Mapping[str, Iterable[FactTuple]]
+ModelFacts: TypeAlias = Mapping[str, set[FactTuple]]
+DefeasibleSections: TypeAlias = Mapping[str, ModelFacts]
 
 
 def _predicate_facts_factory() -> PredicateFacts:

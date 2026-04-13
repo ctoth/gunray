@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
+from typing import cast
 
 from .compiled import (
+    CompiledSimpleRule,
     compile_simple_matcher,
     compile_simple_rule,
     iter_compiled_bindings,
@@ -13,7 +15,7 @@ from .compiled import (
 from .errors import ArityMismatchError, SafetyViolationError, UnboundVariableError
 from .parser import ground_atom, parse_program
 from .relation import IndexedRelation
-from .schema import Model
+from .schema import FactTuple, Model
 from .schema import Program as SchemaProgram
 from .semantics import (
     SemanticError,
@@ -69,7 +71,7 @@ class SemiNaiveEvaluator:
 
         return Model(
             facts={
-                predicate: relation.as_set()
+                predicate: cast(set[FactTuple], relation.as_set())
                 for predicate, relation in model.items()
             }
         ), trace
@@ -94,7 +96,7 @@ def _normalize_rules(rules: list[Rule]) -> list[Rule]:
     return normalized
 
 
-def _validate_program(facts: dict[str, set[tuple[object, ...]]], rules: list[Rule]) -> None:
+def _validate_program(facts: dict[str, set[FactTuple]], rules: list[Rule]) -> None:
     arities: dict[str, int] = {}
 
     for predicate, rows in facts.items():
@@ -293,7 +295,7 @@ def _apply_rule_with_overrides(
 
 
 def _apply_compiled_rule(
-    compiled_rule,
+    compiled_rule: CompiledSimpleRule,
     model: dict[str, IndexedRelation],
     delta: dict[str, IndexedRelation],
     overrides: dict[int, IndexedRelation],

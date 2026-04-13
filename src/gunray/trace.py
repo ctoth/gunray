@@ -7,6 +7,26 @@ from dataclasses import dataclass, field
 from .types import GroundAtom
 
 
+def _rule_fire_trace_list_factory() -> list["RuleFireTrace"]:
+    return []
+
+
+def _iteration_trace_list_factory() -> list["IterationTrace"]:
+    return []
+
+
+def _stratum_trace_list_factory() -> list["StratumTrace"]:
+    return []
+
+
+def _proof_attempt_trace_list_factory() -> list["ProofAttemptTrace"]:
+    return []
+
+
+def _classification_trace_list_factory() -> list["ClassificationTrace"]:
+    return []
+
+
 @dataclass(frozen=True, slots=True)
 class TraceConfig:
     capture_derived_rows: bool = False
@@ -26,7 +46,7 @@ class RuleFireTrace:
 class IterationTrace:
     iteration: int
     delta_sizes: dict[str, int]
-    rule_fires: list[RuleFireTrace] = field(default_factory=list)
+    rule_fires: list[RuleFireTrace] = field(default_factory=_rule_fire_trace_list_factory)
 
     def find_rule_fires(
         self,
@@ -50,7 +70,7 @@ class IterationTrace:
 @dataclass(slots=True)
 class StratumTrace:
     predicates: tuple[str, ...]
-    iterations: list[IterationTrace] = field(default_factory=list)
+    iterations: list[IterationTrace] = field(default_factory=_iteration_trace_list_factory)
 
     def find_rule_fires(
         self,
@@ -74,7 +94,7 @@ class StratumTrace:
 @dataclass(slots=True)
 class DatalogTrace:
     config: TraceConfig = field(default_factory=TraceConfig)
-    strata: list[StratumTrace] = field(default_factory=list)
+    strata: list[StratumTrace] = field(default_factory=_stratum_trace_list_factory)
 
     def all_rule_fires(self) -> tuple[RuleFireTrace, ...]:
         matches: list[RuleFireTrace] = []
@@ -127,8 +147,12 @@ class DefeasibleTrace:
     definitely: tuple[GroundAtom, ...] = ()
     supported: tuple[GroundAtom, ...] = ()
     strict_trace: DatalogTrace | None = None
-    proof_attempts: list[ProofAttemptTrace] = field(default_factory=list)
-    classifications: list[ClassificationTrace] = field(default_factory=list)
+    proof_attempts: list[ProofAttemptTrace] = field(
+        default_factory=_proof_attempt_trace_list_factory
+    )
+    classifications: list[ClassificationTrace] = field(
+        default_factory=_classification_trace_list_factory
+    )
 
     def proof_attempts_for(
         self,
