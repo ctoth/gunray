@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 from gunray import DefeasibleTheory, Policy, Rule
-from gunray.closure import ClosureEvaluator
+from gunray.closure import (
+    ClosureEvaluator,
+    _conjunction_formula,
+    _formula_entails,
+    _literal_formula,
+    _ranked_defaults,
+)
 
 
 def test_example6_distinguishes_rational_from_lexicographic_closure() -> None:
@@ -51,3 +57,32 @@ def test_or_counterexample_fails_only_for_relevant_closure() -> None:
     assert evaluator.satisfies_klm_property(theory, "Or", Policy.RATIONAL_CLOSURE)
     assert evaluator.satisfies_klm_property(theory, "Or", Policy.LEXICOGRAPHIC_CLOSURE)
     assert not evaluator.satisfies_klm_property(theory, "Or", Policy.RELEVANT_CLOSURE)
+
+
+def test_impossible_antecedent_is_handled_consistently_across_closure_policies() -> None:
+    """Impossible antecedents should not diverge by helper accident.
+
+    Morris, Ross, and Meyer 2020, Algorithm 4 (p.151; local page image
+    ``papers/Morris_2020_DefeasibleDisjunctiveDatalog/pngs/page-010.png``)
+    and Algorithm 5 (p.153; local page image
+    ``papers/Morris_2020_DefeasibleDisjunctiveDatalog/pngs/page-012.png``)
+    both reduce the final closure check to classical entailment of
+    ``alpha -> beta`` after exceptional levels are removed. If ``alpha`` is
+    impossible, the three public closure policies should therefore agree
+    instead of splitting on whether an empty context is treated vacuously.
+    """
+
+    theory = DefeasibleTheory(
+        facts={"a": [()]},
+        strict_rules=[],
+        defeasible_rules=[Rule(id="r1", head="p", body=["q"])],
+    )
+    ranked = _ranked_defaults(theory)
+    antecedent = _conjunction_formula(["a", "~a"])
+    consequent = _literal_formula("p")
+
+    assert _formula_entails(ranked, theory, antecedent, consequent, Policy.RATIONAL_CLOSURE)
+    assert _formula_entails(
+        ranked, theory, antecedent, consequent, Policy.LEXICOGRAPHIC_CLOSURE
+    )
+    assert _formula_entails(ranked, theory, antecedent, consequent, Policy.RELEVANT_CLOSURE)

@@ -8,6 +8,7 @@ from typing import Callable
 
 from .schema import DefeasibleModel, DefeasibleTheory, Policy, Rule
 from .trace import DefeasibleTrace, TraceConfig
+from .types import GroundAtom
 
 World = frozenset[str]
 
@@ -271,7 +272,19 @@ def _ranked_formula_entails(
         if _formula_holds(world, antecedent) and _world_satisfies_rules(world, theory.strict_rules)
     ]
     if not context_worlds:
-        return False
+        # Morris, Ross, and Meyer 2020 Algorithm 4 (p.151) and the
+        # corresponding Relevant Closure algorithm on p.153 both end in a
+        # classical entailment check of alpha -> beta after removing
+        # exceptional levels. When alpha is impossible, that implication is
+        # vacuously true, so the ranked policies must agree with the classical
+        # branch instead of treating the empty context as an automatic failure.
+        return _classically_entails(
+            ranked.worlds,
+            theory.strict_rules,
+            list(theory.defeasible_rules),
+            antecedent,
+            consequent,
+        )
 
     best_score = min(score(ranked, world) for world in context_worlds)
     preferred = [world for world in context_worlds if score(ranked, world) == best_score]
@@ -454,9 +467,7 @@ def _atoms_to_section(atoms: set[str]) -> dict[str, set[tuple[()]]]:
     return {atom: {()} for atom in sorted(atoms)}
 
 
-def _ground_atoms_from_literals(literals: set[str]) -> list[object]:
-    from .types import GroundAtom
-
+def _ground_atoms_from_literals(literals: set[str]) -> list[GroundAtom]:
     return [GroundAtom(predicate=literal, arguments=()) for literal in sorted(literals)]
 
 
