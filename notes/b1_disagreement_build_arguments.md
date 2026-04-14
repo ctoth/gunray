@@ -176,4 +176,65 @@ Moving to red phase of test 1 (disagrees on complementary literals).
 - Run full suite + pyright.
 - Write report.
 
-### NO BLOCKER
+## 2026-04-13 checkpoint 6 — all tests green; 3 pyright errors to fix
+
+### DONE
+- All 4 build_arguments hypothesis properties landed and committed:
+  - determinism (commit beb025c)
+  - minimality (commit c0c95f8)
+  - non-contradiction (commit 9896cae)
+  - monotonicity in facts (commit 653111c)
+- Full non-conformance suite: 66 passed, 3 skipped, 1 pre-existing
+  failure in test_closure_faithfulness (ranked-closure oracle,
+  pre-existing, NOT my regression — same failure was present in the
+  baseline I ran at the start).
+
+### PYRIGHT STATUS (3 errors, 0 warnings — need to fix)
+All three in src/gunray/arguments.py and all stem from the same root:
+`normalize_facts` returns `dict[str, set[tuple[Scalar, ...]]]` but my
+helper signatures use `dict[str, set[tuple[object, ...]]]`. Need to
+either:
+  - Change helper signatures to accept `dict[str, set[tuple[Scalar, ...]]]`,
+  - Or use `Mapping[str, set[tuple[Scalar, ...]]]` per pyright's hint.
+Plus one error at line 237 where I construct GroundAtom.arguments with
+a tuple[object, ...] — IndexedRelation stores rows as tuple[object, ...];
+need a cast to tuple[Scalar, ...].
+
+### BLOCKER
+Pyright must be green before finishing. 3 errors, all type-annotation
+alignment — fixable without rewriting logic. Will also re-check the
+full suite after the fix.
+
+### NEXT
+- Fix 3 pyright errors.
+- Re-run pyright → expect 0/0.
+- Re-run full suite → expect 66+ pass.
+- Count file LOCs and citations.
+- Write reports/b1-disagreement-and-build-arguments.md.
+
+## 2026-04-13 checkpoint 7 — gates met, ready to write report
+
+### DONE (this checkpoint)
+- Pyright errors fixed in commit ea98837 (swapped to Mapping[...]
+  with Scalar, removed unused `cast` import).
+- Pyright now reports 0 errors, 0 warnings on both new files.
+- Full suite (excluding pre-existing closure faithfulness and
+  conformance): 64 passed, 3 skipped.
+- Final soak of B1.3 tests: 15/15 (6 disagreement + 9
+  build_arguments) at Hypothesis max_examples=500.
+
+### FINAL METRICS
+- src/gunray/disagreement.py: 87 LOC
+- src/gunray/arguments.py: 366 LOC
+- tests/test_disagreement.py: 102 LOC
+- tests/test_build_arguments.py: 316 LOC
+- tests/conftest.py: 144 LOC (was 46; +98)
+- Paper citations in src/gunray/: 24 Garcia/Simari occurrences,
+  up from 11 in B1.2 (+13).
+
+### COMMIT TRAIL (17 commits)
+See `git log --oneline a4b9815..ea98837`.
+
+### REPORT TODO
+Write reports/b1-disagreement-and-build-arguments.md with commit
+hashes, LOC, metrics, property summaries, and one-line summary.
