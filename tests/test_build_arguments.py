@@ -5,9 +5,14 @@ Garcia & Simari 2004 Definition 3.1, Simari & Loui 1992 Definition 2.2.
 
 from __future__ import annotations
 
+from hypothesis import given, settings
+
 from gunray.arguments import Argument, build_arguments
+from gunray.disagreement import disagrees, strict_closure
 from gunray.schema import DefeasibleTheory, Rule
-from gunray.types import GroundAtom
+from gunray.types import GroundAtom, GroundDefeasibleRule
+
+from conftest import small_theory_strategy
 
 
 def _tweety_theory() -> DefeasibleTheory:
@@ -143,3 +148,17 @@ def test_strict_only_arguments_have_empty_rules() -> None:
         assert argument.rules == frozenset(), (
             f"strict-only theory produced non-empty argument: {argument!r}"
         )
+
+
+@given(theory=small_theory_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_build_arguments_is_deterministic(
+    theory: DefeasibleTheory,
+) -> None:
+    """Invoking ``build_arguments`` twice on the same theory yields equal sets.
+
+    Guards against accidental state leakage (e.g. cached mutable
+    structures from grounding helpers).
+    """
+
+    assert build_arguments(theory) == build_arguments(theory)

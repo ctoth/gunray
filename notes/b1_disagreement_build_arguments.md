@@ -151,11 +151,29 @@ Moving to red phase of test 1 (disagrees on complementary literals).
 - tests/test_build_arguments.py: 2 tests so far.
 - tests/conftest.py: extended with 4 strategies.
 
+## 2026-04-13 checkpoint 5 — build_arguments all unit tests + first property
+
+### DONE (this checkpoint)
+- Test 3 (nixon diamond both arguments): green on first run. Commit a83ad9d.
+- Test 4 (defeater kind cannot conclude): green on first run. Commit db1b7aa.
+- Test 5 (strict-only arguments empty rules): green on first run. Commit da59c3b.
+- Hypothesis property 1 (build_arguments deterministic): 500 examples pass.
+  Needs commit.
+
+### RUNNING TOTALS
+- disagreement unit: 3/3 done.
+- disagreement hypothesis: 3/3 done.
+- build_arguments unit: 5/5 done.
+- build_arguments hypothesis: 1/4 done.
+- Remaining: minimality property, non-contradiction property,
+  monotonic-in-facts property. Then pyright + final suite.
+
 ### NEXT
-- Test 3: nixon diamond has both arguments.
-- Test 4: defeater kind cannot be argument conclusion.
-- Test 5: strict-only arguments have empty rules.
-- Then 4 hypothesis properties.
-- Then full suite + pyright check.
+- Commit determinism property.
+- Add minimality property.
+- Add non-contradiction property.
+- Add monotonic-in-facts property.
+- Run full suite + pyright.
+- Write report.
 
 ### NO BLOCKER
