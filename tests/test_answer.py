@@ -13,11 +13,12 @@ from __future__ import annotations
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from gunray.adapter import GunrayEvaluator
 from gunray.answer import Answer
 from gunray.dialectic import answer
 from gunray.disagreement import complement
-from gunray.preference import TrivialPreference
-from gunray.schema import DefeasibleTheory, Rule
+from gunray.preference import GeneralizedSpecificity, TrivialPreference
+from gunray.schema import DefeasibleTheory, Policy, Rule
 from gunray.types import GroundAtom
 from conftest import ground_atom_strategy, small_theory_strategy
 
@@ -260,3 +261,86 @@ def test_hypothesis_answer_yes_implies_complement_no(
     criterion = TrivialPreference()
     if answer(theory, literal, criterion) is Answer.YES:
         assert answer(theory, complement(literal), criterion) is Answer.NO
+
+
+# -- B2.3 — answer under GeneralizedSpecificity (Simari 92 Lemma 2.4) --------
+
+
+def test_opus_flies_is_no_under_specificity() -> None:
+    """Simari 92 §5 Opus/Penguin: under ``GeneralizedSpecificity``,
+    ``~flies(opus)`` is warranted because ``penguin(opus)`` (the
+    attacker's antecedent) strict-closes to ``bird(opus)`` (the
+    defender's antecedent) but not vice versa. The attacker is
+    therefore a proper defeater of the defender, the attack tree for
+    ``flies(opus)`` marks ``D``, and Garcia 04 Def 5.3 returns NO.
+
+    B1.5 flagged this as the "Opus deviation"; Block 2's specificity
+    criterion resolves it.
+    """
+    theory = _tweety_theory()
+    criterion = GeneralizedSpecificity(theory)
+    result = answer(theory, _ga("flies", "opus"), criterion)
+    assert result is Answer.NO
+
+
+def test_opus_not_flies_is_yes_under_specificity() -> None:
+    """Symmetric to ``test_opus_flies_is_no_under_specificity``.
+    ``~flies(opus)`` wins over ``flies(opus)`` under Lemma 2.4, so
+    Garcia 04 Def 5.3 returns YES for the negative literal."""
+    theory = _tweety_theory()
+    criterion = GeneralizedSpecificity(theory)
+    result = answer(theory, _ga("~flies", "opus"), criterion)
+    assert result is Answer.YES
+
+
+def test_tweety_still_yes_under_specificity() -> None:
+    """Regression: ``flies(tweety)`` stays YES under specificity.
+    Tweety is not a penguin, so the only attacker ``~flies(tweety)``
+    has no argument at all and the root tree is a leaf marked ``U``.
+    Specificity cannot harm an unopposed argument."""
+    theory = _tweety_theory()
+    criterion = GeneralizedSpecificity(theory)
+    result = answer(theory, _ga("flies", "tweety"), criterion)
+    assert result is Answer.YES
+
+
+def test_nixon_diamond_still_undecided_under_specificity() -> None:
+    """Regression: equi-specific arguments remain UNDECIDED.
+    Simari 92 §5 Nixon Diamond — both ``pacifist(nixon)`` and
+    ``~pacifist(nixon)`` rest on raw facts with no strict-rule
+    coverage between them, so neither argument is strictly more
+    specific than the other. Lemma 2.4 returns ``False`` in both
+    directions; the arguments remain blocking defeaters and Garcia
+    04 Def 5.3 returns UNDECIDED."""
+    theory = _direct_nixon_theory()
+    criterion = GeneralizedSpecificity(theory)
+    result = answer(theory, _ga("pacifist", "nixon"), criterion)
+    assert result is Answer.UNDECIDED
+
+
+def test_sections_projection_under_specificity() -> None:
+    """Full pipeline test: evaluating the Tweety theory through
+    ``GunrayEvaluator`` with ``Policy.BLOCKING`` routes into
+    ``DefeasibleEvaluator.evaluate_with_trace`` and must project
+    Opus into the correct Def 5.3 sections once
+    ``GeneralizedSpecificity`` is wired in:
+
+    - ``flies(tweety)`` in ``defeasibly``
+    - ``flies(opus)`` in ``not_defeasibly``
+    - ``~flies(opus)`` in ``defeasibly``
+
+    This exercises the evaluator wire, not just the ``answer`` query
+    path, and is the green-gate test for the B2.3 evaluator-side
+    change.
+    """
+    theory = _tweety_theory()
+    model = GunrayEvaluator().evaluate(theory, Policy.BLOCKING)
+    assert isinstance(model, type(model))  # narrow for type checkers
+    sections = model.sections  # type: ignore[attr-defined]
+
+    defeasibly = sections.get("defeasibly", {})
+    not_defeasibly = sections.get("not_defeasibly", {})
+
+    assert ("tweety",) in defeasibly.get("flies", set())
+    assert ("opus",) in defeasibly.get("~flies", set())
+    assert ("opus",) in not_defeasibly.get("flies", set())
