@@ -87,3 +87,28 @@ Moving to red phase of test 1 (disagrees on complementary literals).
 - Then move to build_arguments tests.
 
 ### NO BLOCKER
+
+## 2026-04-13 checkpoint 3 — all disagreement tests landed
+
+### DONE (this checkpoint)
+- conftest.py: added `ground_atom_strategy`, `strict_rule_strategy`,
+  `strict_context_strategy`, `small_theory_strategy`.
+- Hypothesis property 1: symmetry. Commit ba88e98. 500 examples pass.
+- Hypothesis property 2: monotonicity in context. Commit d5bf4c3.
+  500 examples pass.
+- Hypothesis property 3: irreflexive on satisfiable context. Uses
+  `assume` to reject pre-contradictory contexts. 500 examples pass
+  (needs commit).
+
+### RUNNING TOTALS
+- disagreement unit tests: 3/3 (done).
+- disagreement hypothesis properties: 3/3 (ready to commit last).
+- build_arguments unit tests: 0/5.
+- build_arguments hypothesis properties: 0/4.
+
+### NEXT
+- Commit irreflexivity property.
+- Create tests/test_build_arguments.py, unit test 1: Tweety argument exists.
+  This requires implementing `build_arguments` minimally.
+- Grounding plan: parse_defeasible_theory -> ground rules via
+  `_match_positive_body` seeded by the positive fact model.

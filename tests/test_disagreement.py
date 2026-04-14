@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 
-from gunray.disagreement import disagrees, strict_closure
+from gunray.disagreement import complement, disagrees, strict_closure
 from gunray.types import GroundAtom, GroundDefeasibleRule
 
 from conftest import ground_atom_strategy, strict_context_strategy
@@ -78,3 +78,25 @@ def test_hypothesis_disagrees_is_monotonic_in_context(
     superset = k1 + k2
     if disagrees(a, b, k1):
         assert disagrees(a, b, superset)
+
+
+@given(a=ground_atom_strategy(), k=strict_context_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_disagrees_irreflexive_on_satisfiable_context(
+    a: GroundAtom,
+    k: tuple[GroundDefeasibleRule, ...],
+) -> None:
+    """``disagrees(a, a, K)`` is False whenever ``{a} union K`` is satisfiable.
+
+    Garcia & Simari 2004 Def 3.3 requires contradictoriness in the
+    closure; if the closure of ``{a}`` under K already contains ``a``
+    and its complement, that is a prior defect of the context, not a
+    disagreement between ``a`` and itself. We filter with ``assume``
+    to satisfiable contexts only.
+    """
+
+    closure = strict_closure(frozenset({a}), k)
+    # Reject contexts that are already internally contradictory with {a}.
+    for atom in closure:
+        assume(complement(atom) not in closure)
+    assert disagrees(a, a, k) is False
