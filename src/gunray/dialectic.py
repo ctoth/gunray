@@ -93,8 +93,8 @@ def counter_argues(
     **Directional fix**: this implementation iterates *every*
     sub-argument of ``target`` (via ``is_subargument`` per
     ``arguments.py``) rather than comparing only root conclusions.
-    The deleted ``_find_blocking_peer`` never descended; that is the
-    whole point of this refactor.
+    The old atom-level blocking check never descended into
+    sub-arguments; descending is the whole point of this refactor.
     """
     for _sub in _disagreeing_subarguments(attacker, target, theory):
         return True
