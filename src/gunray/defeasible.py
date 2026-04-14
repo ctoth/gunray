@@ -103,12 +103,28 @@ def _evaluate_via_argument_pipeline(
     # and we mark each tree at most once via ``warranted_literals``.
     conclusions: set[GroundAtom] = {arg.conclusion for arg in arguments}
 
+    # Defeater-kind arguments exist in the argument universe (so they
+    # can attack in the dialectical tree) but do not warrant anything:
+    # a defeater rule is a pure attacker in the Nute/Antoniou reading
+    # (``notes/b2_defeater_participation.md``). We therefore exclude
+    # them here when computing ``warranted`` and separately track the
+    # atoms they probe so the section projection can classify those
+    # atoms as ``not_defeasibly`` rather than leaving them unclassified.
+    def _is_defeater_argument(arg: "Argument") -> bool:
+        return any(rule.kind == "defeater" for rule in arg.rules)
+
     warranted: set[GroundAtom] = set()
     for arg in arguments:
+        if _is_defeater_argument(arg):
+            continue
         if arg.conclusion in warranted:
             continue
         if mark(build_tree(arg, criterion, theory)) == "U":
             warranted.add(arg.conclusion)
+
+    defeater_probed: set[GroundAtom] = {
+        arg.conclusion for arg in arguments if _is_defeater_argument(arg)
+    }
 
     strict_atoms: set[GroundAtom] = {
         arg.conclusion for arg in arguments if not arg.rules
@@ -142,6 +158,14 @@ def _evaluate_via_argument_pipeline(
         strict = atom in strict_atoms
         yes = atom in warranted
         no = complement(atom) in warranted
+        # Nute/Antoniou defeater contribution: a defeater rule whose
+        # head is ``atom`` or ``complement(atom)`` probes the literal
+        # without ever warranting it, and routes both sides of the
+        # probe into ``not_defeasibly``. See
+        # ``notes/b2_defeater_participation.md``.
+        defeater_touches = (
+            atom in defeater_probed or complement(atom) in defeater_probed
+        )
 
         if strict:
             definitely_atoms.add(atom)
@@ -156,13 +180,15 @@ def _evaluate_via_argument_pipeline(
                 )
             )
             continue
-        if no:
+        if no or defeater_touches:
             not_defeasibly_atoms.add(atom)
             classifications.append(
                 ClassificationTrace(
                     atom=atom,
                     result="not_defeasibly",
-                    reason="complement_warranted",
+                    reason=(
+                        "complement_warranted" if no else "defeater_probed"
+                    ),
                     attacker_rule_ids=_supporter_rule_ids(complement(atom), arguments),
                     opposing_atoms=(complement(atom),),
                 )

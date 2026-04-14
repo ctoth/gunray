@@ -476,9 +476,19 @@ def _is_warranted(
     there exists an argument for it whose dialectical tree
     (Def 5.1 + Def 4.7) is marked ``U`` at the root under
     Procedure 5.1.
+
+    **Defeater-kind filter** (Nute/Antoniou reading, see
+    ``notes/b2_defeater_participation.md``). Gunray enumerates a
+    one-rule argument ``<{d}, head(d)>`` for each grounded defeater
+    so it can attack defeasible arguments in the dialectical tree.
+    Such an argument must never itself warrant a query, so we skip
+    any candidate whose rule set contains a defeater-kind rule when
+    testing warrant.
     """
     for arg in arguments:
         if arg.conclusion != literal:
+            continue
+        if any(rule.kind == "defeater" for rule in arg.rules):
             continue
         tree = build_tree(arg, criterion, theory)
         if mark(tree) == "U":

@@ -171,6 +171,26 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
     for atom in pi_closure:
         arguments.add(Argument(rules=frozenset(), conclusion=atom))
 
+    # Nute-style defeater participation (see
+    # ``notes/b2_defeater_participation.md``). Garcia & Simari 2004
+    # defines only strict and defeasible rules; gunray's third
+    # ``kind="defeater"`` category is imported from the DePYsible /
+    # Spindle lineage and follows the standard Nute / Antoniou reading:
+    # a ground defeater ``d`` whose body has a strict derivation from
+    # ``Pi`` produces a one-rule argument ``<{d}, head(d)>`` that
+    # participates in the dialectical tree as an attacker but is
+    # filtered out by ``dialectic._is_warranted`` so it never warrants
+    # a YES/NO answer to a query.
+    for rule in grounded_defeater_rules:
+        if not all(atom in pi_closure for atom in rule.body):
+            continue
+        # Non-contradiction guard (Def 3.1 cond 2 analogue): rejecting
+        # ``{d}`` if ``Pi union {d}`` would be contradictory.
+        combined = grounded_strict_rules + (_force_strict_for_closure(rule),)
+        if _has_contradiction(strict_closure(fact_atoms, combined)):
+            continue
+        arguments.add(Argument(rules=frozenset({rule}), conclusion=rule.head))
+
     # Condition (2) needs to be checkable per subset. Compute it using
     # the ground strict rules + the ground rules in the subset (treating
     # defeasible rules like strict rules for the purpose of closure).
@@ -220,27 +240,13 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
                 survivors.append(rule_set)
                 minimal_for_conclusion[head] = survivors
 
-    # Defeaters cannot conclude arguments (Garcia 04 Def 3.6). Filter
-    # any minimal set that consists solely of a defeater-backed head.
-    defeater_head_set = {rule.head for rule in grounded_defeater_rules}
-
+    # Emit defeasible-rule arguments. ``rule_set`` is drawn from
+    # defeasible-kind rules only, so no filtering by kind is needed
+    # here — defeater-kind arguments are emitted above in the
+    # Nute/Antoniou pass.
     for head, minimal_sets in minimal_for_conclusion.items():
         for rule_set in minimal_sets:
-            # If the head only arises because of a defeater kind rule,
-            # skip. We key this on whether the literal head matches a
-            # defeater head and none of the `rule_set` produces it
-            # defeasibly. Since `rule_set` is drawn from defeasible
-            # rules only, this condition is already satisfied — we
-            # just need to make sure the literal isn't exclusively a
-            # defeater conclusion with no defeasible backing. For B1
-            # the filter is conservative: any head reached by rule_set
-            # is fine so long as rule_set contains a defeasible rule
-            # with that head.
             if not any(r.head == head for r in rule_set):
-                continue
-            if head in defeater_head_set and not any(
-                r.kind == "defeasible" and r.head == head for r in rule_set
-            ):
                 continue
             arguments.add(Argument(rules=rule_set, conclusion=head))
 
