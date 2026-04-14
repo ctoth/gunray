@@ -119,3 +119,27 @@ def test_defeater_kind_cannot_be_argument_conclusion() -> None:
     assert not [a for a in arguments if a.conclusion == banana_x], (
         f"defeater head surfaced as argument conclusion: {arguments!r}"
     )
+
+
+def test_strict_only_arguments_have_empty_rules() -> None:
+    """Garcia & Simari 2004 Def 3.1: strict-only theories have <empty, h>.
+
+    When ``Delta`` is empty, condition (1) degenerates to a strict
+    derivation; every argument must have ``rules == frozenset()``.
+    """
+
+    theory = DefeasibleTheory(
+        facts={"fact_p": {("a",)}},
+        strict_rules=[Rule(id="s1", head="fact_q(X)", body=["fact_p(X)"])],
+        defeasible_rules=[],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+    arguments = build_arguments(theory)
+    assert arguments, "strict-only theory should still yield strict arguments"
+    for argument in arguments:
+        assert argument.rules == frozenset(), (
+            f"strict-only theory produced non-empty argument: {argument!r}"
+        )
