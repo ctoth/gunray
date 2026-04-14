@@ -5,10 +5,10 @@ priority relation on defeasible rules, an argument ``<A1, h1>`` is
 preferred to ``<A2, h2>`` iff every rule in ``A1`` dominates every rule
 in ``A2`` under the transitive closure of the priority relation.
 
-This module pins seven paper-flavoured examples plus four Hypothesis
-properties verifying the strict-partial-order axioms (irreflexivity,
-transitivity, antisymmetry over acyclic priority relations) and the
-"any-wins" semantics of ``CompositePreference``.
+This module pins paper-flavoured examples plus Hypothesis properties
+verifying the strict-partial-order axioms (irreflexivity, transitivity,
+antisymmetry over acyclic priority relations) and the first-criterion-
+to-fire semantics of ``CompositePreference`` (asymmetry + monotonicity).
 """
 
 from __future__ import annotations
@@ -255,7 +255,13 @@ def test_superiority_partial_dominance_fails() -> None:
 
 
 def test_composite_superiority_over_specificity() -> None:
-    """Specificity says r1 > r2; superiority says r2 > r1; composite picks r2."""
+    """Specificity says r1 > r2; superiority says r2 > r1.
+
+    Under first-criterion-to-fire semantics with superiority placed
+    first, superiority monopolises the answer for this pair:
+    ``composite.prefers(r2, r1)`` is True and the symmetric call
+    ``composite.prefers(r1, r2)`` must be False (asymmetry).
+    """
 
     theory = _composite_inversion_theory()
     args = build_arguments(theory)
@@ -270,12 +276,83 @@ def test_composite_superiority_over_specificity() -> None:
     assert spec.prefers(r1_arg, r2_arg) is True
     assert sup.prefers(r2_arg, r1_arg) is True
 
-    # Composite: superiority fires first and wins.
+    # First-fire: superiority is consulted first. It prefers r2 over r1,
+    # so the composite prefers r2 over r1 and — crucially — does NOT
+    # prefer r1 over r2 even though specificity would have said yes.
+    # Asymmetry holds by construction of the first-fire rule.
     assert composite.prefers(r2_arg, r1_arg) is True
-    assert composite.prefers(r1_arg, r2_arg) is True
-    # NB: both can be true here — this is exactly the composite-disagreement
-    # case that motivates the foreman's any-wins semantics. The dialectical
-    # tree resolves the apparent symmetry through the attack relation.
+    assert composite.prefers(r1_arg, r2_arg) is False
+
+
+class _MockPreference:
+    """Minimal preference criterion for first-fire wiring tests.
+
+    Stores an explicit ``(left_id, right_id)`` pair and returns True
+    only for that exact direction. Used to prove that composite order
+    matters and that the first criterion to fire monopolises the
+    answer, regardless of what a later criterion would have said.
+    """
+
+    def __init__(self, prefer_pair: tuple[str, str] | None = None) -> None:
+        self._pair = prefer_pair
+
+    def prefers(self, left: Argument, right: Argument) -> bool:
+        if self._pair is None:
+            return False
+        left_id = next(iter(sorted(r.rule_id for r in left.rules)), "")
+        right_id = next(iter(sorted(r.rule_id for r in right.rules)), "")
+        return (left_id, right_id) == self._pair
+
+
+def test_composite_first_criterion_to_fire_mock() -> None:
+    """First-fire: criterion ordering decides which direction wins.
+
+    Two mock criteria disagree on direction for the pair (a, b).
+    ``CompositePreference(first, second)`` must return ``first``'s
+    answer and never consult ``second`` once ``first`` has fired in
+    either direction. Swapping the order flips the answer.
+    """
+
+    # Use any theory whose build_arguments returns two distinct
+    # single-rule arguments we can name by rule id.
+    theory = _direct_pair_theory()
+    args = build_arguments(theory)
+    a = _find_argument(args, "r1")
+    b = _find_argument(args, "r2")
+
+    prefer_a_over_b = _MockPreference(("r1", "r2"))
+    prefer_b_over_a = _MockPreference(("r2", "r1"))
+
+    # Superiority-like criterion first, specificity-like criterion
+    # second: the first to fire wins.
+    sup_first = CompositePreference(prefer_a_over_b, prefer_b_over_a)
+    assert sup_first.prefers(a, b) is True
+    assert sup_first.prefers(b, a) is False
+
+    # Swap order: now the other criterion decides.
+    spec_first = CompositePreference(prefer_b_over_a, prefer_a_over_b)
+    assert spec_first.prefers(a, b) is False
+    assert spec_first.prefers(b, a) is True
+
+    # Asymmetry holds in both orderings.
+    for composite in (sup_first, spec_first):
+        assert not (composite.prefers(a, b) and composite.prefers(b, a))
+
+
+def test_composite_first_criterion_falls_through_when_silent() -> None:
+    """Silent-on-both means the composite consults the next criterion."""
+
+    theory = _direct_pair_theory()
+    args = build_arguments(theory)
+    a = _find_argument(args, "r1")
+    b = _find_argument(args, "r2")
+
+    silent = _MockPreference(None)  # prefers nothing in either direction
+    prefer_a_over_b = _MockPreference(("r1", "r2"))
+
+    composite = CompositePreference(silent, prefer_a_over_b)
+    assert composite.prefers(a, b) is True
+    assert composite.prefers(b, a) is False
 
 
 def test_composite_specificity_fallback() -> None:
@@ -414,7 +491,13 @@ def test_hypothesis_composite_is_monotonic(
     pair: tuple[DefeasibleTheory, tuple[Argument, ...]],
     data: st.DataObject,
 ) -> None:
-    """Any-wins: ``Composite(P1, P2).prefers(a, b)`` ⇒ at least one of P1/P2 fires."""
+    """First-fire monotonicity: ``Composite.prefers(a, b)`` ⇒ at least
+    one child criterion prefers ``a`` over ``b`` at the point the
+    composite fires. (Under first-criterion-to-fire semantics the
+    child that fires is the *first* one to prefer either direction;
+    this property verifies the weaker monotonicity guarantee that
+    *some* child agreed with the composite's answer.)
+    """
 
     theory, args = pair
     sup = SuperiorityPreference(theory)
@@ -425,3 +508,35 @@ def test_hypothesis_composite_is_monotonic(
     b = args[data.draw(idx)]
     if composite.prefers(a, b):
         assert sup.prefers(a, b) or spec.prefers(a, b)
+
+
+@given(pair=theory_with_random_superiority(), data=st.data())
+@settings(
+    max_examples=500,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large],
+)
+def test_hypothesis_composite_is_asymmetric(
+    pair: tuple[DefeasibleTheory, tuple[Argument, ...]],
+    data: st.DataObject,
+) -> None:
+    """First-fire asymmetry: ``Composite.prefers(a, b)`` and
+    ``Composite.prefers(b, a)`` are never both True.
+
+    When each underlying criterion is a strict partial order (which
+    ``SuperiorityPreference`` is over acyclic superiority lists and
+    ``GeneralizedSpecificity`` is by Simari & Loui 1992 Lemma 2.4),
+    first-criterion-to-fire composition preserves asymmetry: the
+    first criterion to express an opinion monopolises the answer
+    for that pair, and a strict partial order cannot prefer both
+    directions simultaneously.
+    """
+
+    theory, args = pair
+    sup = SuperiorityPreference(theory)
+    spec = GeneralizedSpecificity(theory)
+    composite = CompositePreference(sup, spec)
+    idx = st.integers(min_value=0, max_value=len(args) - 1)
+    a = args[data.draw(idx)]
+    b = args[data.draw(idx)]
+    assert not (composite.prefers(a, b) and composite.prefers(b, a))
