@@ -233,3 +233,28 @@ def test_hypothesis_every_argument_is_minimal(
                     raise AssertionError(
                         f"non-minimal argument: {argument!r} also derivable from {subset!r}"
                     )
+
+
+@given(theory=small_theory_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_every_argument_is_non_contradictory(
+    theory: DefeasibleTheory,
+) -> None:
+    """Garcia & Simari 2004 Def 3.1 condition (2): ``Pi union A`` is non-contradictory.
+
+    For every ``Argument(A, h)`` produced, the closure of
+    ``Pi union A`` must not contain a complementary pair.
+    """
+
+    arguments = build_arguments(theory)
+    fact_atoms = _fact_atoms_from_theory(theory)
+
+    from gunray.disagreement import complement
+
+    for argument in arguments:
+        closure = _closure_under_rules(fact_atoms, argument.rules)
+        for atom in closure:
+            assert complement(atom) not in closure, (
+                f"contradictory argument: {argument!r} closure contains "
+                f"{atom!r} and {complement(atom)!r}"
+            )
