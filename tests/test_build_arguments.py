@@ -258,3 +258,59 @@ def test_hypothesis_every_argument_is_non_contradictory(
                 f"contradictory argument: {argument!r} closure contains "
                 f"{atom!r} and {complement(atom)!r}"
             )
+
+
+def _theory_plus_fact(
+    theory: DefeasibleTheory,
+    predicate: str,
+    row: tuple[str, ...],
+) -> DefeasibleTheory:
+    """Return a copy of ``theory`` with one extra fact row."""
+
+    new_facts: dict[str, set[tuple[str, ...]]] = {
+        pred: set(rows) for pred, rows in theory.facts.items()
+    }
+    new_facts.setdefault(predicate, set()).add(row)
+    return DefeasibleTheory(
+        facts=new_facts,
+        strict_rules=list(theory.strict_rules),
+        defeasible_rules=list(theory.defeasible_rules),
+        defeaters=list(theory.defeaters),
+        superiority=list(theory.superiority),
+        conflicts=list(theory.conflicts),
+    )
+
+
+@given(theory=small_theory_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_build_arguments_is_monotonic_in_facts(
+    theory: DefeasibleTheory,
+) -> None:
+    """Adding a fact can only add arguments, never remove them.
+
+    Formally: ``build_arguments(T) subset build_arguments(T_plus_fact)``.
+    This is a structural property of Def 3.1 — new facts can enlarge
+    the strict closure and satisfy more rule bodies, but cannot
+    invalidate any existing derivation or contradict any already
+    non-contradictory set.
+
+    CAVEAT: this only holds when the added fact does not *itself*
+    introduce a new contradiction that propagates into an existing
+    argument's closure. To stay safe under arbitrary random
+    theories we pick a fact predicate whose complement does not
+    appear anywhere in the original theory, making contradiction
+    introduction impossible by construction.
+    """
+
+    base_arguments = build_arguments(theory)
+
+    # Pick a fact predicate that cannot introduce a new contradiction.
+    # Use a fresh predicate name that does not appear in facts or rules.
+    fresh_predicate = "__fresh_fact_predicate__"
+    extended = _theory_plus_fact(theory, fresh_predicate, ("a",))
+    extended_arguments = build_arguments(extended)
+
+    assert base_arguments <= extended_arguments, (
+        f"fact monotonicity violated: "
+        f"missing={base_arguments - extended_arguments!r}"
+    )
