@@ -241,15 +241,52 @@ class SuperiorityPreference:
 
 
 class CompositePreference:
-    """Composition of preference criteria in priority order.
+    """First-criterion-to-fire composition of preference criteria.
 
     Garcia & Simari 2004 §4.1 notes that comparison criteria are
     modular and may be combined. ``CompositePreference`` implements
-    the *any-wins* composition: each child criterion is consulted in
-    declaration order, and the first to return ``True`` wins. If no
-    criterion fires, the composition returns ``False``.
+    *first-criterion-to-fire* composition: each child criterion is
+    consulted in declaration order, and the first criterion to
+    express an opinion for the pair (``left``, ``right``) — in
+    *either* direction — monopolises the answer. Concretely, for
+    each criterion ``c``:
 
-    The canonical use under the B2.5 foreman decision is
+    * if ``c.prefers(left, right)`` returns ``True``, the composite
+      returns ``True`` immediately;
+    * if ``c.prefers(right, left)`` returns ``True`` (i.e. ``c``
+      prefers the *other* direction), the composite returns
+      ``False`` immediately — subsequent criteria are not consulted;
+    * otherwise ``c`` is silent on this pair and the composite
+      falls through to the next criterion.
+
+    If no criterion fires in either direction, the composite
+    returns ``False``.
+
+    **Why first-fire and not any-wins.** The ``any``-wins semantics
+    used in earlier drafts broke asymmetry: if criterion 1 prefers
+    ``(a, b)`` and criterion 2 prefers ``(b, a)``, ``any``-wins
+    returned ``True`` for both ``prefers(a, b)`` and ``prefers(b, a)``,
+    contradicting strict-partial-order axioms that Garcia & Simari
+    2004 §4/§5's dialectical-tree theorems assume. First-fire
+    restores asymmetry when each underlying criterion is itself a
+    strict partial order: the first criterion to fire cannot prefer
+    both directions, so by construction the composite cannot
+    either.
+
+    **Per-criterion transitivity.** Transitivity holds per
+    criterion: if every pair (a, b), (b, c), (a, c) is decided by
+    the *same* criterion ``c``, and ``c`` is transitive, the
+    composite is transitive for that path. Cross-criterion
+    transitivity (where (a, b) is decided by one criterion and
+    (b, c) by another) is best-effort and not guaranteed by the
+    abstract composition; it is a property of the specific
+    criterion sequence and theory in use. The foreman's directive
+    "superiority first, specificity fallback" embraces this: any
+    pair where superiority has an opinion is handled by
+    superiority, and only equi-priority pairs fall through to
+    specificity.
+
+    **Canonical use** under the B2.5 / B2.6 foreman decision:
 
     .. code-block:: python
 
@@ -259,23 +296,30 @@ class CompositePreference:
         )
 
     so that explicit user-supplied priority dominates the computed
-    Lemma 2.4 specificity preference. The alternative ``all``-wins
-    semantics would require every criterion to agree, which is
-    strictly stronger than either criterion in isolation and is not
-    what DeLP-style implementations use.
+    Lemma 2.4 specificity preference. Superiority is consulted
+    first and monopolises every pair it has an opinion on;
+    specificity only decides pairs on which superiority is silent.
 
-    The composition is irreflexive iff every child is irreflexive,
-    and is monotonic in the sense that if ``CompositePreference(P1,
-    ..., Pn).prefers(a, b)`` is ``True`` then at least one ``Pi``
-    fires for the pair (verified by Hypothesis property
-    ``test_hypothesis_composite_is_monotonic``).
+    **Properties verified by Hypothesis** (``tests/test_superiority.py``):
+
+    * ``test_hypothesis_composite_is_monotonic`` — if the composite
+      prefers ``a`` over ``b``, at least one child criterion
+      prefers ``a`` over ``b``.
+    * ``test_hypothesis_composite_is_asymmetric`` — the composite
+      never prefers both ``(a, b)`` and ``(b, a)`` simultaneously
+      when each child is a strict partial order.
     """
 
     def __init__(self, *criteria: PreferenceCriterion) -> None:
         self._criteria: tuple[PreferenceCriterion, ...] = criteria
 
     def prefers(self, left: Argument, right: Argument) -> bool:
-        return any(c.prefers(left, right) for c in self._criteria)
+        for criterion in self._criteria:
+            if criterion.prefers(left, right):
+                return True
+            if criterion.prefers(right, left):
+                return False
+        return False
 
 
 def _antecedents_of(argument: Argument) -> frozenset[GroundAtom]:
