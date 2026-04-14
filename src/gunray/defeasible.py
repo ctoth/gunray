@@ -82,10 +82,13 @@ def _evaluate_via_argument_pipeline(
     from .arguments import build_arguments
     from .dialectic import _theory_predicates, build_tree, mark
     from .disagreement import complement
-    from .preference import TrivialPreference
+    from .preference import GeneralizedSpecificity
 
     arguments = build_arguments(theory)
-    criterion = TrivialPreference()
+    # Simari 92 Lemma 2.4 / Garcia 04 Def 3.5 preference criterion.
+    # Instantiated once per call — the constructor grounds the strict
+    # rules and caches them for every subsequent prefers() call.
+    criterion = GeneralizedSpecificity(theory)
     predicates = _theory_predicates(theory)
 
     # Group every distinct ground conclusion by literal so each atom
