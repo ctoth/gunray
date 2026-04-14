@@ -99,8 +99,8 @@ def _missing_body_theory() -> DefeasibleTheory:
 
 
 def test_tweety_sections_projection() -> None:
-    """Garcia 04 §5 Tweety: bird/penguin facts strictly close, ``flies``
-    queries are defeasible.
+    """Garcia 04 §5 Tweety / Simari 92 §5 Opus: strict+defeasible
+    projection under ``GeneralizedSpecificity``.
 
     - ``bird(tweety)``, ``bird(opus)``, ``penguin(opus)`` are all in
       the strict closure of ``Π``: ``bird(opus)`` follows from
@@ -110,11 +110,12 @@ def test_tweety_sections_projection() -> None:
     - ``flies(tweety)`` has only the defeasible rule ``r1@tweety``
       and no counter-argument exists, so its tree marks ``U`` and it
       lands in ``defeasibly``.
-    - ``flies(opus)`` and ``~flies(opus)`` are mutually blocking
-      under ``TrivialPreference`` (Block 1's deviation, see
-      ``notes/refactor_progress.md#deviations``); both trees mark
-      ``D``, neither is warranted, both have an argument → both
-      land in ``undecided``.
+    - Under Block 2's ``GeneralizedSpecificity`` (Simari 92 Lemma 2.4),
+      ``~flies(opus)`` is strictly more specific than ``flies(opus)``
+      because ``penguin(opus)`` strict-closes to ``bird(opus)`` but
+      not vice versa. The ``~flies(opus)`` argument properly defeats
+      the ``flies(opus)`` argument, so ``~flies(opus)`` is warranted
+      and ``flies(opus)`` lands in ``not_defeasibly``.
     """
     evaluator = GunrayEvaluator()
     model = evaluator.evaluate(_tweety_theory(), Policy.BLOCKING)
@@ -126,14 +127,14 @@ def test_tweety_sections_projection() -> None:
     assert model.sections["defeasibly"]["penguin"] == {("opus",)}
     assert ("tweety",) in model.sections["defeasibly"]["flies"]
 
-    assert "flies" in model.sections["undecided"]
-    assert ("opus",) in model.sections["undecided"]["flies"]
-    assert ("opus",) in model.sections["undecided"]["~flies"]
+    # Block-2 Opus resolution: ~flies(opus) is warranted, flies(opus)
+    # is not warranted.
+    assert ("opus",) in model.sections["defeasibly"]["~flies"]
+    assert ("opus",) in model.sections["not_defeasibly"]["flies"]
 
-    # Block-1 deviation: ``flies(opus)`` is NOT in ``defeasibly``
-    # under TrivialPreference because both arguments block each
-    # other. Block 2's GeneralizedSpecificity will give it ~flies.
-    assert ("opus",) not in model.sections.get("defeasibly", {}).get("flies", set())
+    # Opus must NOT remain in undecided under GeneralizedSpecificity.
+    undecided_flies = model.sections.get("undecided", {}).get("flies", set())
+    assert ("opus",) not in undecided_flies
 
 
 def test_nixon_sections_projection() -> None:

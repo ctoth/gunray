@@ -48,7 +48,13 @@ class DefeasibleEvaluator:
         policy: Policy,
         trace_config: TraceConfig | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]:
-        del policy  # honored by the dialectical-tree path; unused for the strict-only shortcut
+        # Post-Block-2, Policy.BLOCKING is the only supported value —
+        # argument preference is resolved by GeneralizedSpecificity
+        # (Simari 92 Lemma 2.4) regardless of the policy value. The
+        # parameter is preserved for public-API stability; see
+        # notes/policy_propagating_fate.md for the PROPAGATING
+        # deprecation decision.
+        del policy
         actual_trace_config = trace_config or TraceConfig()
         if _is_strict_only_theory(theory):
             model, strict_trace = _evaluate_strict_only_theory_with_trace(
