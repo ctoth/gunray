@@ -8,9 +8,13 @@ from __future__ import annotations
 from itertools import combinations
 
 from hypothesis import given, settings
+from hypothesis import strategies as st
 
+from gunray.answer import Answer
 from gunray.arguments import Argument, build_arguments
+from gunray.dialectic import answer
 from gunray.disagreement import disagrees, strict_closure
+from gunray.preference import GeneralizedSpecificity
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom, GroundDefeasibleRule
 
@@ -331,3 +335,87 @@ def test_hypothesis_build_arguments_is_monotonic_in_facts(
         f"fact monotonicity violated: "
         f"missing={base_arguments - extended_arguments!r}"
     )
+
+
+@st.composite
+def _theory_with_defeater_strategy(draw: st.DrawFn) -> DefeasibleTheory:
+    """Draw a small theory and promote one of its defeasible rules to a defeater.
+
+    Built on top of ``small_theory_strategy``. We pick a defeasible
+    rule, remove it from ``defeasible_rules``, and insert it into
+    ``defeaters`` with a fresh rule id so every generated theory has
+    at least one defeater. If the base theory has no defeasible rule
+    to promote, we synthesise a trivial one.
+    """
+
+    base = draw(small_theory_strategy())
+    pred = draw(st.sampled_from(["p", "q", "r"]))
+    body_pred = draw(st.sampled_from(["p", "q", "r"]))
+    negated = draw(st.booleans())
+    marker = "~" if negated else ""
+    defeater_rule = Rule(
+        id="__defeater__",
+        head=f"{marker}{pred}(X)",
+        body=[f"{body_pred}(X)"],
+    )
+    return DefeasibleTheory(
+        facts={p: set(rows) for p, rows in base.facts.items()},
+        strict_rules=list(base.strict_rules),
+        defeasible_rules=list(base.defeasible_rules),
+        defeaters=list(base.defeaters) + [defeater_rule],
+        superiority=list(base.superiority),
+        conflicts=list(base.conflicts),
+    )
+
+
+@given(theory=_theory_with_defeater_strategy())
+@settings(max_examples=200, deadline=None)
+def test_hypothesis_defeater_rules_never_warrant_by_answer(
+    theory: DefeasibleTheory,
+) -> None:
+    """Nute/Antoniou reading of defeater rules: they attack, never warrant.
+
+    For every generated theory containing at least one defeater rule,
+    and for every ground atom whose predicate is the head of some
+    defeater, ``answer(theory, atom, criterion)`` is never ``YES`` by
+    virtue of an argument whose rules include a defeater. The
+    structural reason: ``dialectic._is_warranted`` filters out any
+    candidate whose rule set contains a ``kind="defeater"`` rule
+    before attempting tree construction.
+
+    Concretely: for each defeater ``d`` in ``build_arguments(theory)``
+    whose conclusion is ``atom``, running ``answer`` for that ``atom``
+    never returns ``YES`` purely on the strength of ``d`` — a YES is
+    only possible when some *non-defeater* argument for ``atom``
+    marks ``U``.
+    """
+
+    criterion = GeneralizedSpecificity(theory)
+    arguments = build_arguments(theory)
+
+    defeater_arguments = [
+        arg
+        for arg in arguments
+        if any(rule.kind == "defeater" for rule in arg.rules)
+    ]
+    if not defeater_arguments:
+        return
+
+    for defeater_arg in defeater_arguments:
+        atom = defeater_arg.conclusion
+        non_defeater_args_for_atom = [
+            arg
+            for arg in arguments
+            if arg.conclusion == atom
+            and not any(rule.kind == "defeater" for rule in arg.rules)
+        ]
+        result = answer(theory, atom, criterion)
+        if result is Answer.YES:
+            # YES is only admissible if a non-defeater argument for
+            # the atom also exists. A defeater on its own must never
+            # carry an atom to YES.
+            assert non_defeater_args_for_atom, (
+                f"defeater-only argument warranted atom={atom!r} YES "
+                f"without any non-defeater support: "
+                f"defeaters={defeater_arguments!r}"
+            )
