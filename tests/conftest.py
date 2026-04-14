@@ -5,6 +5,7 @@ from __future__ import annotations
 from hypothesis import strategies as st
 
 from gunray.arguments import Argument
+from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom, GroundDefeasibleRule
 
 
@@ -43,3 +44,101 @@ def arguments_strategy(draw: st.DrawFn) -> Argument:
     )
     rules = frozenset(RULE_POOL[i] for i in indices)
     return Argument(rules=rules, conclusion=CONCLUSION)
+
+
+# ---- Ground-atom / strict-rule strategies for B1.3 disagreement tests ----
+#
+# Bias toward collisions: tiny predicate pool, tiny constant pool, optional
+# strong-negation flip. These strategies should produce atoms that actually
+# disagree often enough that `disagrees` sees non-trivial cases.
+
+PREDICATE_POOL: tuple[str, ...] = ("p", "q", "r", "s", "flies", "bird")
+CONSTANT_POOL: tuple[str, ...] = ("x", "y", "z")
+
+
+@st.composite
+def ground_atom_strategy(draw: st.DrawFn) -> GroundAtom:
+    predicate = draw(st.sampled_from(PREDICATE_POOL))
+    negated = draw(st.booleans())
+    if negated:
+        predicate = f"~{predicate}"
+    # All atoms are unary over the constant pool; keeps strategies simple
+    # and guarantees structural matches for strict-rule closure.
+    argument = draw(st.sampled_from(CONSTANT_POOL))
+    return GroundAtom(predicate=predicate, arguments=(argument,))
+
+
+@st.composite
+def strict_rule_strategy(draw: st.DrawFn) -> GroundDefeasibleRule:
+    head = draw(ground_atom_strategy())
+    body_size = draw(st.integers(min_value=0, max_value=2))
+    body = tuple(draw(ground_atom_strategy()) for _ in range(body_size))
+    rule_id = f"s_{draw(st.integers(min_value=0, max_value=99))}"
+    return GroundDefeasibleRule(
+        rule_id=rule_id,
+        kind="strict",
+        head=head,
+        body=body,
+    )
+
+
+@st.composite
+def strict_context_strategy(draw: st.DrawFn) -> tuple[GroundDefeasibleRule, ...]:
+    size = draw(st.integers(min_value=0, max_value=4))
+    rules = [draw(strict_rule_strategy()) for _ in range(size)]
+    return tuple(rules)
+
+
+# ---- Small defeasible theory strategy for build_arguments properties ----
+#
+# 3 predicates, 2 constants, up to 3 strict and up to 3 defeasible rules.
+# Each theory keeps `2**|defeasible_rules| <= 8` so build_arguments stays
+# fast under `max_examples=500`. Biased toward theories with at least a
+# few facts so enumeration has something to derive.
+
+_THEORY_PREDICATES: tuple[str, ...] = ("p", "q", "r")
+_THEORY_CONSTANTS: tuple[str, ...] = ("a", "b")
+
+
+def _atom_text(predicate: str, variable: str, negated: bool) -> str:
+    marker = "~" if negated else ""
+    return f"{marker}{predicate}({variable})"
+
+
+@st.composite
+def small_theory_strategy(draw: st.DrawFn) -> DefeasibleTheory:
+    # Facts: a small set, each predicate optionally populated for each
+    # constant. Guarantee at least one fact.
+    facts: dict[str, list[tuple[str, ...]]] = {}
+    for predicate in _THEORY_PREDICATES:
+        for constant in _THEORY_CONSTANTS:
+            if draw(st.booleans()):
+                facts.setdefault(predicate, []).append((constant,))
+    if not facts:
+        facts[_THEORY_PREDICATES[0]] = [(_THEORY_CONSTANTS[0],)]
+
+    strict_count = draw(st.integers(min_value=0, max_value=2))
+    defeasible_count = draw(st.integers(min_value=0, max_value=3))
+
+    def _gen_rule(prefix: str, index: int) -> Rule:
+        head_predicate = draw(st.sampled_from(_THEORY_PREDICATES))
+        head_negated = draw(st.booleans())
+        body_predicate = draw(st.sampled_from(_THEORY_PREDICATES))
+        body_negated = draw(st.booleans())
+        return Rule(
+            id=f"{prefix}{index}",
+            head=_atom_text(head_predicate, "X", head_negated),
+            body=[_atom_text(body_predicate, "X", body_negated)],
+        )
+
+    strict_rules = [_gen_rule("s", i) for i in range(strict_count)]
+    defeasible_rules = [_gen_rule("d", i) for i in range(defeasible_count)]
+
+    return DefeasibleTheory(
+        facts={pred: set(rows) for pred, rows in facts.items()},
+        strict_rules=strict_rules,
+        defeasible_rules=defeasible_rules,
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
