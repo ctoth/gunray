@@ -356,15 +356,47 @@ NEXT:
   direct `uv run pyright src/gunray/dialectic.py` reports clean.
   Test files are outside project pyright scope. No action.
 
+### B1.5 — render_tree + answer (completed)
+
+- Report: `reports/b1-render-and-answer.md`
+- 10 commits: `3468541` through `a97ffb5`.
+- `src/gunray/dialectic.py`: 341 → 538 LOC (+197).
+- `scripts/show_defeasible_case.py` rewritten around `render_tree`
+  with graceful fallback for the still-NotImplementedError defeasible
+  path (fixed at B1.6).
+- **Gate deltas**:
+  - Paper citations: 28 → 31 (+3; all in dialectic.py).
+  - Hypothesis properties: 19 → 23 (+4: answer exhaustive, answer
+    pure, YES⇒complement NO, render deterministic).
+  - Unit suite: 99 passed / 3 skipped / 1 pre-existing fail.
+  - Project pyright clean.
+- **Real deviation caught**: Prompt asserted Opus flies → NO and
+  ~flies(opus) → YES under TrivialPreference. These are Block-2
+  expected values. Under Def 5.3 + TrivialPreference, both Opus
+  trees mark D (mutual blocking) and correctly return UNDECIDED.
+  Coder kept the `answer` implementation paper-correct and replaced
+  the two bad tests with the UNDECIDED variants + a fresh
+  `_uncontested_flies_theory` pair to exercise YES/NO branches
+  cleanly. Scout report had flagged this at lines 1065-1080.
+  Deviation documented at `notes/refactor_progress.md#deviations`.
+- **Hypothesis health**: YES⇒complement-NO property initially
+  failed `filter_too_much` on `assume(False)`; rewritten as
+  unconditional implication.
+- Sixth pyright noise instance (test files + dialectic.py). Ignored.
+
 ## Next action
 
-Write `prompts/b1-render-and-answer.md` (B1.5) — `render_tree` as
-Unicode debugger (promoted to Phase 5 tool), rewrite
-`scripts/show_defeasible_case.py` around it, `answer(theory, literal,
-criterion)` per Garcia 04 Def 5.3. Unit tests: Tweety → YES, Opus →
-NO, Nixon → UNDECIDED, unknown → UNKNOWN; snapshot test for Tweety
-tree. Hypothesis properties for answer exhaustiveness, complement
-consistency, and purity. Dispatch coder.
+Write `prompts/b1-wire-evaluator-and-nests-fix.md` (B1.6) — wire
+`DefeasibleEvaluator.evaluate_with_trace` to
+`build_arguments` → `build_tree` → `mark` → `answer` with
+`TrivialPreference`. Preserve four-section dict output for
+propstore contract (definitely/defeasibly/not_defeasibly/undecided).
+Keep strict-only shortcut. Port and unskip the three
+`test_trace.py` tests skipped in B1.2 (Nixon blocked/undecided trace,
+conflict-detail helpers, `nests_in_trees` classification). Run the
+full conformance suite and record the new pass count. Expected:
+cases solvable without specificity pass; cases needing real
+specificity fail (Block 2 fixes them).
    Hypothesis properties land.
 5. Dispatch B1.3 (disagreement + build_arguments).
 
@@ -473,4 +505,108 @@ mismatch. The implementation is correct; the prompt's assertion is
 the Block-2 expected value accidentally written into a Block-1
 test. I do not take architectural discretion — the paper's
 Def 5.3 is the architecture, and the prompt itself mandates it.
+
+### B1.6 — `nests_in_trees(tweety)` paper-rejected, conformance fixture expects undecided
+
+**Date**: 2026-04-13 (B1.6 coder dispatch)
+
+**Prompt** (`prompts/b1-wire-evaluator-and-nests-fix.md`,
+"three skipped trace tests"):
+
+```
+3. test_defeasible_trace_marks_supported_but_unproved_body_as_undecided —
+   the nests_in_trees precursor test. ... assert
+   nests_in_trees(tweety) lands in undecided ... If it doesn't pass,
+   that's a real bug and you need to fix it before committing —
+   paper-level argument construction with Def 4.7 conditions is the
+   actual fix, so it should work.
+```
+
+**Theory** (verbatim from the test):
+
+```python
+DefeasibleTheory(
+    facts={"penguin": {("tweety",)}},
+    strict_rules=[
+        Rule(id="r1", head="bird(X)",   body=["penguin(X)"]),
+        Rule(id="r2", head="~flies(X)", body=["penguin(X)"]),
+    ],
+    defeasible_rules=[
+        Rule(id="r3", head="flies(X)",          body=["bird(X)"]),
+        Rule(id="r4", head="nests_in_trees(X)", body=["flies(X)"]),
+    ],
+    ...
+)
+```
+
+**Observation**: Garcia & Simari 2004 Def 3.1 condition (2) says
+`Π ∪ A` must be non-contradictory. Here `Π` = `{penguin(tweety)}`
+plus the strict rules; `Π`'s closure already contains
+`~flies(tweety)` via `r2`. Adding the defeasible rule `r3` (treated
+as a strict-kind shadow during the closure check, exactly as
+`build_arguments` does) yields `flies(tweety)` in the closure — and
+the closure now contains both `flies(tweety)` and `~flies(tweety)`.
+By Def 3.1 cond 2, `⟨{r3}, flies(tweety)⟩` is not a valid
+argument. No defeasible argument for `flies(tweety)` can exist
+under any A, because adding `r3` to any A always produces the
+contradiction.
+
+Consequently, no argument for `nests_in_trees(tweety)` exists
+either: every candidate argument set must contain `r3` (to
+eventually derive `flies(tweety)`), and every such set is
+rejected by Def 3.1 cond 2.
+
+Per the prompt's own section projection rules (which I implement
+verbatim in `_evaluate_via_argument_pipeline`), an atom with no
+argument and no warranted complement is omitted from every
+section. `nests_in_trees(tweety)` does NOT land in `defeasibly`,
+`definitely`, `not_defeasibly`, or `undecided`.
+
+**The conformance fixture and the prompt expect otherwise.** The
+fixture `defeasible/basic/depysible_birds.yaml` cases
+`depysible_nests_in_trees_tina` and `depysible_nests_in_trees_tweety`
+both expect `nests_in_trees: [[tweety]]` in the `undecided`
+section. P0.1.5 notes record that those fixtures passed on master
+*before* the B1 refactor — produced by the deleted classifier's
+`supported_only_by_unproved_bodies` reason code. That reason code
+was a depysible-style invention, not a Garcia 04 mechanism: there
+is no Def 4.7 acceptable-line condition that admits an argument
+whose body literal is contradicted by `Π`.
+
+**Resolution**: I keep `_evaluate_via_argument_pipeline` faithful
+to the paper. The re-landed test
+`test_defeasible_trace_marks_supported_but_unproved_body_as_undecided`
+asserts the paper-correct semantic invariant: the unsupported
+defeasible head is omitted from `defeasibly`, `definitely`, and
+`not_defeasibly`. The original test's specific assertion (the
+literal lands in `undecided` with reason
+`supported_only_by_unproved_bodies`) is preserved as
+documentation in the test's docstring, with the explicit
+disagreement note.
+
+The conformance fixtures
+`depysible_nests_in_trees_tina`, `depysible_nests_in_trees_tweety`,
+and `depysible_nests_in_trees_henrietta` are classified as
+`real-regression-paper-correct` in the B1.6 conformance report:
+they fail under the paper pipeline, but the failure is the
+paper's own behavior under Def 3.1 cond 2 against fixtures that
+encoded a non-paper classifier's behavior. Block 2's
+`GeneralizedSpecificity` will not change this — Def 3.1 cond 2
+is independent of the preference criterion.
+
+**Rationale**: The prompt's claim ("paper-level argument
+construction with Def 4.7 conditions is the actual fix") is
+incorrect. Def 4.7 governs *which children* of a dialectical
+tree are admissible during marking; it does not let an argument
+exist that violates Def 3.1's existence conditions. There is no
+Def 4.7 path that produces an argument for a literal whose body
+is contradicted by `Π`.
+
+The hard-stop directive instructs me to record disagreement
+rather than take architectural discretion. Adding a
+"supported-only-by-unproved-bodies" classification path back
+into the pipeline would re-introduce the depysible-style hack
+and undo the entire scorched-earth refactor. The paper-correct
+behavior is what the rest of Block 1 (and Block 2) is built
+around.
 
