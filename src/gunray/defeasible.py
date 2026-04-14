@@ -15,6 +15,9 @@ documented on ``_sections_from_arguments`` below.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
+
 from .evaluator import SemiNaiveEvaluator
 from .schema import DefeasibleModel, FactTuple, ModelFacts, Policy
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
@@ -27,6 +30,9 @@ from .trace import (
     TraceConfig,
 )
 from .types import GroundAtom
+
+if TYPE_CHECKING:  # pragma: no cover - import-time only
+    from .arguments import Argument
 
 
 class DefeasibleEvaluator:
@@ -73,7 +79,7 @@ def _evaluate_via_argument_pipeline(
     and ``dialectic``: the dialectical module imports
     ``_atom_sort_key`` from this file at import time.
     """
-    from .arguments import Argument, build_arguments
+    from .arguments import build_arguments
     from .dialectic import _theory_predicates, build_tree, mark
     from .disagreement import complement
     from .preference import TrivialPreference
@@ -200,7 +206,7 @@ def _evaluate_via_argument_pipeline(
 
 def _supporter_rule_ids(
     atom: GroundAtom,
-    arguments: "frozenset[object]",
+    arguments: Iterable["Argument"],
 ) -> tuple[str, ...]:
     """Collect sorted rule-ids of every argument whose conclusion is ``atom``.
 
@@ -210,9 +216,9 @@ def _supporter_rule_ids(
     """
     ids: set[str] = set()
     for arg in arguments:
-        if getattr(arg, "conclusion", None) != atom:
+        if arg.conclusion != atom:
             continue
-        for rule in getattr(arg, "rules", frozenset()):
+        for rule in arg.rules:
             ids.add(rule.rule_id)
     return tuple(sorted(ids))
 
