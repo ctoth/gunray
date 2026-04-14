@@ -5,6 +5,8 @@ Garcia & Simari 2004 Definition 3.1, Simari & Loui 1992 Definition 2.2.
 
 from __future__ import annotations
 
+from itertools import combinations
+
 from hypothesis import given, settings
 
 from gunray.arguments import Argument, build_arguments
@@ -162,3 +164,72 @@ def test_hypothesis_build_arguments_is_deterministic(
     """
 
     assert build_arguments(theory) == build_arguments(theory)
+
+
+def _fact_atoms_from_theory(theory: DefeasibleTheory) -> frozenset[GroundAtom]:
+    """Collect ground fact atoms out of a DefeasibleTheory."""
+
+    return frozenset(
+        GroundAtom(predicate=predicate, arguments=tuple(row))
+        for predicate, rows in theory.facts.items()
+        for row in rows
+    )
+
+
+def _closure_under_rules(
+    fact_atoms: frozenset[GroundAtom],
+    rules: frozenset[GroundDefeasibleRule],
+) -> frozenset[GroundAtom]:
+    """Closure under ``rules`` treated as strict for propagation purposes.
+
+    Shadows each rule's kind to ``"strict"`` so ``strict_closure``
+    will propagate it regardless of its original kind. This mirrors
+    the internal ``_force_strict_for_closure`` in arguments.py.
+    """
+
+    shadowed = tuple(
+        GroundDefeasibleRule(
+            rule_id=rule.rule_id,
+            kind="strict",
+            head=rule.head,
+            body=rule.body,
+        )
+        for rule in rules
+    )
+    return strict_closure(fact_atoms, shadowed)
+
+
+@given(theory=small_theory_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_every_argument_is_minimal(
+    theory: DefeasibleTheory,
+) -> None:
+    """Garcia & Simari 2004 Def 3.1 condition (3): ``A`` is minimal.
+
+    For every ``Argument(A, h)`` produced, no strict subset ``A' < A``
+    also derives ``h`` from ``Pi union A'`` (checked independently of
+    the builder's internal minimality filter).
+    """
+
+    arguments = build_arguments(theory)
+    fact_atoms = _fact_atoms_from_theory(theory)
+
+    # Collect the grounded strict rules once — we reuse them for each
+    # proper-subset check.
+    for argument in arguments:
+        rules = argument.rules
+        if not rules:
+            continue
+        for size in range(len(rules)):
+            for subset_tuple in combinations(rules, size):
+                subset = frozenset(subset_tuple)
+                closure = _closure_under_rules(fact_atoms, subset)
+                if argument.conclusion in closure:
+                    # Strict-fact conclusion is allowed to be derivable
+                    # from the empty set (the <empty, h> argument for
+                    # strict heads is a distinct Argument value).
+                    if subset == frozenset() and argument.conclusion in closure:
+                        continue
+                    raise AssertionError(
+                        f"non-minimal argument: {argument!r} also derivable from {subset!r}"
+                    )
