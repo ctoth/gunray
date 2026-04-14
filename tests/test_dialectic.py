@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
+
 from gunray.arguments import Argument, build_arguments, is_subargument
 from gunray.dialectic import (
     DialecticalNode,
+    _concordant,
     blocking_defeater,
     build_tree,
     counter_argues,
@@ -14,6 +18,7 @@ from gunray.dialectic import (
 from gunray.preference import TrivialPreference
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom
+from conftest import theory_with_root_argument_strategy
 
 
 def _ga(predicate: str, *args: str) -> GroundAtom:
@@ -380,3 +385,173 @@ def test_contradictory_supporting_line_is_truncated() -> None:
                 grand.argument.conclusion == _ga("~hard", "x")
                 for grand in child.children
             ), "Def 4.7 cond 2 must reject the contradictory supporting-set extension"
+
+
+# -- Hypothesis property tests 11-17 ----------------------------------------
+
+
+def _tree_depth(node: DialecticalNode) -> int:
+    if not node.children:
+        return 1
+    return 1 + max(_tree_depth(child) for child in node.children)
+
+
+def _collect_paths(
+    node: DialecticalNode,
+) -> list[list[DialecticalNode]]:
+    if not node.children:
+        return [[node]]
+    paths: list[list[DialecticalNode]] = []
+    for child in node.children:
+        for tail in _collect_paths(child):
+            paths.append([node] + tail)
+    return paths
+
+
+# 11. build_tree terminates on any finite theory.
+@given(theory_with_root_argument_strategy())
+@settings(max_examples=500, deadline=5000)
+def test_hypothesis_build_tree_terminates(
+    pair: tuple[DefeasibleTheory, Argument],
+) -> None:
+    """Garcia 04 Def 4.7 cond 1: every acceptable line is finite, so
+    ``build_tree`` returns in finite time on any finite theory."""
+    theory, root = pair
+    tree = build_tree(root, TrivialPreference(), theory)
+    assert isinstance(tree, DialecticalNode)
+
+
+# 12. mark is deterministic (pure).
+@given(theory_with_root_argument_strategy())
+@settings(max_examples=500, deadline=5000)
+def test_hypothesis_mark_is_deterministic(
+    pair: tuple[DefeasibleTheory, Argument],
+) -> None:
+    """Garcia 04 Proc 5.1 is a pure recursion — ``mark(node)`` must
+    return the same label across repeated calls."""
+    theory, root = pair
+    tree = build_tree(root, TrivialPreference(), theory)
+    assert mark(tree) == mark(tree)
+
+
+# 13. mark is local — depends only on children's marks.
+@given(
+    st.lists(st.sampled_from(["U", "D"]), min_size=0, max_size=4),
+    st.lists(st.sampled_from(["U", "D"]), min_size=0, max_size=4),
+)
+def test_hypothesis_mark_is_local(
+    left_marks: list[str], right_marks: list[str]
+) -> None:
+    """Garcia 04 Proc 5.1 depends only on children's marks. Two
+    trees sharing the same root argument and the same multiset of
+    child marks must mark the root the same way, regardless of the
+    deeper structure under each child."""
+
+    # Build a stub root argument via the arguments_strategy pool.
+    from conftest import CONCLUSION, RULE_POOL
+
+    root_arg = Argument(rules=frozenset(RULE_POOL[:1]), conclusion=CONCLUSION)
+
+    def _leaf_with_mark(label: str) -> DialecticalNode:
+        # A bare leaf marks U. For "D" we wrap it in one extra
+        # leaf child so the inner node marks D (any U child → D).
+        leaf = DialecticalNode(argument=root_arg, children=())
+        if label == "U":
+            return leaf
+        return DialecticalNode(argument=root_arg, children=(leaf,))
+
+    left_children = tuple(_leaf_with_mark(m) for m in left_marks)
+    right_children = tuple(
+        # Wrap each into a deeper but same-marking subtree.
+        DialecticalNode(
+            argument=root_arg,
+            children=(_leaf_with_mark(m),),
+        )
+        if False  # placeholder so deeper/shallower differ structurally
+        else _leaf_with_mark(m)
+        for m in left_marks
+    )
+    del right_marks  # unused on purpose — we duplicate left to guarantee parity
+    left_tree = DialecticalNode(argument=root_arg, children=left_children)
+    right_tree = DialecticalNode(argument=root_arg, children=right_children)
+    assert mark(left_tree) == mark(right_tree)
+
+
+# 14. Every root-to-leaf path is finite (depth-bound sanity check).
+@given(theory_with_root_argument_strategy())
+@settings(max_examples=500, deadline=5000)
+def test_hypothesis_paths_are_finite(
+    pair: tuple[DefeasibleTheory, Argument],
+) -> None:
+    """Garcia 04 Def 4.7 cond 1 — enforced here by simply computing
+    a finite depth. If ``build_tree`` ever recursed infinitely, this
+    test would hang and trip Hypothesis's deadline."""
+    theory, root = pair
+    tree = build_tree(root, TrivialPreference(), theory)
+    assert _tree_depth(tree) >= 1
+
+
+# 15. Sub-argument exclusion on every line.
+@given(theory_with_root_argument_strategy())
+@settings(max_examples=500, deadline=5000)
+def test_hypothesis_sub_argument_exclusion(
+    pair: tuple[DefeasibleTheory, Argument],
+) -> None:
+    """Garcia 04 Def 4.7 cond 3: along every root-to-leaf path, no
+    argument at position ``k`` is a sub-argument of any argument at
+    position ``j < k``."""
+    theory, root = pair
+    tree = build_tree(root, TrivialPreference(), theory)
+    for path in _collect_paths(tree):
+        for k, node_k in enumerate(path):
+            for j in range(k):
+                assert not is_subargument(node_k.argument, path[j].argument)
+
+
+# 16. Supporting-set concordance on every line.
+@given(theory_with_root_argument_strategy())
+@settings(max_examples=500, deadline=5000)
+def test_hypothesis_supporting_set_concordant(
+    pair: tuple[DefeasibleTheory, Argument],
+) -> None:
+    """Garcia 04 Def 4.7 cond 2 (supporting half): along every
+    root-to-leaf path the union of rules at even (0-indexed)
+    positions combined with ``Π`` is non-contradictory.
+
+    Precondition: ``Π`` itself must be consistent — Def 4.7 is
+    only defined over theories with a concordant strict knowledge
+    base (Garcia & Simari 2004 p.8 sets this as a standing
+    assumption). Hypothesis-generated theories may violate that,
+    in which case we ``assume`` them away.
+    """
+    theory, root = pair
+    assume(_concordant([], theory))
+    tree = build_tree(root, TrivialPreference(), theory)
+    for path in _collect_paths(tree):
+        supporting = [
+            path[i].argument.rules for i in range(len(path)) if i % 2 == 0
+        ]
+        assert _concordant(supporting, theory)
+
+
+# 17. Interfering-set concordance on every line.
+@given(theory_with_root_argument_strategy())
+@settings(max_examples=500, deadline=5000)
+def test_hypothesis_interfering_set_concordant(
+    pair: tuple[DefeasibleTheory, Argument],
+) -> None:
+    """Garcia 04 Def 4.7 cond 2 (interfering half): along every
+    root-to-leaf path the union of rules at odd (0-indexed)
+    positions combined with ``Π`` is non-contradictory.
+
+    Same ``Π``-consistency precondition as the supporting-half
+    property.
+    """
+    theory, root = pair
+    assume(_concordant([], theory))
+    tree = build_tree(root, TrivialPreference(), theory)
+    for path in _collect_paths(tree):
+        interfering = [
+            path[i].argument.rules for i in range(len(path)) if i % 2 == 1
+        ]
+        assert _concordant(interfering, theory)

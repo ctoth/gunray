@@ -142,3 +142,25 @@ def small_theory_strategy(draw: st.DrawFn) -> DefeasibleTheory:
         superiority=[],
         conflicts=[],
     )
+
+
+@st.composite
+def theory_with_root_argument_strategy(
+    draw: st.DrawFn,
+) -> tuple[DefeasibleTheory, Argument]:
+    """Draw a ``(theory, root_argument)`` pair for B1.4 dialectical tests.
+
+    Uses ``small_theory_strategy`` under the hood and filters out
+    theories that produce zero arguments. The root is picked
+    deterministically from ``build_arguments(theory)`` via a drawn
+    index, which keeps shrinking simple.
+    """
+    from hypothesis import assume
+
+    from gunray.arguments import build_arguments
+
+    theory = draw(small_theory_strategy())
+    args = list(build_arguments(theory))
+    assume(len(args) > 0)
+    index = draw(st.integers(min_value=0, max_value=len(args) - 1))
+    return theory, args[index]
