@@ -51,3 +51,30 @@ def test_hypothesis_disagrees_is_symmetric(
     """
 
     assert disagrees(a, b, k) == disagrees(b, a, k)
+
+
+@given(
+    a=ground_atom_strategy(),
+    b=ground_atom_strategy(),
+    k1=strict_context_strategy(),
+    k2=strict_context_strategy(),
+)
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_disagrees_is_monotonic_in_context(
+    a: GroundAtom,
+    b: GroundAtom,
+    k1: tuple[GroundDefeasibleRule, ...],
+    k2: tuple[GroundDefeasibleRule, ...],
+) -> None:
+    """Adding strict rules cannot remove a disagreement.
+
+    If ``disagrees(a, b, K1)`` holds and ``K1`` is a subset of ``K2``
+    (as rule sets), then the strict closure under ``K2`` is a
+    superset of that under ``K1``, so any complementary pair in the
+    former is still present in the latter. We build ``K2`` as
+    ``K1 ++ k2`` so ``set(K1) <= set(K2)`` by construction.
+    """
+
+    superset = k1 + k2
+    if disagrees(a, b, k1):
+        assert disagrees(a, b, superset)
