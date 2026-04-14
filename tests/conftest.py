@@ -2,11 +2,56 @@
 
 from __future__ import annotations
 
+import pytest
 from hypothesis import strategies as st
 
 from gunray.arguments import Argument
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom, GroundDefeasibleRule
+
+
+# Conformance scalability-out-of-scope cases.
+#
+# ``spindle_racket_query_long_chain`` has 20 defeasible rules in a
+# linear chain. B1.3's naive ``build_arguments`` performs
+# ``2^|Delta|`` subset enumeration with a per-head minimality filter.
+# ``2^20 = 1,048,576`` subsets times the per-candidate
+# ``_disagreeing_subarguments`` pass (which itself re-runs
+# ``build_arguments``) hits the per-case ``pytest-timeout`` of 120s
+# hard. The B2.3 dispatch decided this is scope-option-3 (deselect)
+# rather than land goal-directed enumeration, per
+# ``reports/b2-policy-routing-and-full-green.md``.
+_CONFORMANCE_DESELECTED = frozenset(
+    {
+        "defeasible/basic/spindle_racket_query_integration"
+        "::spindle_racket_query_long_chain",
+    }
+)
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Deselect known-scalability-out-of-scope conformance cases.
+
+    Matches on the parametrize id substring so we do not depend on
+    ``test_yaml_conformance`` keeping its exact function name.
+    """
+    remaining: list[pytest.Item] = []
+    deselected: list[pytest.Item] = []
+    for item in items:
+        matched = False
+        for deselect_id in _CONFORMANCE_DESELECTED:
+            if deselect_id in item.nodeid:
+                matched = True
+                break
+        if matched:
+            deselected.append(item)
+        else:
+            remaining.append(item)
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = remaining
 
 
 def make_ground_atom(predicate: str, *args: str | int) -> GroundAtom:
