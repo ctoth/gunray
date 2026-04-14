@@ -102,14 +102,23 @@ def test_nixon_diamond_has_both_arguments() -> None:
     )
 
 
-def test_defeater_kind_cannot_be_argument_conclusion() -> None:
-    """Garcia & Simari 2004 Def 3.6: defeaters do not warrant conclusions.
+def test_defeater_rule_emits_one_rule_argument() -> None:
+    """Nute/Antoniou defeater reading: defeaters participate in enumeration.
 
-    A rule with ``kind="defeater"`` participates in defeat lines but
-    cannot itself head an argument. We build a minimal theory with a
-    defeater rule ``d1: banana(X) :- yellow(X)`` whose head appears
-    nowhere else, then assert that no argument in the result concludes
-    ``banana(x)``.
+    Garcia & Simari 2004 defines only strict and defeasible rules; the
+    third ``kind="defeater"`` category used by DePYsible/Spindle style
+    theories is the Nute-style defeater — a rule that can attack other
+    arguments but never concludes the final query (see
+    ``notes/b2_defeater_participation.md`` for the paper reading).
+
+    The participation invariant: for every ground defeater ``d`` whose
+    body is derivable from ``Pi`` alone, ``build_arguments`` emits the
+    one-rule argument ``<{d}, head(d)>``. This is the only way a
+    defeater can attack a defeasible argument in the dialectical tree.
+    Warrant filtering (i.e. the guarantee that a defeater-headed
+    argument never warrants a YES/NO answer) is enforced by
+    ``dialectic.answer``, not by suppressing the argument at
+    construction time.
     """
 
     theory = DefeasibleTheory(
@@ -123,9 +132,17 @@ def test_defeater_kind_cannot_be_argument_conclusion() -> None:
     arguments = build_arguments(theory)
 
     banana_x = GroundAtom(predicate="banana", arguments=("x",))
-    assert not [a for a in arguments if a.conclusion == banana_x], (
-        f"defeater head surfaced as argument conclusion: {arguments!r}"
+    matching = [a for a in arguments if a.conclusion == banana_x]
+    assert matching, (
+        f"no defeater-argument for banana(x) in {arguments!r}"
     )
+    for arg in matching:
+        assert any(r.rule_id == "d1" for r in arg.rules), (
+            f"argument for banana(x) not backed by d1: {arg!r}"
+        )
+        assert all(r.kind == "defeater" for r in arg.rules), (
+            f"defeater argument should be all-defeater: {arg!r}"
+        )
 
 
 def test_strict_only_arguments_have_empty_rules() -> None:
