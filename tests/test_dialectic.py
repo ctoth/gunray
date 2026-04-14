@@ -232,3 +232,71 @@ def test_circular_argumentation_is_truncated() -> None:
     attacker_node = tree.children[0]
     assert attacker_node.argument.conclusion == _ga("~q", "a")
     assert attacker_node.children == ()
+
+
+# -- Test 9 — reciprocal blocking (Garcia 04 Def 4.7 cond 4, Fig 5). --
+
+
+def _reciprocal_blocking_theory() -> DefeasibleTheory:
+    """Three disjoint arguments for ``p``/``~p`` to isolate cond 4.
+
+    Rules::
+        r1: p(X)  :- a(X).   fact a(x).
+        r2: ~p(X) :- b(X).   fact b(x).
+        r3: p(X)  :- c(X).   fact c(x).
+
+    ``⟨{r1}, p(x)⟩`` and ``⟨{r3}, p(x)⟩`` are distinct arguments
+    for ``p(x)`` with *disjoint* rule sets, so Def 4.7 cond 3 does
+    not apply between them.
+    """
+    return DefeasibleTheory(
+        facts={"a": {("x",)}, "b": {("x",)}, "c": {("x",)}},
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="r1", head="p(X)", body=["a(X)"]),
+            Rule(id="r2", head="~p(X)", body=["b(X)"]),
+            Rule(id="r3", head="p(X)", body=["c(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
+def test_reciprocal_blocking_rejects_blocker_of_blocker() -> None:
+    """Garcia 04 Def 4.7 cond 4 / Fig 5.
+
+    Root ``⟨{r1}, p(x)⟩`` — child ``⟨{r2}, ~p(x)⟩`` is a blocking
+    defeater (admitted, cond 4 does not yet apply). A grandchild
+    candidate ``⟨{r3}, p(x)⟩`` would counter-argue ``⟨{r2}, ~p(x)⟩``
+    as another blocking defeater. Def 4.7 cond 4 forbids a blocking
+    defeater of a blocking defeater, so the grandchild is rejected.
+    ``r3`` and ``r1`` have disjoint rule sets, so cond 3 is *not*
+    the one doing the rejection here.
+    """
+    theory = _reciprocal_blocking_theory()
+    r1_arg = next(
+        a
+        for a in build_arguments(theory)
+        if a.conclusion == _ga("p", "x")
+        and any(r.rule_id == "r1" for r in a.rules)
+    )
+    r3_arg = next(
+        a
+        for a in build_arguments(theory)
+        if a.conclusion == _ga("p", "x")
+        and any(r.rule_id == "r3" for r in a.rules)
+    )
+    # Precondition: r1_arg and r3_arg are distinct and neither is a
+    # sub-argument of the other, so Def 4.7 cond 3 is silent here.
+    assert r1_arg != r3_arg
+    assert not is_subargument(r3_arg, r1_arg)
+    assert not is_subargument(r1_arg, r3_arg)
+
+    tree = build_tree(r1_arg, TrivialPreference(), theory)
+    # Exactly one child: the ~p attacker.
+    assert len(tree.children) == 1
+    attacker = tree.children[0]
+    assert attacker.argument.conclusion == _ga("~p", "x")
+    # cond 4: grandchild blocking-of-blocking is rejected.
+    assert attacker.children == ()
