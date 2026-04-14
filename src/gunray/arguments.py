@@ -67,6 +67,73 @@ def is_subargument(a: Argument, b: Argument) -> bool:
     return a.rules <= b.rules
 
 
+@dataclass(frozen=True, slots=True)
+class _GroundedTheory:
+    """Internal bundle of grounded fact atoms and per-kind ground rule tuples.
+
+    Produced by ``_ground_theory`` and consumed by ``build_arguments``
+    and ``preference.GeneralizedSpecificity``. Factored out so the
+    specificity criterion can reuse the same grounding pipeline
+    ``build_arguments`` uses (the "same ``_force_strict_for_closure``
+    pattern" referenced by the B2.2 dispatch).
+    """
+
+    fact_atoms: frozenset[GroundAtom]
+    grounded_strict_rules: tuple[GroundDefeasibleRule, ...]
+    grounded_defeasible_rules: tuple[GroundDefeasibleRule, ...]
+    grounded_defeater_rules: tuple[GroundDefeasibleRule, ...]
+
+
+def _ground_theory(theory: SchemaDefeasibleTheory) -> _GroundedTheory:
+    """Parse, ground, and bucket every rule of ``theory`` by kind.
+
+    Shared entrypoint for ``build_arguments`` and
+    ``preference.GeneralizedSpecificity``. The grounding machinery
+    (positive closure for binding discovery + ``_ground_rule_instances``
+    per rule) is the same either way; only the caller's use of the
+    result differs.
+    """
+
+    facts, defeasible_rules, _conflicts = parse_defeasible_theory(theory)
+    strict_rules = tuple(r for r in defeasible_rules if r.kind == "strict")
+    body_rules = tuple(r for r in defeasible_rules if r.kind == "defeasible")
+    defeater_rules = tuple(r for r in defeasible_rules if r.kind == "defeater")
+
+    # Build the positive model so that grounding can bind body variables
+    # to concrete constants. This mirrors the deleted `_positive_closure`
+    # helper (scout report Section 4.6): start from the fact model and
+    # saturate under strict+defeasible+defeater rules positively. This
+    # is only used to *discover candidate bindings* for grounding; it
+    # does not influence which atoms are derivable under Pi alone.
+    positive_model = _positive_closure_for_grounding(
+        facts,
+        defeasible_rules,
+    )
+
+    grounded_strict_rules: tuple[GroundDefeasibleRule, ...] = tuple(
+        instance
+        for rule in strict_rules
+        for instance in _ground_rule_instances(rule, positive_model)
+    )
+    grounded_defeasible_rules: tuple[GroundDefeasibleRule, ...] = tuple(
+        instance
+        for rule in body_rules
+        for instance in _ground_rule_instances(rule, positive_model)
+    )
+    grounded_defeater_rules: tuple[GroundDefeasibleRule, ...] = tuple(
+        instance
+        for rule in defeater_rules
+        for instance in _ground_rule_instances(rule, positive_model)
+    )
+
+    return _GroundedTheory(
+        fact_atoms=_fact_atoms(facts),
+        grounded_strict_rules=grounded_strict_rules,
+        grounded_defeasible_rules=grounded_defeasible_rules,
+        grounded_defeater_rules=grounded_defeater_rules,
+    )
+
+
 def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
     """Enumerate all argument structures for ``theory``.
 
@@ -87,42 +154,13 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
     them as defeaters only.
     """
 
-    facts, defeasible_rules, _conflicts = parse_defeasible_theory(theory)
-    strict_rules = tuple(r for r in defeasible_rules if r.kind == "strict")
-    body_rules = tuple(r for r in defeasible_rules if r.kind == "defeasible")
-    defeater_rules = tuple(r for r in defeasible_rules if r.kind == "defeater")
-
-    # Build the positive model so that grounding can bind body variables
-    # to concrete constants. This mirrors the deleted `_positive_closure`
-    # helper (scout report Section 4.6): start from the fact model and
-    # saturate under strict+defeasible+defeater rules positively. This
-    # is only used to *discover candidate bindings* for grounding; it
-    # does not influence which atoms are derivable under Pi alone.
-    positive_model = _positive_closure_for_grounding(
-        facts,
-        defeasible_rules,
-    )
-
-    grounded_strict = tuple(
-        _ground_rule_instances(rule, positive_model) for rule in strict_rules
-    )
-    grounded_strict_rules: tuple[GroundDefeasibleRule, ...] = tuple(
-        instance for group in grounded_strict for instance in group
-    )
-
-    grounded_defeasible_rules: tuple[GroundDefeasibleRule, ...] = tuple(
-        instance
-        for rule in body_rules
-        for instance in _ground_rule_instances(rule, positive_model)
-    )
-    grounded_defeater_rules: tuple[GroundDefeasibleRule, ...] = tuple(
-        instance
-        for rule in defeater_rules
-        for instance in _ground_rule_instances(rule, positive_model)
-    )
+    grounded = _ground_theory(theory)
+    grounded_strict_rules = grounded.grounded_strict_rules
+    grounded_defeasible_rules = grounded.grounded_defeasible_rules
+    grounded_defeater_rules = grounded.grounded_defeater_rules
+    fact_atoms = grounded.fact_atoms
 
     # Pi = strict facts, closed under ground strict rules.
-    fact_atoms = _fact_atoms(facts)
     pi_closure = strict_closure(fact_atoms, grounded_strict_rules)
 
     arguments: set[Argument] = set()
