@@ -22,6 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from itertools import combinations, product
 
+from collections.abc import Mapping
+
 from .disagreement import complement, strict_closure
 from .evaluator import _match_positive_body
 from .parser import ground_atom, parse_defeasible_theory
@@ -31,6 +33,7 @@ from .types import (
     DefeasibleRule,
     GroundAtom,
     GroundDefeasibleRule,
+    Scalar,
     Variable,
     variables_in_term,
 )
@@ -231,7 +234,7 @@ def _has_contradiction(closure: frozenset[GroundAtom]) -> bool:
 
 
 def _fact_atoms(
-    facts: dict[str, set[tuple[object, ...]]],
+    facts: Mapping[str, set[tuple[Scalar, ...]]],
 ) -> frozenset[GroundAtom]:
     return frozenset(
         GroundAtom(predicate=predicate, arguments=tuple(row))
@@ -241,7 +244,7 @@ def _fact_atoms(
 
 
 def _positive_closure_for_grounding(
-    facts: dict[str, set[tuple[object, ...]]],
+    facts: Mapping[str, set[tuple[Scalar, ...]]],
     rules: list[DefeasibleRule],
 ) -> dict[str, IndexedRelation]:
     """Recreation of the deleted ``_positive_closure`` helper.
