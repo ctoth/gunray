@@ -210,3 +210,25 @@ def test_mark_tweety_flies_is_undefeated() -> None:
     tree = build_tree(flies_tweety, TrivialPreference(), theory)
     assert tree.children == ()
     assert mark(tree) == "U"
+
+
+# -- Test 8 — circular argumentation (Garcia 04 Def 4.7 cond 3, Fig 6). --
+
+
+def test_circular_argumentation_is_truncated() -> None:
+    """Garcia 04 Def 4.7 cond 3 / Fig 6.
+
+    With ``_chain_theory`` the root ``⟨{r1,r2}, r(a)⟩`` contains the
+    sub-argument ``⟨{r1}, q(a)⟩``. A blocking defeater at ``~q(a)``
+    is the attacker ``⟨{r3}, ~q(a)⟩``. From there, the only
+    defeater candidate at ``q(a)`` is ``⟨{r1}, q(a)⟩`` itself —
+    which is a sub-argument of the root. Def 4.7 cond 3 rejects it;
+    the branch must truncate at the attacker.
+    """
+    theory = _chain_theory()
+    root = _find_argument(theory, _ga("r", "a"))
+    tree = build_tree(root, TrivialPreference(), theory)
+    assert len(tree.children) == 1
+    attacker_node = tree.children[0]
+    assert attacker_node.argument.conclusion == _ga("~q", "a")
+    assert attacker_node.children == ()
