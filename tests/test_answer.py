@@ -41,6 +41,34 @@ def _tweety_theory() -> DefeasibleTheory:
     )
 
 
+def _uncontested_flies_theory() -> DefeasibleTheory:
+    """A theory where one side of a literal is warranted and the other
+    side has no argument at all — exercises the YES and NO branches of
+    ``answer`` under ``TrivialPreference``.
+
+    Rules::
+        d1: flies(X) :- bird(X).
+        fact: bird(robin).
+
+    ``⟨{d1@robin}, flies(robin)⟩`` exists and has no counter-argument
+    (there is no rule producing ``~flies``). Its dialectical tree is
+    a leaf, marks ``U``, and so ``flies(robin)`` is warranted → YES.
+    ``~flies(robin)`` has no argument at all, so its tree cannot be
+    constructed and the "warranted complement" path makes
+    ``answer(theory, ~flies(robin), TrivialPreference())`` return NO.
+    """
+    return DefeasibleTheory(
+        facts={"bird": {("robin",)}},
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="d1", head="flies(X)", body=["bird(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
 def _direct_nixon_theory() -> DefeasibleTheory:
     return DefeasibleTheory(
         facts={"republican": {("nixon",)}, "quaker": {("nixon",)}},
@@ -87,3 +115,96 @@ def test_answer_tweety_flies_is_yes() -> None:
     theory = _tweety_theory()
     result = answer(theory, _ga("flies", "tweety"), TrivialPreference())
     assert result is Answer.YES
+
+
+def test_answer_opus_flies_is_undecided_under_trivial_preference() -> None:
+    """Scout 5.1 / 5.2 spelled out the Block-1 opus answer verbatim:
+
+        "answer(theory, flies(opus)) ... Under TrivialPreference that
+         makes flies(opus) == UNDECIDED ... Under GeneralizedSpecificity
+         ... flies(opus) == NO and ~flies(opus) == YES."
+
+    The B1.5 prompt's "is_no" assertion is the Block-2 value. Under
+    Block-1's TrivialPreference both arguments block each other, both
+    trees mark ``D``, neither literal is warranted, and both have an
+    argument, so Garcia 04 Def 5.3 returns ``UNDECIDED``. This test
+    documents the Block-1 behavior; the Block-2 NO answer will land
+    when ``GeneralizedSpecificity`` arrives. See
+    ``notes/refactor_progress.md#deviations`` entry for this dispatch.
+    """
+    theory = _tweety_theory()
+    result = answer(theory, _ga("flies", "opus"), TrivialPreference())
+    assert result is Answer.UNDECIDED
+
+
+def test_answer_opus_not_flies_is_undecided_under_trivial_preference() -> None:
+    """Companion to ``test_answer_opus_flies_is_undecided_under_trivial_preference``.
+
+    Under Block-1 TrivialPreference ``answer(theory, ~flies(opus))``
+    also returns ``UNDECIDED``. The prompt's "is_yes" assertion is the
+    Block-2 value; see the deviations entry in
+    ``notes/refactor_progress.md``.
+    """
+    theory = _tweety_theory()
+    result = answer(theory, _ga("~flies", "opus"), TrivialPreference())
+    assert result is Answer.UNDECIDED
+
+
+def test_answer_uncontested_flies_is_yes() -> None:
+    """Exercise the YES branch of ``answer`` under TrivialPreference.
+
+    ``_uncontested_flies_theory`` has a single defeasible rule
+    ``flies(X) :- bird(X)`` and the fact ``bird(robin)``. No rule
+    produces ``~flies``, so ``⟨{d1}, flies(robin)⟩`` has no counter-
+    argument, its tree is a leaf marked ``U``, and ``flies(robin)``
+    is warranted. Garcia 04 Def 5.3 returns ``YES``.
+    """
+    theory = _uncontested_flies_theory()
+    result = answer(theory, _ga("flies", "robin"), TrivialPreference())
+    assert result is Answer.YES
+
+
+def test_answer_uncontested_not_flies_is_no() -> None:
+    """Exercise the NO branch of ``answer`` under TrivialPreference.
+
+    Same theory as ``test_answer_uncontested_flies_is_yes``: the
+    complement literal ``~flies(robin)`` has no argument at all,
+    but its complement ``flies(robin)`` is warranted (as verified
+    above), so Garcia 04 Def 5.3 returns ``NO`` for the ``~flies``
+    query.
+    """
+    theory = _uncontested_flies_theory()
+    result = answer(theory, _ga("~flies", "robin"), TrivialPreference())
+    assert result is Answer.NO
+
+
+def test_answer_nixon_pacifist_is_undecided() -> None:
+    """Scout 5.2 direct Nixon: both ``pacifist(nixon)`` and
+    ``~pacifist(nixon)`` have arguments and neither warrants under
+    ``TrivialPreference`` (both trees mark ``D``). Garcia 04 Def 5.3:
+    UNDECIDED."""
+    theory = _direct_nixon_theory()
+    result = answer(theory, _ga("pacifist", "nixon"), TrivialPreference())
+    assert result is Answer.UNDECIDED
+
+
+def test_answer_unknown_predicate_is_unknown() -> None:
+    """Garcia 04 Def 5.3 UNKNOWN case: if the literal's predicate is
+    not in the language of the theory at all (neither in facts nor in
+    any rule head/body), ``answer`` returns ``UNKNOWN``. A martian is
+    strictly outside the Tweety universe."""
+    theory = _tweety_theory()
+    result = answer(theory, _ga("martian", "bob"), TrivialPreference())
+    assert result is Answer.UNKNOWN
+
+
+def test_answer_preserves_existing_enum_tests() -> None:
+    """Verification that the B1.2 ``Answer`` enum contract is still
+    alive alongside the new B1.5 ``answer`` query API. This is not a
+    new contract — just a regression guard against accidental enum
+    surgery while adding the query function."""
+    assert Answer("yes") is Answer.YES
+    assert Answer("no") is Answer.NO
+    assert Answer("undecided") is Answer.UNDECIDED
+    assert Answer("unknown") is Answer.UNKNOWN
+    assert len(set(Answer)) == 4
