@@ -66,3 +66,43 @@ def test_counter_argues_at_root_opus_flies() -> None:
     not_flies_opus = _find_argument(theory, _ga("~flies", "opus"))
     assert counter_argues(flies_opus, not_flies_opus, theory)
     assert counter_argues(not_flies_opus, flies_opus, theory)
+
+
+# -- Test 2 — counter-argument at sub-argument (Garcia 04 Def 3.4, Fig 2 right). --
+
+
+def _chain_theory() -> DefeasibleTheory:
+    """Defeasible chain with an attacker at a sub-argument's conclusion.
+
+    Rules::
+        r1: q(X) :- p(X).        (defeasible)
+        r2: r(X) :- q(X).        (defeasible)
+        r3: ~q(X) :- t(X).       (defeasible — attacker at sub-argument q)
+        facts: p(a), t(a).
+    """
+    return DefeasibleTheory(
+        facts={"p": {("a",)}, "t": {("a",)}},
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="r1", head="q(X)", body=["p(X)"]),
+            Rule(id="r2", head="r(X)", body=["q(X)"]),
+            Rule(id="r3", head="~q(X)", body=["t(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
+def test_counter_argues_at_sub_argument_directional_fix() -> None:
+    """Garcia 04 Def 3.4 (Fig 2 right): ``⟨{r3}, ~q(a)⟩`` attacks the
+    *sub-argument* ``⟨{r1}, q(a)⟩`` of ``⟨{r1,r2}, r(a)⟩``.
+
+    Under gunray's deleted root-only attack path, ``counter_argues``
+    would return False because ``~q`` does not disagree with ``r``.
+    The directional fix: descent into sub-arguments catches it.
+    """
+    theory = _chain_theory()
+    r_arg = _find_argument(theory, _ga("r", "a"))
+    not_q_arg = _find_argument(theory, _ga("~q", "a"))
+    assert counter_argues(not_q_arg, r_arg, theory)
