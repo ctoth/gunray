@@ -4,9 +4,11 @@ The defeat relation (Garcia & Simari 2004 Def 4.1 / 4.2) is
 parameterized over an abstract preference relation ``>`` on
 arguments. This module exports the abstract ``PreferenceCriterion``
 protocol, a trivial "prefer nothing" instance used to exercise the
-dialectical tree in isolation, and the real paper-grade
+dialectical tree in isolation, the real paper-grade
 ``GeneralizedSpecificity`` criterion based on Simari & Loui 1992
-Lemma 2.4.
+Lemma 2.4, the explicit-priority ``SuperiorityPreference`` from
+Garcia & Simari 2004 §4.1, and a ``CompositePreference`` that
+delegates to each criterion in priority order.
 """
 
 from __future__ import annotations
@@ -146,6 +148,134 @@ class GeneralizedSpecificity:
             self._strict_rules + shadowed,
         )
         return all(atom in closure for atom in covered_antecedents)
+
+
+class SuperiorityPreference:
+    """Garcia & Simari 2004 §4.1: rule priority criterion.
+
+    The paper notes that comparison criteria are modular: the abstract
+    preference relation can be instantiated by an explicit priority
+    relation ``>`` over the defeasible rule set. Argument ``<A1, h1>``
+    is preferred to ``<A2, h2>`` iff every rule in ``A1`` dominates
+    every rule in ``A2`` under the *transitive closure* of the
+    explicit priority relation supplied as
+    ``DefeasibleTheory.superiority``. The pairs are written as
+    ``(stronger_rule_id, weaker_rule_id)``.
+
+    The criterion is constructed once per theory; the constructor
+    computes the transitive closure of the priority relation as a
+    ``frozenset[tuple[str, str]]`` keyed by ``rule_id`` and reuses it
+    on every ``prefers`` call.
+
+    Edge cases (per the B2.5 dispatch contract):
+
+    * Reflexivity: ``prefers(a, a) is False`` — strict partial orders
+      are irreflexive.
+    * Strict-vs-defeasible: if either ``left.rules`` or ``right.rules``
+      is empty (a strict-only argument), ``prefers`` returns ``False``.
+      Strict and defeasible arguments are incomparable under the rule
+      priority criterion; the strict-only shortcut in
+      ``DefeasibleEvaluator`` handles strict arguments at the outer
+      pipeline level.
+    * Partial dominance fails: every rule in ``left.rules`` must
+      dominate every rule in ``right.rules`` under the closed relation.
+      A single missing pair is enough to return ``False``.
+    """
+
+    def __init__(self, theory: DefeasibleTheory) -> None:
+        # Stash the raw pairs and precompute the transitive closure
+        # over rule_ids. Floyd-Warshall over the active id set keeps
+        # the closure cost to ``O(|ids|^3)``; in practice the rule set
+        # per theory is tiny (single digits), so the cost is dominated
+        # by the dictionary churn rather than the algorithm.
+        pairs: tuple[tuple[str, str], ...] = tuple(theory.superiority)
+        ids: set[str] = set()
+        for higher, lower in pairs:
+            ids.add(higher)
+            ids.add(lower)
+        # Build adjacency, then transitive closure via repeated
+        # composition. Floyd-Warshall is overkill for the typical
+        # theory size; the loop here is the same complexity but keeps
+        # the data structure as a flat set of pairs.
+        closure: set[tuple[str, str]] = set(pairs)
+        changed = True
+        while changed:
+            changed = False
+            new_pairs: set[tuple[str, str]] = set()
+            for hi, mid_a in closure:
+                for mid_b, lo in closure:
+                    if mid_a == mid_b:
+                        new_pairs.add((hi, lo))
+            additions = new_pairs - closure
+            if additions:
+                closure |= additions
+                changed = True
+        self._closure: frozenset[tuple[str, str]] = frozenset(closure)
+
+    def prefers(self, left: Argument, right: Argument) -> bool:
+        """Return ``True`` iff every rule in ``left`` dominates every rule in ``right``.
+
+        Implements Garcia & Simari 2004 §4.1's rule priority criterion
+        as documented on the class docstring. The check is:
+
+        1. Reject reflexive comparisons (``left == right``).
+        2. Reject empty-rule (strict-only) arguments on either side —
+           the rule priority criterion is undefined for them.
+        3. For every ``(lr, rr)`` pair drawn from
+           ``left.rules × right.rules``, require ``(lr.rule_id,
+           rr.rule_id)`` to be in the precomputed transitive closure.
+           Any single missing pair returns ``False``.
+        """
+
+        if left == right:
+            return False
+        if not left.rules or not right.rules:
+            return False
+
+        closure = self._closure
+        for lr in left.rules:
+            for rr in right.rules:
+                if (lr.rule_id, rr.rule_id) not in closure:
+                    return False
+        return True
+
+
+class CompositePreference:
+    """Composition of preference criteria in priority order.
+
+    Garcia & Simari 2004 §4.1 notes that comparison criteria are
+    modular and may be combined. ``CompositePreference`` implements
+    the *any-wins* composition: each child criterion is consulted in
+    declaration order, and the first to return ``True`` wins. If no
+    criterion fires, the composition returns ``False``.
+
+    The canonical use under the B2.5 foreman decision is
+
+    .. code-block:: python
+
+        CompositePreference(
+            SuperiorityPreference(theory),
+            GeneralizedSpecificity(theory),
+        )
+
+    so that explicit user-supplied priority dominates the computed
+    Lemma 2.4 specificity preference. The alternative ``all``-wins
+    semantics would require every criterion to agree, which is
+    strictly stronger than either criterion in isolation and is not
+    what DeLP-style implementations use.
+
+    The composition is irreflexive iff every child is irreflexive,
+    and is monotonic in the sense that if ``CompositePreference(P1,
+    ..., Pn).prefers(a, b)`` is ``True`` then at least one ``Pi``
+    fires for the pair (verified by Hypothesis property
+    ``test_hypothesis_composite_is_monotonic``).
+    """
+
+    def __init__(self, *criteria: PreferenceCriterion) -> None:
+        self._criteria: tuple[PreferenceCriterion, ...] = criteria
+
+    def prefers(self, left: Argument, right: Argument) -> bool:
+        return any(c.prefers(left, right) for c in self._criteria)
 
 
 def _antecedents_of(argument: Argument) -> frozenset[GroundAtom]:
