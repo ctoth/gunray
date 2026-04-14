@@ -300,3 +300,83 @@ def test_reciprocal_blocking_rejects_blocker_of_blocker() -> None:
     assert attacker.argument.conclusion == _ga("~p", "x")
     # cond 4: grandchild blocking-of-blocking is rejected.
     assert attacker.children == ()
+
+
+# -- Test 10 — contradictory supporting line (Garcia 04 Def 4.7 cond 2, Fig 8). --
+
+
+def _contradictory_supporting_theory() -> DefeasibleTheory:
+    """A theory where two supporting-line arguments together with Π
+    produce a contradiction.
+
+    Rules::
+        d1:  p(X)        :- a(X).
+        d2:  ~p(X)       :- hard(X).
+        d3:  hard(X)     :- b(X).
+        d4:  ~hard(X)    :- c(X).
+        strict s1:  ~p(X) :- ~hard(X).
+
+    With ``{d1, d4}`` combined and ``s1`` in Π, closure of the
+    fact model produces both ``p(x)`` (from d1) and ``~p(x)``
+    (from d4 via s1). But ``{d1}`` alone is consistent, and
+    ``{d4}`` alone is consistent. Argument for ``p(x)`` is
+    ``⟨{d1}, p(x)⟩``; argument for ``~p(x)`` (via hard) is
+    ``⟨{d2, d3}, ~p(x)⟩``; argument for ``~hard(x)`` is
+    ``⟨{d4}, ~hard(x)⟩``.
+    """
+    return DefeasibleTheory(
+        facts={"a": {("x",)}, "b": {("x",)}, "c": {("x",)}},
+        strict_rules=[Rule(id="s1", head="~p(X)", body=["~hard(X)"])],
+        defeasible_rules=[
+            Rule(id="d1", head="p(X)", body=["a(X)"]),
+            Rule(id="d2", head="~p(X)", body=["hard(X)"]),
+            Rule(id="d3", head="hard(X)", body=["b(X)"]),
+            Rule(id="d4", head="~hard(X)", body=["c(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
+class _AlwaysProper:
+    """Preference criterion that makes every attacker a proper defeater.
+
+    ``prefers(left, right)`` returns True whenever ``left != right``,
+    which ensures ``_defeat_kind`` always classifies defeats as
+    ``proper``. This removes Def 4.7 cond 4 from the picture so
+    cond 2 can be tested in isolation.
+    """
+
+    def prefers(self, left: Argument, right: Argument) -> bool:
+        return left != right
+
+
+def test_contradictory_supporting_line_is_truncated() -> None:
+    """Garcia 04 Def 4.7 cond 2 / Fig 8.
+
+    With ``_AlwaysProper`` every defeat is a proper defeat so cond 4
+    never fires. The intended path is::
+
+        line[0] = ⟨{d1}, p(x)⟩            (supporting, S_s-member)
+        line[1] = ⟨{d2, d3}, ~p(x)⟩       (interfering)
+        line[2] = ⟨{d4}, ~hard(x)⟩        (supporting, S_s-member)
+
+    ``{d1} ∪ {d4}`` combined with ``Π = {s1: ~p :- ~hard}`` closes
+    to ``{p(x), ~hard(x), ~p(x)}`` — contradictory. Def 4.7 cond 2
+    rejects the ``⟨{d4}, ~hard(x)⟩`` candidate at position 2.
+    """
+    theory = _contradictory_supporting_theory()
+    root = _find_argument(theory, _ga("p", "x"))
+    tree = build_tree(root, _AlwaysProper(), theory)
+    # Root should have at least one child (the ~p(x) attacker).
+    assert len(tree.children) >= 1
+    # The ~p(x) attacker node at position 1 must NOT have
+    # ⟨{d4}, ~hard(x)⟩ as a child — Def 4.7 cond 2 rejects it
+    # because {d1} ∪ {d4} ∪ Π is contradictory.
+    for child in tree.children:
+        if child.argument.conclusion == _ga("~p", "x"):
+            assert not any(
+                grand.argument.conclusion == _ga("~hard", "x")
+                for grand in child.children
+            ), "Def 4.7 cond 2 must reject the contradictory supporting-set extension"
