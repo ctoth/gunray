@@ -32,12 +32,15 @@ defeasible conclusions survive, which get blocked by opposing evidence, and
 
 ## The conformance suite
 
-Gunray is the Python evaluator behind
+Gunray is exercised against
 [`ctoth/datalog-conformance-suite`](https://github.com/ctoth/datalog-conformance-suite),
-a fixed corpus of cases that pins down how a conforming defeasible evaluator
-is supposed to behave. The suite is the spec; Gunray is a readable
-implementation you can run against it. If a case and the engine disagree,
-one of them is wrong and the test run says which.
+but it does not claim every fixture in that corpus. The supported surface is
+the Garcia & Simari 2004 / Simari & Loui 1992 contract that the engine
+implements directly, plus the plain Datalog path including stratified
+negation. Cases that require Antoniou-style ambiguity propagation,
+Spindle-style implicit `not_defeasibly` projection for heads with no
+arguments, or partial-dominance superiority are explicitly skipped in the
+repo test harness rather than counted as supported semantics.
 
 Under the hood, `DefeasibleEvaluator` runs the Garcia & Simari 2004 §5
 pipeline verbatim. `build_arguments` enumerates first-class `Argument`
@@ -186,11 +189,21 @@ Local unit suite:
 uv run pytest tests -q
 ```
 
-Full conformance corpus against Gunray:
+Supported conformance corpus against Gunray:
 
 ```powershell
 uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q
 ```
+
+That command runs the repo's supported slice of the suite. The harness skips
+documented out-of-contract fixtures rather than silently counting them as
+passes:
+
+- Antoniou 2007 blocking-vs-propagating ambiguity fixtures
+- Spindle implicit-failure fixtures that classify head literals with no
+  arguments into `not_defeasibly`
+- Spindle partial-dominance superiority fixtures that relax Garcia & Simari
+  2004 Section 4.1's all-rules dominance requirement
 
 To pick apart a single defeasible case by hand:
 

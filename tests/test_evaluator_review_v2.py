@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import pytest
-
 from gunray import Program, SemiNaiveEvaluator
-from gunray.errors import SafetyViolationError
 
 
-def test_rejects_variable_that_appears_only_in_single_negated_literal() -> None:
+def test_negated_literal_allows_existentially_local_variable() -> None:
     program = Program(
         facts={"person": {("alice",)}},
         rules=[
@@ -14,5 +11,22 @@ def test_rejects_variable_that_appears_only_in_single_negated_literal() -> None:
         ],
     )
 
-    with pytest.raises(SafetyViolationError, match="negated literals"):
-        SemiNaiveEvaluator().evaluate(program)
+    model = SemiNaiveEvaluator().evaluate(program)
+
+    assert model.facts["ok"] == {("alice",)}
+
+
+def test_negated_literal_blocks_when_any_matching_row_exists() -> None:
+    program = Program(
+        facts={
+            "person": {("alice",), ("bob",)},
+            "banned": {("bob", "infractions")},
+        },
+        rules=[
+            "ok(X) :- person(X), not banned(X, Y).",
+        ],
+    )
+
+    model = SemiNaiveEvaluator().evaluate(program)
+
+    assert model.facts["ok"] == {("alice",)}

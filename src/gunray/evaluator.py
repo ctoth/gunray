@@ -117,8 +117,6 @@ def _validate_program(facts: dict[str, set[FactTuple]], rules: list[Rule]) -> No
             positive_vars |= atom_vars
         for atom in rule.negative_body:
             _check_arity(arities, atom.predicate, atom.arity)
-            if _variables_in_atom(atom) - positive_vars:
-                raise SafetyViolationError("Variables in negated literals must be positively bound")
         for constraint in rule.constraints:
             if _variables_in_comparison(constraint) - positive_vars:
                 raise UnboundVariableError("Constraint variables must be bound earlier")
