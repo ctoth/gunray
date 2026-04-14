@@ -30,12 +30,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from .arguments import Argument, build_arguments, is_subargument
+from .arguments import (
+    Argument,
+    _fact_atoms,
+    _force_strict_for_closure,
+    build_arguments,
+    is_subargument,
+)
 from .disagreement import complement, disagrees, strict_closure
 from .parser import parse_defeasible_theory
 from .preference import PreferenceCriterion
 from .schema import DefeasibleTheory
-from .types import GroundDefeasibleRule
+from .types import GroundAtom, GroundDefeasibleRule
 
 
 def _theory_strict_rules(
@@ -161,6 +167,66 @@ class DialecticalNode:
     children: tuple["DialecticalNode", ...]
 
 
+def _concordant(
+    rule_sets: list[frozenset[GroundDefeasibleRule]],
+    theory: DefeasibleTheory,
+) -> bool:
+    """Return True iff ``Π ∪ (union of rule_sets)`` is non-contradictory.
+
+    Garcia & Simari 2004 Def 4.7 cond 2: the supporting and
+    interfering sets must each be concordant. Concordance means
+    that the union of an argument set's defeasible rules with the
+    strict knowledge base ``Π`` produces no pair of complementary
+    literals when closed under the rules.
+
+    Implementation reuses ``arguments._force_strict_for_closure`` to
+    wrap every defeasible rule as a strict-kind shadow for the
+    closure pass, matching the Def 3.1 condition (2) treatment in
+    ``build_arguments``.
+    """
+    facts, _defeasible, _ = parse_defeasible_theory(theory)
+    seeds = _fact_atoms(facts)
+    strict_rules = _theory_strict_rules(theory)
+    combined: list[GroundDefeasibleRule] = list(strict_rules)
+    for rule_set in rule_sets:
+        for rule in rule_set:
+            combined.append(_force_strict_for_closure(rule))
+    closure = strict_closure(seeds, tuple(combined))
+    for atom in closure:
+        if complement(atom) in closure:
+            return False
+    return True
+
+
+def _defeat_kind(
+    attacker: Argument,
+    target: Argument,
+    criterion: PreferenceCriterion,
+    theory: DefeasibleTheory,
+) -> str | None:
+    """Return ``"proper"``, ``"blocking"``, or ``None``.
+
+    Helper used by ``build_tree`` to classify a candidate defeater.
+    Proper takes precedence if some disagreeing sub-argument is
+    strictly out-preferred by ``attacker``; blocking is returned if
+    some disagreeing sub-argument is preference-neutral vs.
+    ``attacker``; otherwise ``None``.
+    """
+    subs = _disagreeing_subarguments(attacker, target, theory)
+    proper_hit = False
+    blocking_hit = False
+    for sub in subs:
+        if criterion.prefers(attacker, sub):
+            proper_hit = True
+        elif not criterion.prefers(sub, attacker):
+            blocking_hit = True
+    if proper_hit:
+        return "proper"
+    if blocking_hit:
+        return "blocking"
+    return None
+
+
 def build_tree(
     root: Argument,
     criterion: PreferenceCriterion,
@@ -174,17 +240,87 @@ def build_tree(
     satisfies every Def 4.7 acceptable-line condition:
 
     1. The line is finite.
-    2. The supporting set ``S_s = ⋃ A_{2i}`` and interfering set
-       ``S_i = ⋃ A_{2i+1}`` are each concordant (union with ``Π``
+    2. The supporting set ``S_s = ⋃ A_{2i}`` (0-indexed: positions 0,
+       2, 4, ...) and interfering set ``S_i = ⋃ A_{2i+1}`` (positions
+       1, 3, 5, ...) are each concordant (union with ``Π``
        non-contradictory).
     3. No argument in the line is a sub-argument of an earlier one.
-    4. If the parent edge is a blocking defeat, the child edge must
+    4. If the parent edge was a blocking defeat, the child edge must
        be a proper defeat (otherwise the line terminates).
 
     Violating conditions 2, 3, or 4 truncates that branch by simply
-    not adding the violator as a child.
+    not adding the violator as a child. Condition 1 is structurally
+    guaranteed: ``build_arguments`` returns a finite frozenset and
+    cond 3 forbids re-entry along a line.
     """
-    raise NotImplementedError
+    universe = build_arguments(theory)
+    return _expand(root, [root], [None], universe, criterion, theory)
+
+
+def _expand(
+    current: Argument,
+    line: list[Argument],
+    edge_kinds: list[str | None],
+    universe: "frozenset[Argument]",
+    criterion: PreferenceCriterion,
+    theory: DefeasibleTheory,
+) -> DialecticalNode:
+    """Recursive expansion of a single dialectical-tree node.
+
+    ``line[i]`` is the argument at position ``i`` along the path
+    from the root to ``current`` (so ``line[-1] == current``).
+    ``edge_kinds[i]`` is the kind of defeat (``"proper"`` /
+    ``"blocking"`` / ``None`` for the root) used to attach
+    ``line[i]`` to its parent.
+    """
+    children_nodes: list[DialecticalNode] = []
+    parent_edge_kind = edge_kinds[-1]
+
+    for candidate in universe:
+        kind = _defeat_kind(candidate, current, criterion, theory)
+        if kind is None:
+            continue
+
+        # Def 4.7 cond 4: blocking-defeater-of-blocking-defeater
+        # terminates the line.
+        if parent_edge_kind == "blocking" and kind == "blocking":
+            continue
+
+        # Def 4.7 cond 3: no argument in the line is a sub-argument
+        # of an earlier one. We only need to check `candidate`
+        # against existing line members — earlier inclusions were
+        # already checked when they were added.
+        if any(is_subargument(candidate, earlier) for earlier in line):
+            continue
+
+        # Def 4.7 cond 2: the supporting set S_s (0-indexed even
+        # positions) and interfering set S_i (0-indexed odd
+        # positions) must each remain concordant with `candidate`
+        # added to its appropriate set.
+        new_index = len(line)  # position of `candidate` if admitted
+        supporting = [
+            line[i].rules for i in range(len(line)) if i % 2 == 0
+        ]
+        interfering = [
+            line[i].rules for i in range(len(line)) if i % 2 == 1
+        ]
+        if new_index % 2 == 0:
+            supporting.append(candidate.rules)
+        else:
+            interfering.append(candidate.rules)
+        if not _concordant(supporting, theory):
+            continue
+        if not _concordant(interfering, theory):
+            continue
+
+        # All Def 4.7 conditions satisfied — recurse.
+        new_line = line + [candidate]
+        new_edges = edge_kinds + [kind]
+        children_nodes.append(
+            _expand(candidate, new_line, new_edges, universe, criterion, theory)
+        )
+
+    return DialecticalNode(argument=current, children=tuple(children_nodes))
 
 
 def mark(node: DialecticalNode) -> Literal["U", "D"]:
