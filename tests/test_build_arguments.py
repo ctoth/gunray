@@ -42,3 +42,22 @@ def test_tweety_flies_argument_exists() -> None:
     raise AssertionError(
         f"no argument for flies(tweety) was backed by r1: {matching!r}"
     )
+
+
+def test_opus_not_flies_argument_exists() -> None:
+    """Opus's penguin rule must produce <{r2(opus)}, ~flies(opus)>."""
+
+    theory = _tweety_theory()
+    arguments = build_arguments(theory)
+
+    not_flies_opus = GroundAtom(predicate="~flies", arguments=("opus",))
+    matching = [arg for arg in arguments if arg.conclusion == not_flies_opus]
+    assert matching, f"no argument for ~flies(opus) in {arguments!r}"
+
+    for arg in matching:
+        grounded_rule_ids = {rule.rule_id for rule in arg.rules}
+        if "r2" in grounded_rule_ids:
+            return
+    raise AssertionError(
+        f"no argument for ~flies(opus) was backed by r2: {matching!r}"
+    )

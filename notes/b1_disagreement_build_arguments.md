@@ -112,3 +112,50 @@ Moving to red phase of test 1 (disagrees on complementary literals).
   This requires implementing `build_arguments` minimally.
 - Grounding plan: parse_defeasible_theory -> ground rules via
   `_match_positive_body` seeded by the positive fact model.
+
+## 2026-04-13 checkpoint 4 — build_arguments up through test 2
+
+### DONE (this checkpoint)
+- Committed a3bbc69 for disagreement irreflexivity property.
+- Wrote `tests/test_build_arguments.py` with `_tweety_theory` helper.
+- Test 1 (tweety flies argument exists): red → green. Commits
+  1b7597d + 3e87048.
+- Implemented `build_arguments` in src/gunray/arguments.py (327 new
+  lines). Approach:
+  - parse_defeasible_theory → (facts, rules, conflicts)
+  - Rebuilt positive_closure over all rule bodies to ground bindings.
+  - Ground strict, defeasible, defeater rules via `_match_positive_body`.
+  - Pi closure = fact atoms under ground strict rules.
+  - Each atom in Pi closure → Argument(frozenset(), h).
+  - For each subset A of grounded defeasible rules, compute closure
+    under ground strict + A (shadowed to kind="strict" via
+    `_force_strict_for_closure`); skip if contradictory; record
+    minimal A for each head rule.head.
+  - Minimality tracked via per-head list of survivor subsets with
+    subset pruning.
+- Test 2 (opus ~flies argument exists): passed on first run.
+
+### OBSERVATIONS
+- The positive_closure helper is needed because `_match_positive_body`
+  needs a model dict to find bindings. I use it *only* for grounding —
+  not for derivation, so the "positive-only, ignores negation" aspect
+  is fine.
+- Defeaters land through grounding but are kept separate and excluded
+  from subset enumeration. The filter for defeater heads is
+  conservative but correct.
+
+### FILE STATE
+- src/gunray/disagreement.py: ~87 LOC.
+- src/gunray/arguments.py: ~370 LOC (grown from ~42).
+- tests/test_disagreement.py: 6 tests (3 unit + 3 property, all pass).
+- tests/test_build_arguments.py: 2 tests so far.
+- tests/conftest.py: extended with 4 strategies.
+
+### NEXT
+- Test 3: nixon diamond has both arguments.
+- Test 4: defeater kind cannot be argument conclusion.
+- Test 5: strict-only arguments have empty rules.
+- Then 4 hypothesis properties.
+- Then full suite + pyright check.
+
+### NO BLOCKER
