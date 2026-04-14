@@ -41,7 +41,7 @@ from .disagreement import complement, disagrees, strict_closure
 from .parser import parse_defeasible_theory
 from .preference import PreferenceCriterion
 from .schema import DefeasibleTheory
-from .types import GroundAtom, GroundDefeasibleRule
+from .types import GroundDefeasibleRule
 
 
 def _theory_strict_rules(
@@ -55,9 +55,8 @@ def _theory_strict_rules(
     """
     # Reuse build_arguments' own machinery: it already grounds strict
     # rules via the same positive-closure pass. Instead of duplicating
-    # that logic we import the helper lazily from `arguments` — this
+    # that logic we import the helpers lazily from `arguments` — this
     # keeps the dialectic module small.
-    from .arguments import _force_strict_for_closure  # noqa: F401  (used indirectly)
     from .arguments import _ground_rule_instances, _positive_closure_for_grounding
 
     _facts, defeasible_rules, _conflicts = parse_defeasible_theory(theory)
