@@ -80,13 +80,31 @@ def counter_argues(
     The deleted ``_find_blocking_peer`` never descended; that is the
     whole point of this refactor.
     """
+    for _sub in _disagreeing_subarguments(attacker, target, theory):
+        return True
+    return False
+
+
+def _disagreeing_subarguments(
+    attacker: Argument, target: Argument, theory: DefeasibleTheory
+) -> list[Argument]:
+    """Return every sub-argument ``⟨A, h⟩`` of ``target`` whose
+    conclusion disagrees with ``attacker.conclusion``.
+
+    Helper for ``counter_argues`` / ``proper_defeater`` /
+    ``blocking_defeater``. Garcia & Simari 2004 Def 3.4 refers to
+    the sub-argument at which the counter-attack lands; Defs 4.1 and
+    4.2 condition on the preference between the attacker and *that*
+    sub-argument, not the root of ``target``.
+    """
     strict_rules = _theory_strict_rules(theory)
+    hits: list[Argument] = []
     for sub in build_arguments(theory):
         if not is_subargument(sub, target):
             continue
         if disagrees(attacker.conclusion, sub.conclusion, strict_rules):
-            return True
-    return False
+            hits.append(sub)
+    return hits
 
 
 def proper_defeater(
@@ -97,11 +115,17 @@ def proper_defeater(
 ) -> bool:
     """Garcia & Simari 2004 Definition 4.1.
 
-    ``a1`` is a proper defeater for ``a2`` iff ``a1`` counter-argues
-    ``a2`` at some sub-argument ``⟨A, h⟩`` of ``a2`` and ``criterion``
-    strictly prefers ``a1`` over ``⟨A, h⟩``.
+    ``a1`` is a proper defeater for ``a2`` iff it counter-argues
+    ``a2`` at some sub-argument ``⟨A, h⟩`` of ``a2`` AND
+    ``criterion`` strictly prefers ``a1`` over ``⟨A, h⟩``.
+
+    Under ``TrivialPreference`` nothing is strictly preferred so
+    nothing is proper.
     """
-    raise NotImplementedError
+    for sub in _disagreeing_subarguments(attacker, target, theory):
+        if criterion.prefers(attacker, sub):
+            return True
+    return False
 
 
 def blocking_defeater(
@@ -112,12 +136,17 @@ def blocking_defeater(
 ) -> bool:
     """Garcia & Simari 2004 Definition 4.2.
 
-    ``a1`` is a blocking defeater for ``a2`` iff ``a1`` counter-argues
-    ``a2`` at some sub-argument ``⟨A, h⟩`` of ``a2`` and ``criterion``
+    ``a1`` is a blocking defeater for ``a2`` iff it counter-argues
+    ``a2`` at some sub-argument ``⟨A, h⟩`` of ``a2`` AND ``criterion``
     prefers neither direction (neither ``a1 > ⟨A, h⟩`` nor
     ``⟨A, h⟩ > a1``).
     """
-    raise NotImplementedError
+    for sub in _disagreeing_subarguments(attacker, target, theory):
+        if not criterion.prefers(attacker, sub) and not criterion.prefers(
+            sub, attacker
+        ):
+            return True
+    return False
 
 
 @dataclass(frozen=True, slots=True)
