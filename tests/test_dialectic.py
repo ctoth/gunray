@@ -106,3 +106,49 @@ def test_counter_argues_at_sub_argument_directional_fix() -> None:
     r_arg = _find_argument(theory, _ga("r", "a"))
     not_q_arg = _find_argument(theory, _ga("~q", "a"))
     assert counter_argues(not_q_arg, r_arg, theory)
+
+
+# -- Test 3 — proper vs blocking under TrivialPreference. --
+
+
+def test_proper_and_blocking_defeaters_under_trivial_preference() -> None:
+    """Garcia 04 Def 4.1 / 4.2: under ``TrivialPreference`` every
+    counter-argument is a *blocking* defeater and none are *proper*
+    defeaters (because nothing is strictly preferred)."""
+    theory = _tweety_theory()
+    flies = _find_argument(theory, _ga("flies", "opus"))
+    not_flies = _find_argument(theory, _ga("~flies", "opus"))
+    criterion = TrivialPreference()
+    assert blocking_defeater(flies, not_flies, criterion, theory)
+    assert blocking_defeater(not_flies, flies, criterion, theory)
+    assert not proper_defeater(flies, not_flies, criterion, theory)
+    assert not proper_defeater(not_flies, flies, criterion, theory)
+
+
+# -- Test 4 — proper defeater under a mock preference. --
+
+
+class _MockPreference:
+    """A preference criterion that strictly prefers one fixed argument."""
+
+    def __init__(self, winner: Argument) -> None:
+        self._winner = winner
+
+    def prefers(self, left: Argument, right: Argument) -> bool:
+        return left == self._winner and right != self._winner
+
+
+def test_proper_defeater_under_mock_preference() -> None:
+    """Garcia 04 Def 4.1: with a criterion that strictly prefers the
+    attacker over the defended sub-argument, the counter-argument is
+    a *proper* defeater and therefore not merely blocking."""
+    theory = _tweety_theory()
+    flies = _find_argument(theory, _ga("flies", "opus"))
+    not_flies = _find_argument(theory, _ga("~flies", "opus"))
+    # MockPreference declares `not_flies` strictly preferred.
+    criterion = _MockPreference(winner=not_flies)
+    assert proper_defeater(not_flies, flies, criterion, theory)
+    assert not blocking_defeater(not_flies, flies, criterion, theory)
+    # The dispreferred direction is neither proper nor a blocker
+    # *towards* a strictly better opponent — it's the strict loser.
+    assert not proper_defeater(flies, not_flies, criterion, theory)
