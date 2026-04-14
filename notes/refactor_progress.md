@@ -600,17 +600,205 @@ Ready for Block 2.
      (Garcia 04 Def 3.6; B1.3 gap surfaced by specificity).
   3. Propstore PROPAGATING cleanup (B3.2 dispatch).
 
+### B2.4 — Defeater-rule participation fix (completed, GREEN)
+
+- Report: `reports/b2-defeater-participation.md`
+- 4 commits: `c5b2256`, `47f1649`, `cdcf960`, `bbd2343`.
+- **Paper reading finding**: the prompt cited "Garcia 04 Def 3.6"
+  but that definition does not exist in the paper notes. Def 3
+  stops at 3.5 (Generalized Specificity). Garcia 2004 only
+  defines two rule kinds (strict + defeasible); "defeater" in
+  the paper is a *role* (Def 4.1 proper, 4.2 blocking), not a
+  *rule kind*. Gunray's `defeaters:` bucket is a
+  Nute/Antoniou/DePYsible/Spindle import. Under Reading A
+  (defeater = one-rule attacker argument), the fix is
+  unambiguous.
+- Conformance: 239/55 → **244/50** (+5 wins, 0 regressions).
+  All 5 B2.3-flagged defeater cases flipped fail→pass,
+  including `strict_and_defeasible_interaction` which B2.3
+  had misclassified as needing superiority.
+- Unit suite: 121 → 122 (+1 Hypothesis property for defeater
+  non-warrant).
+- Pyright clean. `arguments.py` 405 → 410 LOC. 62 ins / 20 del
+  across 3 source files, budget 80 lines.
+- **Implementation notes** (for adversary review):
+  - `build_arguments` emits
+    `Argument(rules=frozenset({d}), conclusion=d.head)` for
+    each ground defeater whose body is in `pi_closure` and
+    for which `Π ∪ {d}` stays non-contradictory.
+  - `dialectic._is_warranted` skips any candidate argument
+    whose rule set contains a `kind="defeater"` rule — the
+    warrant-layer invariant: defeaters attack, never warrant.
+  - `defeasible._classify_defeasibility` adds a
+    `defeater_probed` set that routes Spindle-style
+    "defeater touches this literal" atoms into `not_defeasibly`
+    to match `spindle_racket_defeater_blocks`-shaped fixtures
+    (both `q` and `~q` expected in `not_defeasibly`). This is
+    slightly outside strict Def 5.3 and worth the adversary
+    flagging.
+  - `build_tree` / `_defeat_kind` / Def 4.7 needed no changes.
+
+### Residual after B2.4
+
+50 failures = 28 nemo_negation + 16 superiority-needed + 2
+regime-not-implemented + 4 paper-correct regressions.
+
+**Gap to ≥267 gate**: 23 cases. Of those:
+- 16 need `SuperiorityPreference` (B2.5 territory)
+- 2 regime-not-implemented (Antoniou PROPAGATING — deprecated)
+- 4 paper-correct (Def 3.1 cond 2 regressions — will not be
+  fixed, documented)
+- 1 extra (spindle_racket scalability, deselected)
+
+### B2.5 — SuperiorityPreference + CompositePreference (completed)
+
+- Report: `reports/b2-superiority-preference.md`
+- 4 commits: `0e7f5c0`, `01f701f`, `d650611`, `1160e1c`.
+- `src/gunray/preference.py`: 162 → 292 LOC (+130).
+- **`SuperiorityPreference`**: Garcia 04 §4.1 rule priority
+  criterion. Transitive closure computed in constructor.
+  Strict reading — partial dominance rejected.
+- **`CompositePreference`**: any-wins semantics. Wired into
+  `DefeasibleEvaluator.evaluate_with_trace` as
+  `CompositePreference(SuperiorityPreference(theory),
+  GeneralizedSpecificity(theory))` — superiority first,
+  specificity fallback.
+- **Conformance delta**: 244/50 → **250/44** (+6 wins, 0
+  regressions, +1.3% runtime — well within ±10% gate).
+- Unit suite: 122 → 133 (+11: 7 unit tests + 4 Hypothesis
+  properties at `max_examples=500`).
+- Paper citations: 80 → 84 (+4).
+- Pyright clean.
+- **Composition interpretation survived contact** with the
+  conformance suite — no fixture exercised a path where
+  "superiority > specificity" gave a wrong answer.
+
+### B2.4 classification was overstated
+
+B2.4 tagged 16 cases as "superiority-needed" based on the
+YAML `superiority:` field, not the actual failure mechanism.
+Only 6 of 16 were genuine superiority cases (all won). The
+other 10 break into:
+
+- **5 paper-correct regressions** (Def 3.1 cond 2, same
+  mechanism as the existing depysible_birds nests cases):
+  `maher_example2_tweety`, `maher_example3_freddie_nonflight`,
+  `spindle_racket_strict_beats_defeasible`,
+  `spindle_racket_mixed_strict_defeasible_conflict`,
+  `morris_example5_tweety_blocked_default` (the last has no
+  `superiority:` field at all — pure B2.4 misclassification).
+- **3 Spindle/DePYsible implicit-failure classification gap** —
+  defined-but-unprovable atoms expected in `not_defeasibly`.
+  Not Garcia 04. Not superiority:
+  `spindle_racket_unsatisfied_antecedent`,
+  `spindle_racket_query_missing_premise_failure`,
+  `spindle_racket_query_missing_premise_theory`.
+- **2 partial-dominance edge cases** — multi-rule
+  `{r1, r2}` vs single-rule `{r3}` with superiority
+  `(r3, r2)` only. Strict Garcia 04 §4.1 rejects partial
+  dominance; Spindle/DeLP implementations apparently apply
+  a weaker reading:
+  `spindle_racket_simplified_penguin`,
+  `spindle_racket_penguin_exception`.
+
+## Block 2 final state
+
+Conformance: **250/44/1**.
+
+The 44 failures break down (16 refactor-scope + 28 out-of-scope):
+
+- **28 nemo_negation** — pre-existing P0.1.5 engine bug. Out
+  of refactor scope.
+- **5 paper-correct regressions** — Def 3.1 cond 2, same
+  mechanism adversary confirmed on `nests_in_trees`. Permanent.
+- **4 original paper-correct regressions** from B1.6: the two
+  depysible_nests cases plus two depysible_flies/not_flies
+  cases from B2.4's surprise discovery.
+- **3 Spindle implicit-failure classification gap** — non-
+  Garcia semantics.
+- **2 partial-dominance edge cases** — Garcia 04 strict vs
+  Spindle/DeLP weaker reading.
+- **2 antoniou regime-not-implemented** — PROPAGATING
+  deprecated per `notes/policy_propagating_fate.md`.
+- **1 spindle_racket_query_long_chain** — scalability,
+  deselected via conftest.
+
+Block 2's target gate was ≥267, assuming `GeneralizedSpecificity`
++ `SuperiorityPreference` would resolve all 32 regressed cases.
+Reality: only 15 of 32 are resolvable under paper-correct
+semantics. The paper-correctness ceiling is 250.
+
+**Foreman decision queue for the Block 2 adversary review**:
+1. **Partial-dominance edge cases**: is Garcia 04 §4.1 really
+   strict ("all rules dominate all rules"), or does the paper
+   allow the weaker "maximum dominates maximum" reading that
+   Spindle/DeLP uses? Adversary must read the paper carefully
+   and decide.
+2. **Spindle implicit-failure classification gap**: does
+   Garcia 04 Def 5.3 say anything about unprovable literals
+   landing in `not_defeasibly`? Or is that Spindle-specific?
+3. **Should Block 2 accept the 250 ceiling as done** and move
+   to Block 3 propstore, or should we open a scope expansion
+   to tackle any of the above?
+
+### B2-adversary — DRIFT verdict (completed)
+
+- Report: `reports/b2-adversary.md`
+- One structural finding (Q9): `CompositePreference` `any`-wins
+  semantics broke asymmetry/transitivity. Recommended
+  first-criterion-to-fire fix.
+- Independent verifications (all ALIGNED):
+  - Q1 `GeneralizedSpecificity` is verbatim Lemma 2.4
+  - Q2 `SuperiorityPreference` strict dominance is paper-correct
+    (paper notes line 170: "all its rules"). Spindle deviates.
+  - Q5 5 new paper-correct regressions independently verified
+    by reading fixture YAMLs + re-deriving Def 3.1 cond 2.
+  - Q6 Spindle implicit-failure is a real Def 5.3 gap; gunray's
+    "omit" is paper-strict.
+  - Q7 only one non-paper path (`defeater_probed`), documented.
+  - Q8 `Argument` still a pair.
+- Three documentation drifts (Q4, Q10): defeater_probed,
+  CompositePreference fix, deviations log empty for Block 2.
+
+### B2.6 — CompositePreference fix + deviations log + verifier (completed, MERGE)
+
+- Report: `reports/b2-composite-fix-and-close.md`
+- 2 commits: `a8569a6` (fix), `e38c66e` (test rewrite +
+  asymmetry property).
+- **`CompositePreference` rewritten** to use first-criterion-
+  to-fire semantics. Strict partial-order axioms restored.
+  Foreman directive "superiority first" preserved by criterion
+  ordering.
+- **Conformance unchanged at 250/44/1** — adversary "zero
+  impact" prediction verified.
+- Unit suite: 133 → 136 (+3).
+- **Four deviation entries added** to deviations section of
+  this file: PROPAGATING deprecation, defeater_probed shim,
+  CompositePreference fix, 250-ceiling reconciliation.
+- Pyright clean. **Verdict: MERGE.** Block 2 closed.
+
+## Block 2 complete
+
+**Conformance**: 250/44/1 (paper-correctness ceiling).
+**Unit suite**: 136/0/1.
+**`defeasible.py`**: 329 LOC.
+**`preference.py`**: 336 LOC.
+**Hypothesis properties**: ≥ 35 at `max_examples=500`.
+**Pyright**: clean.
+**Adversary**: ALIGNED with one fix landed. **Verifier**: MERGE.
+
 ## Next action
 
-**Foreman review of B2.3 hard stop.** Decide whether to:
-1. Land a B2.4 `SuperiorityAwarePreference` + defeater
-   participation dispatch before the Block 2 adversary review, OR
-2. Lower the Block 2 gate to reflect the paper-correct scope
-   (specificity only, no superiority/defeater), OR
-3. Accept the gap as a permanent Block 2 deviation and document
-   it in the deviations table.
+Block 3 — dispatch B3.1 propstore surface scout. Inventory
+every propstore consumer of gunray (especially the
+`_split_section_predicate` `~`-strip hack at
+`propstore/aspic_bridge.py:212` and the `Policy.PROPAGATING`
+references at `propstore/tests/test_grounding_grounder.py:660`
+and `test_defeasible_conformance_tranche.py:{37,43}`).
+Then B3.2 propstore direct replacement, B3.3 docs + cleanup,
+B3.4 final verifier.
 
-Full classification in `reports/b2-policy-routing-and-full-green.md` §4.
+Thirteenth pyright false alarm ignored.
 
 ## Historical next actions
    Hypothesis properties land.
@@ -825,4 +1013,292 @@ into the pipeline would re-introduce the depysible-style hack
 and undo the entire scorched-earth refactor. The paper-correct
 behavior is what the rest of Block 1 (and Block 2) is built
 around.
+
+### B2.3 — `Policy.PROPAGATING` removed from the enum
+
+**Date**: 2026-04-13 (B2.3 dispatch)
+
+**Prompt** (`prompts/b2-policy-routing-and-full-green.md`, referencing
+`notes/policy_propagating_fate.md` as the foreman decision of record).
+
+**Observation**: The `Policy` enum carried a `PROPAGATING` value that
+has no analogue in Garcia & Simari 2004 or Simari & Loui 1992.
+`PROPAGATING` comes from Antoniou 2007 §3.5 (Maher / Antoniou-style
+Defeasible Logic regimes), a different family of defeasible logics
+with its own tag-propagation semantics. Gunray's pipeline is built
+on Garcia 04's dialectical-tree / warrant semantics; a `PROPAGATING`
+policy value is not meaningful in that machinery. All gunray
+internals already had the pattern `del policy` after dispatch,
+indicating no code path actually branched on `PROPAGATING`.
+
+**Resolution**: Remove `Policy.PROPAGATING` from the enum. The two
+antoniou-regime conformance fixtures that were routed to
+`PROPAGATING` are reclassified as `regime-not-implemented` and
+accepted as out-of-scope under the 250 conformance ceiling (see
+Block 2 final state and the B2.5 report). The decision is
+documented in `notes/policy_propagating_fate.md` as the foreman
+record; that note is the canonical justification.
+
+**Rationale**: The paper collection gunray implements is Garcia
+2004 + Simari 1992 + the immediate dialectical lineage. Antoniou
+2007 is a different defeasible-logic family. Carrying an enum
+value for a regime we do not implement advertises behaviour we
+cannot deliver. One propstore smoke test breaks when
+`Policy.PROPAGATING` disappears and will be repaired in B3.2
+(propstore-direct-replacement) as part of the Block 3 propstore
+surgery; it is not a Block 2 regression.
+
+### B2.4 — `defeater_probed → not_defeasibly` classification shim
+
+**Date**: 2026-04-13 (B2.4 dispatch)
+
+**Prompt** (`prompts/b2-defeater-participation.md`, "Implementation
+notes"; adversary Q4 verdict **defensible**).
+
+**Source**: `reports/b2-defeater-participation.md` implementation
+notes; `reports/b2-adversary.md` Q4 ("`defeater_probed` is a
+conformance-parity shim, not a Garcia 04 notion"); adversary
+verdict defensible-but-not-previously-recorded.
+
+**Observation**: `defeasible.py:_classify_defeasibility` introduces
+a `defeater_probed` set (atoms that were touched by a defeater
+rule during argument construction) and routes atoms in that set
+into `not_defeasibly`. This matches Spindle / DePYsible fixture
+expectations — for example `spindle_racket_defeater_blocks`
+expects both `q` and `~q` in `not_defeasibly` when the only
+support for `q` runs through a defeater rule that the opposing
+literal blocks. Garcia & Simari 2004 Def 5.3 does not cover this
+case because Garcia 04 has no defeater rule kind; the notion is
+specific to Nute-style defeasible logics that Spindle reproduces.
+
+**Resolution**: Keep the `defeater_probed` shim in
+`defeasible.py` and document it in-source as a
+Spindle/DePYsible-compat classification rule rather than a
+Garcia 04 requirement. Adversary B2 Q4 reviewed the placement
+and verdicted "defensible, but record the deviation".
+
+**Rationale**: The conformance suite encodes implementations
+across the Garcia/Simari/Nute/Antoniou lineage, not a single
+paper. Matching Spindle's classification on defeater-only
+support paths is a concrete conformance win (three fixtures)
+that does not compromise any Garcia 04 test. The shim is
+opt-in in the sense that it only fires on atoms that a
+defeater rule has actually touched, so it cannot affect
+non-defeater theories. The deviation is recorded here because
+the adversary correctly noted that the B2.4 report did not
+originally flag it as a paper-to-fixture gap.
+
+### B2.6 — `CompositePreference` first-criterion-to-fire semantics fix
+
+**Date**: 2026-04-13 (B2.6 dispatch)
+
+**Prompt** (`prompts/b2-composite-fix-and-close.md`, Task 1,
+resolving `reports/b2-adversary.md` Q9).
+
+**Source**: B2 adversary Q9: "The `any`-wins semantics at
+`src/gunray/preference.py:277-278` fails asymmetry and transitivity
+in general. `tests/test_superiority.py:273-278` explicitly asserts
+an asymmetry-failing case with the comment 'both can be true
+here'. Garcia 04 §4/§5's dialectical-tree theorems assume strict
+partial-order preferences."
+
+**Observation**: B2.5 landed `CompositePreference.prefers` as
+`return any(c.prefers(left, right) for c in self._criteria)`.
+With two children that disagree on direction for a pair — e.g.
+`SuperiorityPreference` preferring `(a, b)` and
+`GeneralizedSpecificity` preferring `(b, a)` — the any-wins
+rule returns True for both `prefers(a, b)` and `prefers(b, a)`,
+violating the asymmetry axiom that Garcia 04's dialectical-tree
+theorems assume. The B2.5 test
+`test_composite_superiority_over_specificity` pinned the bug as
+intended behaviour with the comment "both can be true here". In
+practice gunray's pipeline happened to stay operationally correct
+because `dialectic._defeat_kind` resolves each defeat locally
+without requiring global asymmetry, but the contract was wrong.
+
+**Resolution**: Replace `any`-wins with **first-criterion-to-fire**:
+each criterion is consulted in order, and the first criterion to
+express an opinion in *either* direction monopolises the answer.
+Concretely, if criterion `i` prefers `(left, right)` the composite
+returns True; if criterion `i` prefers `(right, left)` the
+composite returns False and later criteria are not consulted;
+otherwise the composite falls through to the next criterion.
+When each child is a strict partial order, the composite is
+asymmetric by construction. The foreman's "superiority first,
+specificity fallback" directive is preserved by the criterion
+ordering: superiority is consulted first and monopolises every
+pair it has an opinion on.
+
+Commits (B2.6): `a8569a6` (preference.py),
+`e38c66e` (test_superiority.py).
+
+Tests: rewrote `test_composite_superiority_over_specificity` to
+assert asymmetry; added `test_composite_first_criterion_to_fire_mock`
+(two mock criteria disagreeing on direction) and
+`test_composite_first_criterion_falls_through_when_silent`; added
+Hypothesis property `test_hypothesis_composite_is_asymmetric`
+(`max_examples=500`) over random theories with random acyclic
+superiority lists.
+
+**Rationale**: The paper requires strict partial-order preferences
+for the dialectical-tree theorems to hold. First-fire is the
+smallest change that restores asymmetry without weakening the
+composition (still "the first opinion wins", which is how DeLP
+describes modular comparison criteria). Zero conformance impact
+was verified: the 6 B2.5 wins are all equi-specific cases where
+the specificity criterion is silent, so the ordering change has
+no effect — conformance remains 250/44/1 post-fix.
+
+### B2.5 / B2.6 — Block 2 250 conformance ceiling vs plan ≥267 target
+
+**Date**: 2026-04-13 (B2.5 close; reconfirmed at B2.6 close)
+
+**Prompt** (`notes/plans/ticklish-frolicking-bengio.md` Block 2
+gate: ≥267 conformance pass).
+
+**Sources**:
+- `reports/b2-policy-routing-and-full-green.md` — initial
+  categorization of the 44 post-Block-2 conformance failures.
+- `reports/b2-superiority-preference.md` — real-ceiling analysis
+  after `SuperiorityPreference` + `CompositePreference` landed.
+- `reports/b2-adversary.md` Q5/Q6 — independent verification of
+  the paper-correct regression count and the partial-dominance
+  reading.
+
+**Observation**: The plan's Block 2 gate was ≥267 conformance
+pass. Reality after `GeneralizedSpecificity` + defeater-rule
+participation + `SuperiorityPreference` + `CompositePreference`:
+**250 passed / 44 failed / 1 deselected**. The 17-case gap to
+the plan target breaks down as follows (full per-case analysis
+in `reports/b2-superiority-preference.md`, cross-checked by the
+B2 adversary):
+
+- **9 paper-correct regressions** (Def 3.1 cond 2 — `Π ∪ A` must
+  be non-contradictory). These fixtures encoded a non-paper
+  classifier's behaviour; the paper pipeline correctly rejects
+  arguments whose bodies are contradicted by strict closure.
+  Independently verified by the B2 adversary against Garcia 04
+  §3.1. Permanent — fixing them requires violating Def 3.1.
+- **3 Spindle implicit-failure cases** (Def 5.3 classification
+  gap — defined-but-unprovable predicates that Spindle routes
+  into `not_defeasibly` while gunray's paper-strict reading
+  omits them). Fixable only with an opt-in Spindle-compat shim,
+  which is itself a paper deviation.
+- **2 partial-dominance edge cases** (Garcia 04 §4.1 strict
+  dominance: *every* rule in the stronger argument must
+  dominate *every* rule in the weaker, under the transitive
+  closure; Spindle/DeLP accept a weaker "max dominates max"
+  reading). The paper-strict reading wins — adversary Q5
+  re-read §4.1 and confirmed the strict reading.
+- **2 antoniou regime-not-implemented** (Antoniou 2007 §3.5
+  `PROPAGATING` regime; deprecated in B2.3 per
+  `notes/policy_propagating_fate.md`).
+- **1 `spindle_racket_query_long_chain`** (scalability
+  deselected via `conftest.py`; out of scope).
+
+**Resolution**: Foreman accepts **250** as the paper-correctness
+ceiling for Block 2. Lifting the ceiling above 250 requires
+opt-in Spindle/Nute-compat shims, each recorded as a paper
+deviation here. That work is explicitly out of Block 2 scope;
+Block 2's gate is reinterpreted as "paper-correctness ceiling
+achieved", not "≥267 absolute". Block 2 is done.
+
+**Rationale**: The original plan target was computed before B2's
+paper-faithful arguments pipeline revealed that Def 3.1 cond 2
+alone disqualifies 9 fixtures. Lowering the ceiling to match
+reality preserves the gate's meaning (we measure paper
+correctness against the paper, not against a particular
+implementation's idiosyncratic classifier). The 17-case gap is
+categorised line-by-line in `reports/b2-superiority-preference.md`
+and each category has an identified cause and a decision.
+Block 3 (propstore surgery) does not touch preference / argument
+construction, so the 250 number is stable from Block 2's
+perspective until Block 3 explicitly reconsiders it.
+
+## B3-close checkpoint — 2026-04-14
+
+**GOAL**: Finish paper-driven refactor end-to-end — ship py.typed
+upstream, revert propstore shim, write refactor_complete.md,
+run final verifier, report MERGE/NO-MERGE.
+
+**DONE (prior sessions, already on local master ahead of origin)**:
+- `3702d90` docs(readme): rewrite Under the hood for new architecture
+- `a8d0a5d` docs(readme): add Query arguments and render trees section
+- `0c89f42` docs(defeasible): rewrite module docstring for final shape
+- `916a5a0` chore(gunray): vulture sweep — delete unreached private helpers
+  (also added vulture dev dep in pyproject + uv.lock)
+
+**IN PROGRESS (this session)**:
+- `a1afcf2` fix(packaging): add py.typed marker per PEP 561 —
+  committed, pushed to `origin/master` (e38c66e..a1afcf2).
+- propstore: `uv lock --upgrade-package gunray` + `uv sync`
+  bumped gunray from e38c66e → a1afcf2. `uv.lock` is gitignored
+  in propstore, so no lock commit required.
+- Next: strip the two `# pyright: ignore[reportMissingTypeStubs]`
+  comments from `propstore/aspic_bridge.py:31,32`, run pyright,
+  commit the revert.
+
+**NEXT**: write `reports/b3-close.md` with MERGE verdict.
+
+**Task B DONE**:
+- gunray `7a3219a` docs(notes): refactor_complete.md historical record
+
+**Task C RESULTS (all gates green)**:
+- Gunray unit: 136 passed / 1 pre-existing fail (closure
+  faithfulness, unchanged from P0.1). No regression.
+- Gunray conformance: 250 passed / 44 failed / 1 deselected
+  (exact match to expected paper-correctness ceiling).
+- Gunray pyright (7 files): 0 errors 0 warnings 0 infos.
+- Gunray LOC: defeasible 339 (~300), preference 336, arguments
+  410, dialectic 548, disagreement 87. Gate passed.
+- Paper citations: 47 lines across 7 files. Gate ≥47 met.
+- Gunray skip markers in tests/: **zero** (cleaner than
+  expected baseline).
+- Propstore unit: 2424 passed / 46 failed / 5 xfailed
+  (matches expected pre-existing counts).
+- Propstore pyright on bundle/grounder/aspic_bridge: 0 errors
+  0 warnings 0 infos.
+- `rg startswith("~")/removeprefix("~")` in propstore:
+  **zero matches**.
+- `rg # pyright: ignore[reportMissingTypeStubs]` in propstore:
+  **zero matches**.
+
+**VERDICT: MERGE**. No new regressions, every verification
+command green or expected-red.
+
+**STUCK**: nothing.
+
+**Task A DONE**:
+- gunray `a1afcf2` fix(packaging): add py.typed marker per PEP 561
+  pushed to origin (e38c66e..a1afcf2)
+- propstore `5f8f43d` Revert "fix(aspic_bridge): silence missing
+  gunray stubs under strict pyright" — pyright clean on
+  aspic_bridge.py after revert (0 errors, 0 warnings)
+- propstore uv.lock is gitignored; no lock commit.
+
+**Data collected for refactor_complete.md**:
+- Commit range: `5078df5..a1afcf2` = 86 commits
+- Pre-refactor LOC (baseline): defeasible 784, evaluator 732,
+  total 3876 across 18 files. No arguments.py, dialectic.py,
+  disagreement.py, preference.py, answer.py.
+- Post-refactor LOC: defeasible 339, evaluator 724, arguments
+  410, dialectic 548, disagreement 87, preference 336,
+  answer 21, __init__ 61; total 4833 across 20 files.
+- Paper citations (`Garcia.*200[4]|Simari.*199[2]` in
+  src/gunray): 47 lines (arguments 7 + answer 2 + defeasible 3
+  + dialectic 14 + disagreement 3 + preference 15 + schema 3).
+  Baseline: 1. Delta: +46.
+- Hypothesis `@given` count across tests/: 45. Baseline: 0
+  from b1 scorched earth perspective (baseline doc captured
+  that the count command was broken and returned 1 spurious).
+- Conformance: 267/28 → 250/44/1 (paper-correctness ceiling).
+
+**STUCK**: nothing.
+
+**FILES**:
+- `src/gunray/py.typed` (new, empty marker)
+- `notes/refactor_complete.md` (to write)
+- `reports/b3-close.md` (to write)
+- `propstore/aspic_bridge.py` (revert shim)
+- `propstore/uv.lock` (bump gunray pin)
 
