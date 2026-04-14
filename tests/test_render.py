@@ -1,0 +1,71 @@
+"""Tests for ``gunray.dialectic.render_tree`` — Unicode tree renderer.
+
+``render_tree`` is a pure deterministic Unicode debugger for
+``DialecticalNode``; it is not a paper definition but a deliberate
+engineering promotion per the B1.5 dispatch brief. Every node shows
+its argument's conclusion, rule ids (sorted), and its ``mark`` per
+Garcia & Simari 2004 Procedure 5.1.
+"""
+
+from __future__ import annotations
+
+from gunray.arguments import Argument, build_arguments
+from gunray.dialectic import DialecticalNode, build_tree, render_tree
+from gunray.preference import TrivialPreference
+from gunray.schema import DefeasibleTheory, Rule
+from gunray.types import GroundAtom
+
+
+def _ga(predicate: str, *args: str) -> GroundAtom:
+    return GroundAtom(predicate=predicate, arguments=tuple(args))
+
+
+def _tweety_theory() -> DefeasibleTheory:
+    return DefeasibleTheory(
+        facts={"bird": {("tweety",), ("opus",)}, "penguin": {("opus",)}},
+        strict_rules=[Rule(id="s1", head="bird(X)", body=["penguin(X)"])],
+        defeasible_rules=[
+            Rule(id="r1", head="flies(X)", body=["bird(X)"]),
+            Rule(id="r2", head="~flies(X)", body=["penguin(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
+def _direct_nixon_theory() -> DefeasibleTheory:
+    return DefeasibleTheory(
+        facts={"republican": {("nixon",)}, "quaker": {("nixon",)}},
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="r1", head="~pacifist(X)", body=["republican(X)"]),
+            Rule(id="r2", head="pacifist(X)", body=["quaker(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
+def _find_argument(theory: DefeasibleTheory, conclusion: GroundAtom) -> Argument:
+    for arg in build_arguments(theory):
+        if arg.conclusion == conclusion:
+            return arg
+    raise LookupError(f"no argument for {conclusion}")
+
+
+def test_render_leaf_node() -> None:
+    """A childless ``DialecticalNode`` renders to a single line containing
+    the conclusion, the sorted rule-id list, and the ``(U)`` marker per
+    Garcia & Simari 2004 Procedure 5.1 (leaves mark ``U``)."""
+    theory = _tweety_theory()
+    flies_tweety = _find_argument(theory, _ga("flies", "tweety"))
+    tree = build_tree(flies_tweety, TrivialPreference(), theory)
+    assert tree.children == ()
+    rendered = render_tree(tree)
+    lines = rendered.splitlines()
+    assert len(lines) == 1
+    assert "flies(tweety)" in lines[0]
+    assert "r1" in lines[0]
+    assert "(U)" in lines[0]
