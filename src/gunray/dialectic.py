@@ -80,9 +80,13 @@ def counter_argues(
     The deleted ``_find_blocking_peer`` never descended; that is the
     whole point of this refactor.
     """
-    # Root-only attack — simplest passing case for Fig 2 left.
     strict_rules = _theory_strict_rules(theory)
-    return disagrees(attacker.conclusion, target.conclusion, strict_rules)
+    for sub in build_arguments(theory):
+        if not is_subargument(sub, target):
+            continue
+        if disagrees(attacker.conclusion, sub.conclusion, strict_rules):
+            return True
+    return False
 
 
 def proper_defeater(
