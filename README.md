@@ -39,23 +39,34 @@ is supposed to behave. The suite is the spec; Gunray is a readable
 implementation you can run against it. If a case and the engine disagree,
 one of them is wrong and the test run says which.
 
-Under the hood, Gunray is a semi-naive Datalog core with stratified negation,
-a defeasible layer implementing both ambiguity-blocking and
-ambiguity-propagating semantics, and a closure engine covering rational,
-lexicographic, and relevant closure (plus KLM `Or`) for the fragment the
-suite exercises. The closure engine is intentionally narrow: it handles only
-the zero-arity propositional fragment and rejects defeaters, superiority,
-and explicit conflict sets at that path. Everything non-trivial — defeaters,
-superiority, conflict sets, higher-arity literals — goes through the full
-defeasible evaluator instead.
+Under the hood, `DefeasibleEvaluator` runs the Garcia & Simari 2004 §5
+pipeline verbatim. `build_arguments` enumerates first-class `Argument`
+structures `⟨A, h⟩` per Def 3.1 (derivation, non-contradiction, minimality).
+For each argument, `build_tree` constructs the dialectical tree of Def 5.1
+while enforcing the Def 4.7 acceptable-argumentation-line conditions
+(concordance of the supporting and interfering sets, sub-argument
+exclusion, and the block-on-block ban) during construction. `mark`
+post-orders the tree under Procedure 5.1, and a literal is classified by
+the four-valued `answer` of Def 5.3 — `YES` / `NO` / `UNDECIDED` /
+`UNKNOWN` — projected into the `definitely` / `defeasibly` /
+`not_defeasibly` / `undecided` sections that `DefeasibleModel` exposes.
+Preference between conflicting arguments is
+`CompositePreference(SuperiorityPreference, GeneralizedSpecificity)`:
+explicit user-supplied priority pairs (Garcia 04 §4.1) are consulted
+first, with generalized specificity (Simari 92 Lemma 2.4) as the
+fallback, composed under first-criterion-to-fire semantics so the
+composite is still a strict partial order. `render_tree` is a Unicode
+debugger you can point at any dialectical tree when you want to see
+exactly why a literal was warranted, blocked, or left undecided.
 
-The defeasible evaluator is also intentionally narrower than full DeLP/ASPIC
-style structured argumentation. Its rule comparison uses a strict-body specificity
-heuristic, not full DeLP/ASPIC-style dialectical argument comparison, and its
-defeat check is a direct live-attacker blocker rather than a full argument-tree
-warrant procedure. That is a deliberate contract surface, not an implicit claim
-that `gunray/defeasible.py` implements the full Simari-Loui 1992 specificity and
-defeat machinery.
+Strict-only theories (no defeasible rules, no defeaters, no superiority)
+take a shortcut around the argument pipeline and run through the
+semi-naive Datalog engine instead, because there is nothing for a
+dialectical tree to chew on. The legacy closure engine in `closure.py`
+— rational, lexicographic, and relevant closure plus KLM `Or` — still
+covers the zero-arity propositional fragment the conformance suite
+exercises, and is kept exactly as it was: a separate path for the
+propositional cases it was built for.
 
 ## Install
 
