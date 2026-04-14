@@ -1,16 +1,31 @@
-"""Defeasible evaluator — paper-pipeline wiring.
+"""Defeasible evaluator — argument / dialectical-tree pipeline.
 
-Garcia & Simari 2004 §5: an argument-based defeasible evaluator
-projecting the dialectical-tree machinery onto the four-key
-``DefeasibleModel.sections`` contract that propstore and the
-conformance suite consume.
+Implements the Garcia & Simari 2004 §5 pipeline verbatim:
 
-Strict-only theories take a shortcut through ``SemiNaiveEvaluator``
-(no defeasible rules, no defeaters, no superiority — nothing for the
-dialectical tree to chew on). Every other theory routes through
-``build_arguments`` (Garcia 04 Def 3.1) → ``build_tree`` (Def 5.1 +
-Def 4.7) → ``mark`` (Proc 5.1) → section projection per the rules
-documented on ``_sections_from_arguments`` below.
+- Argument structures ⟨A, h⟩ (Def 3.1) are enumerated by
+  ``gunray.arguments.build_arguments``.
+- Counter-argument at sub-argument (Def 3.4), proper defeater
+  (Def 4.1), and blocking defeater (Def 4.2) are implemented in
+  ``gunray.dialectic``.
+- Dialectical trees (Def 5.1) are built with the Def 4.7
+  acceptable-argumentation-line conditions (concordance,
+  sub-argument exclusion, block-on-block ban) enforced during
+  construction.
+- U/D marking follows Procedure 5.1.
+- The four-valued answer (Def 5.3) projects into the
+  ``DefeasibleModel.sections`` dict with the four keys
+  ``definitely`` / ``defeasibly`` / ``not_defeasibly`` /
+  ``undecided`` for backwards compatibility with the propstore
+  contract.
+
+The preference criterion is
+``CompositePreference(SuperiorityPreference, GeneralizedSpecificity)``:
+explicit user superiority (Garcia 04 §4.1) takes precedence over
+generalized specificity (Simari 92 Lemma 2.4) via
+first-criterion-to-fire composition.
+
+Strict-only theories route around the argument pipeline via
+``_is_strict_only_theory`` and ``SemiNaiveEvaluator`` for performance.
 """
 
 from __future__ import annotations
