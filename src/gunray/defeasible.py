@@ -124,12 +124,6 @@ def _evaluate_via_argument_pipeline(
     )
     predicates = _theory_predicates(theory)
 
-    # Group every distinct ground conclusion by literal so each atom
-    # is classified exactly once. The prompt explicitly forbids
-    # looping ``answer`` per literal — we already have every argument
-    # and we mark each tree at most once via ``warranted_literals``.
-    conclusions: set[GroundAtom] = {arg.conclusion for arg in arguments}
-
     # Defeater-kind arguments exist in the argument universe (so they
     # can attack in the dialectical tree) but do not warrant anything:
     # a defeater rule is a pure attacker in the Nute/Antoniou reading
@@ -156,6 +150,8 @@ def _evaluate_via_argument_pipeline(
     strict_atoms: set[GroundAtom] = {
         arg.conclusion for arg in arguments if not arg.rules
     }
+    conclusions: set[GroundAtom] = {arg.conclusion for arg in arguments}
+    conclusions.update(complement(atom) for atom in strict_atoms)
 
     # Section projection rules (per the B1.6 prompt verbatim):
     #   strict   = ∃⟨∅, h⟩
@@ -184,7 +180,10 @@ def _evaluate_via_argument_pipeline(
 
         strict = atom in strict_atoms
         yes = atom in warranted
-        no = complement(atom) in warranted
+        no = (
+            complement(atom) in warranted
+            or complement(atom) in strict_atoms
+        )
         # Nute/Antoniou defeater contribution: a defeater rule whose
         # head is ``atom`` or ``complement(atom)`` probes the literal
         # without ever warranting it, and routes both sides of the

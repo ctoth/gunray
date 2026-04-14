@@ -14,6 +14,8 @@ from itertools import combinations
 from .schema import DefeasibleModel, DefeasibleTheory, Policy, Rule
 from .trace import DefeasibleTrace, TraceConfig
 
+World = frozenset[str]
+
 
 @dataclass(frozen=True, slots=True)
 class RankedDefaults:
@@ -245,14 +247,13 @@ def _rational_formula_entails(
 ) -> bool:
     """Morris, Ross, and Meyer 2020 Algorithm 4 (p. 151 / ``page-010.png``)."""
 
-    active_defaults = list(theory.defeasible_rules)
-    for level in ranked.finite_ranks:
-        if not _is_exceptional(theory.strict_rules, active_defaults, antecedent):
-            break
-        level_ids = {rule.id for rule in level}
-        active_defaults = [rule for rule in active_defaults if rule.id not in level_ids]
-
-    return _classically_entails(theory.strict_rules, active_defaults, antecedent, consequent)
+    return _ranked_formula_entails(
+        ranked,
+        theory,
+        antecedent,
+        consequent,
+        score=_rational_score,
+    )
 
 
 def _lexicographic_formula_entails(
@@ -261,20 +262,79 @@ def _lexicographic_formula_entails(
     antecedent: Formula,
     consequent: Formula,
 ) -> bool:
-    """Subset-based symbolic lexicographic closure over ranked defaults.
+    """Morris, Ross, and Meyer 2020 subset-ranking semantics (pp.156-158)."""
 
-    Morris, Ross, and Meyer 2020 describe lexicographic closure as a ranking
-    refinement over the BaseRank partition (pp. 156-158). For Gunray's current
-    zero-arity Horn fragment we can compute the lexicographically preferred
-    default sets directly by keeping, rank by rank, the largest subsets still
-    consistent with the antecedent.
-    """
-
-    preferred_default_sets = _lexicographic_preferred_default_sets(ranked, theory, antecedent)
-    return all(
-        _classically_entails(theory.strict_rules, defaults, antecedent, consequent)
-        for defaults in preferred_default_sets
+    return _ranked_formula_entails(
+        ranked,
+        theory,
+        antecedent,
+        consequent,
+        score=_lexicographic_score,
     )
+
+
+def _ranked_formula_entails(
+    ranked: RankedDefaults,
+    theory: DefeasibleTheory,
+    antecedent: Formula,
+    consequent: Formula,
+    *,
+    score,
+) -> bool:
+    atoms = _atoms_for_rules_and_formulas(
+        [*theory.strict_rules, *theory.defeasible_rules],
+        antecedent,
+        consequent,
+    )
+    strict_rules = list(theory.strict_rules)
+    any_context = False
+    best_score = None
+    countermodel_at_best = False
+
+    def visit(assignment: dict[str, bool]) -> None:
+        nonlocal any_context
+        nonlocal best_score
+        nonlocal countermodel_at_best
+
+        propagated = _propagate_assignment(strict_rules, assignment)
+        if propagated is None:
+            return
+
+        antecedent_status = _formula_status(antecedent, propagated)
+        if antecedent_status is False:
+            return
+
+        unassigned = next((atom for atom in atoms if atom not in propagated), None)
+        if unassigned is not None:
+            for value in (False, True):
+                next_assignment = dict(propagated)
+                next_assignment[unassigned] = value
+                visit(next_assignment)
+            return
+
+        if antecedent_status is not True:
+            return
+
+        any_context = True
+        world: World = frozenset(atom for atom, value in propagated.items() if value)
+        world_score = score(ranked, world)
+        consequent_holds = _formula_holds(world, consequent)
+        if best_score is None or world_score < best_score:
+            best_score = world_score
+            countermodel_at_best = not consequent_holds
+            return
+        if world_score == best_score and not consequent_holds:
+            countermodel_at_best = True
+
+    visit({})
+    if not any_context:
+        return _classically_entails(
+            theory.strict_rules,
+            list(theory.defeasible_rules),
+            antecedent,
+            consequent,
+        )
+    return not countermodel_at_best
 
 
 def _relevant_formula_entails(
@@ -636,6 +696,23 @@ def _formula_branches(formula: Formula) -> tuple[frozenset[str], ...]:
     raise ValueError(f"Unsupported formula kind: {formula.kind}")
 
 
+def _formula_holds(world: World, formula: Formula) -> bool:
+    if formula.kind == "true":
+        return True
+    if formula.kind == "literal":
+        assert formula.literal is not None
+        return _literal_holds(world, formula.literal)
+    if formula.kind == "and":
+        assert formula.left is not None
+        assert formula.right is not None
+        return _formula_holds(world, formula.left) and _formula_holds(world, formula.right)
+    if formula.kind == "or":
+        assert formula.left is not None
+        assert formula.right is not None
+        return _formula_holds(world, formula.left) or _formula_holds(world, formula.right)
+    raise ValueError(f"Unsupported formula kind: {formula.kind}")
+
+
 def _formula_true_in_closure(formula: Formula, closure: set[str]) -> bool:
     if formula.kind == "true":
         return True
@@ -677,6 +754,51 @@ def _conjunction_formula(literals: list[str]) -> Formula:
 
 def _or_formula(left: Formula, right: Formula) -> Formula:
     return Formula(kind="or", left=left, right=right)
+
+
+def _rational_score(ranked: RankedDefaults, world: World) -> int:
+    if any(_violates(world, rule) for rule in ranked.infinite_rank):
+        return len(ranked.finite_ranks) + 1
+
+    worst_rank = -1
+    for index, level in enumerate(ranked.finite_ranks):
+        if any(_violates(world, rule) for rule in level):
+            worst_rank = index
+    return worst_rank + 1
+
+
+def _lexicographic_score(ranked: RankedDefaults, world: World) -> tuple[int, ...]:
+    if any(_violates(world, rule) for rule in ranked.infinite_rank):
+        width = max(len(ranked.finite_ranks), 1)
+        worst = len(ranked.infinite_rank) + sum(len(level) for level in ranked.finite_ranks) + 1
+        return tuple(worst for _ in range(width))
+
+    return tuple(
+        sum(1 for rule in level if _violates(world, rule))
+        for level in reversed(ranked.finite_ranks)
+    )
+
+
+def _world_satisfies_rules(world: World, rules: list[Rule]) -> bool:
+    return all(
+        not _world_satisfies_literals(world, set(rule.body)) or _literal_holds(world, rule.head)
+        for rule in rules
+    )
+
+
+def _world_satisfies_literals(world: World, literals: set[str]) -> bool:
+    return all(_literal_holds(world, literal) for literal in literals)
+
+
+def _literal_holds(world: World, literal: str) -> bool:
+    positive = _positive_atom(literal)
+    if literal.startswith("~"):
+        return positive not in world
+    return positive in world
+
+
+def _violates(world: World, rule: Rule) -> bool:
+    return _world_satisfies_literals(world, set(rule.body)) and not _literal_holds(world, rule.head)
 
 
 def _atoms_to_section(atoms: set[str]) -> dict[str, set[tuple[()]]]:

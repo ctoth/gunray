@@ -95,6 +95,24 @@ def _missing_body_theory() -> DefeasibleTheory:
     )
 
 
+def _strict_complement_theory() -> DefeasibleTheory:
+    """Strict non-flight should force the opposite literal to NO."""
+
+    return DefeasibleTheory(
+        facts={"penguin": {("tweety",)}},
+        strict_rules=[
+            Rule(id="s1", head="bird(X)", body=["penguin(X)"]),
+            Rule(id="s2", head="~flies(X)", body=["penguin(X)"]),
+        ],
+        defeasible_rules=[
+            Rule(id="r1", head="flies(X)", body=["bird(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
 # ---------- Sections projection paper examples ----------------------------
 
 
@@ -187,3 +205,13 @@ def test_missing_body_literal_is_not_defeasibly() -> None:
     # bird(tweety) is a fact and lands in definitely + defeasibly.
     assert ("tweety",) in model.sections["definitely"]["bird"]
     assert ("tweety",) in model.sections["defeasibly"]["bird"]
+
+
+def test_strict_complement_projects_opposite_literal_to_not_defeasibly() -> None:
+    """A strict complement should make the opposite literal NO."""
+
+    evaluator = GunrayEvaluator()
+    model = evaluator.evaluate(_strict_complement_theory(), Policy.BLOCKING)
+
+    assert ("tweety",) in model.sections["definitely"]["~flies"]
+    assert ("tweety",) in model.sections["not_defeasibly"]["flies"]
