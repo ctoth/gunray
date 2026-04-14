@@ -14,7 +14,6 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from gunray.answer import Answer
-from gunray.arguments import build_arguments
 from gunray.dialectic import answer
 from gunray.disagreement import complement
 from gunray.preference import TrivialPreference

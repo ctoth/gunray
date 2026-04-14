@@ -20,11 +20,13 @@ from datalog_conformance.plugin import _load_multi_case_file, get_tests_dir
 from datalog_conformance.schema import Policy, TestCase
 
 from gunray.arguments import build_arguments
-from gunray.conformance_adapter import GunrayConformanceEvaluator
+from gunray.conformance_adapter import GunrayConformanceEvaluator, _translate_theory
 from gunray.dialectic import answer, build_tree, render_tree
 from gunray.preference import TrivialPreference
+from gunray.schema import DefeasibleModel
+from gunray.schema import DefeasibleTheory as GunrayDefeasibleTheory
 from gunray.trace import DefeasibleTrace
-from gunray.types import GroundAtom
+from gunray.types import GroundAtom, Scalar
 
 
 def main() -> int:
@@ -39,18 +41,23 @@ def main() -> int:
     if case.theory is None:
         raise SystemExit("Only theory cases are supported")
 
-    model = None
-    trace = None
+    model: DefeasibleModel | None = None
+    trace: DefeasibleTrace | None = None
     evaluate_error: str | None = None
     if args.engine == "gunray":
         evaluator = GunrayConformanceEvaluator()
         try:
             if args.show_trace:
-                model, trace = evaluator.evaluate_with_trace(
+                raw_model, raw_trace = evaluator.evaluate_with_trace(
                     case.theory, Policy.BLOCKING
                 )
+                model = cast("DefeasibleModel", raw_model)
+                trace = cast("DefeasibleTrace", raw_trace)
             else:
-                model = evaluator.evaluate(case.theory, Policy.BLOCKING)
+                model = cast(
+                    "DefeasibleModel",
+                    evaluator.evaluate(case.theory, Policy.BLOCKING),
+                )
         except NotImplementedError as exc:
             # B1.6 rewires the defeasible path on the evaluator; until
             # then, defeasible theories raise here. The dialectic
@@ -65,7 +72,10 @@ def main() -> int:
         sys.path.insert(0, str(tests_root))
         from depysible_test_support import run_depysible_adapter  # type: ignore[import-not-found]
 
-        model = run_depysible_adapter(case.theory, Policy.BLOCKING)
+        model = cast(
+            "DefeasibleModel",
+            run_depysible_adapter(case.theory, Policy.BLOCKING),
+        )
 
     # 4-section projection — preserved for backwards compatibility with
     # the pre-B1.5 version of this script.
@@ -102,22 +112,23 @@ def main() -> int:
     # the query literal. Always uses ``TrivialPreference`` — Block-1
     # semantics per the refactor plan.
     criterion = TrivialPreference()
+    native_theory: GunrayDefeasibleTheory = _translate_theory(case.theory)
     queries = _fixture_queries(case)
     if queries:
         print("[dialectic]")
         for literal in queries:
-            result = answer(case.theory, literal, criterion)
+            result = answer(native_theory, literal, criterion)
             print(f"query {literal.predicate}{list(literal.arguments)} -> {result.value}")
             arguments_for_literal = [
                 arg
-                for arg in build_arguments(case.theory)
+                for arg in build_arguments(native_theory)
                 if arg.conclusion == literal
             ]
             if not arguments_for_literal:
                 print("  (no argument for this literal)")
                 continue
             for arg in arguments_for_literal:
-                tree = build_tree(arg, criterion, case.theory)
+                tree = build_tree(arg, criterion, native_theory)
                 rendered = render_tree(tree)
                 for line in rendered.splitlines():
                     print(f"  {line}")
@@ -134,9 +145,9 @@ def _fixture_queries(case: TestCase) -> list[GroundAtom]:
     fixture claims are interesting for this case.
     """
     atoms: list[GroundAtom] = []
-    seen: set[tuple[str, tuple[object, ...]]] = set()
+    seen: set[tuple[str, tuple[Scalar, ...]]] = set()
 
-    def _push(predicate: str, row: tuple[object, ...]) -> None:
+    def _push(predicate: str, row: tuple[Scalar, ...]) -> None:
         key = (predicate, row)
         if key in seen:
             return

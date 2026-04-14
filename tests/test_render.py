@@ -12,7 +12,7 @@ from __future__ import annotations
 from hypothesis import given, settings
 
 from gunray.arguments import Argument, build_arguments
-from gunray.dialectic import DialecticalNode, build_tree, render_tree
+from gunray.dialectic import build_tree, render_tree
 from gunray.preference import TrivialPreference
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom
