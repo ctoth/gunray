@@ -9,11 +9,14 @@ Garcia & Simari 2004 Procedure 5.1.
 
 from __future__ import annotations
 
+from hypothesis import given, settings
+
 from gunray.arguments import Argument, build_arguments
 from gunray.dialectic import DialecticalNode, build_tree, render_tree
 from gunray.preference import TrivialPreference
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom
+from conftest import theory_with_root_argument_strategy
 
 
 def _ga(predicate: str, *args: str) -> GroundAtom:
@@ -118,4 +121,22 @@ def test_render_is_deterministic() -> None:
     theory = _direct_nixon_theory()
     pacifist = _find_argument(theory, _ga("pacifist", "nixon"))
     tree = build_tree(pacifist, TrivialPreference(), theory)
+    assert render_tree(tree) == render_tree(tree)
+
+
+@given(theory_with_root=theory_with_root_argument_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_render_tree_is_deterministic(
+    theory_with_root: tuple[DefeasibleTheory, Argument],
+) -> None:
+    """Property: for any generated dialectical tree, two calls to
+    ``render_tree`` produce byte-identical output.
+
+    ``render_tree`` is documented as pure. Hypothesis sweeps the
+    small-theory space with random roots from ``build_arguments`` to
+    catch any nondeterminism in child ordering, mark recomputation,
+    or rule-id sorting that a hand-authored test might miss.
+    """
+    theory, root = theory_with_root
+    tree = build_tree(root, TrivialPreference(), theory)
     assert render_tree(tree) == render_tree(tree)

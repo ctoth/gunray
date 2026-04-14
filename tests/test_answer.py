@@ -10,7 +10,7 @@ This file covers two surfaces:
 
 from __future__ import annotations
 
-from hypothesis import assume, given, settings
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from gunray.answer import Answer
@@ -208,3 +208,56 @@ def test_answer_preserves_existing_enum_tests() -> None:
     assert Answer("undecided") is Answer.UNDECIDED
     assert Answer("unknown") is Answer.UNKNOWN
     assert len(set(Answer)) == 4
+
+
+# -- Hypothesis properties for ``answer`` (max_examples=500) ----------------
+
+
+@given(theory=small_theory_strategy(), literal=ground_atom_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_answer_is_member_of_enum(
+    theory: DefeasibleTheory,
+    literal: GroundAtom,
+) -> None:
+    """Exhaustiveness: ``answer`` always returns a member of the
+    ``Answer`` enum for any generated theory and literal. Guards
+    against a future implementation falling off the end of Def 5.3's
+    case analysis."""
+    result = answer(theory, literal, TrivialPreference())
+    assert result in Answer
+
+
+@given(theory=small_theory_strategy(), literal=ground_atom_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_answer_is_pure(
+    theory: DefeasibleTheory,
+    literal: GroundAtom,
+) -> None:
+    """Determinism: two calls with the same inputs produce the same
+    output. Guards against caching, nondeterministic hashing, or
+    mutation in the dialectical tree machinery beneath ``answer``."""
+    criterion = TrivialPreference()
+    first = answer(theory, literal, criterion)
+    second = answer(theory, literal, criterion)
+    assert first == second
+
+
+@given(theory=small_theory_strategy(), literal=ground_atom_strategy())
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_answer_yes_implies_complement_no(
+    theory: DefeasibleTheory,
+    literal: GroundAtom,
+) -> None:
+    """Complement consistency: if ``answer(theory, h) == YES`` then
+    ``answer(theory, complement(h)) == NO``. The converse is not
+    necessarily true because the ``UNDECIDED`` case permits the
+    complement to be UNDECIDED when neither literal is warranted but
+    both have arguments.
+
+    Phrased as an unconditional implication ``¬YES ∨ NO`` so
+    Hypothesis does not filter out the majority of generated inputs
+    (most literals on small theories return UNDECIDED or UNKNOWN).
+    """
+    criterion = TrivialPreference()
+    if answer(theory, literal, criterion) is Answer.YES:
+        assert answer(theory, complement(literal), criterion) is Answer.NO
