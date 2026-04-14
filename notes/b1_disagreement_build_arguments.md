@@ -57,3 +57,33 @@ per Garcia 04 Def 3.1 / Simari 92 Def 2.2. Strict TDD, 3+3 disagreement tests,
 
 ### NO BLOCKER
 Moving to red phase of test 1 (disagrees on complementary literals).
+
+## 2026-04-13 checkpoint 2 — disagreement unit tests 1-3 landed
+
+### DONE (this checkpoint)
+- Test 1 (complementary literals): red → green. Commits a4b9815 + 48fd98b.
+  Wrote full `src/gunray/disagreement.py` (complement, strict_closure,
+  disagrees) as minimal green — turned out to handle all 3 cases.
+- Test 2 (unrelated literals): passed immediately. Commit 75d504e as
+  regression guard.
+- Test 3 (strict-rule disagreement via Opus bird/penguin): passed
+  immediately via strict_closure forward-chaining. Needs commit.
+- Baseline test suite: 51 passed, 1 pre-existing unrelated
+  test_closure_faithfulness failure (ranked-closure reference oracle,
+  not touched by this dispatch).
+
+### OBSERVATIONS
+- disagreement.py is ~87 LOC; passes pyright in-process (not yet
+  run explicitly).
+- `strict_closure` ignores non-strict rules by kind — makes it safe
+  to pass a heterogeneous context tuple from build_arguments.
+
+### NEXT
+- Commit test 3 (green-on-first-run is the same pattern as test 2).
+- Extend tests/conftest.py with ground_atom_strategy and strict_rule
+  context strategy.
+- Write 3 Hypothesis properties: symmetry, monotonicity in context,
+  irreflexivity on satisfiable context.
+- Then move to build_arguments tests.
+
+### NO BLOCKER

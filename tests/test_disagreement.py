@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from gunray.disagreement import disagrees
-from gunray.types import GroundAtom
+from gunray.types import GroundAtom, GroundDefeasibleRule
 
 
 def test_disagrees_on_complementary_literals() -> None:
@@ -16,3 +16,17 @@ def test_does_not_disagree_on_unrelated_literals() -> None:
     flies_tweety = GroundAtom(predicate="flies", arguments=("tweety",))
     bird_tweety = GroundAtom(predicate="bird", arguments=("tweety",))
     assert disagrees(flies_tweety, bird_tweety, ()) is False
+
+
+def test_disagrees_via_strict_rule() -> None:
+    penguin_opus = GroundAtom(predicate="penguin", arguments=("opus",))
+    bird_opus = GroundAtom(predicate="bird", arguments=("opus",))
+    not_bird_opus = GroundAtom(predicate="~bird", arguments=("opus",))
+    strict_bird_from_penguin = GroundDefeasibleRule(
+        rule_id="s1",
+        kind="strict",
+        head=bird_opus,
+        body=(penguin_opus,),
+    )
+    context = (strict_bird_from_penguin,)
+    assert disagrees(penguin_opus, not_bird_opus, context) is True
