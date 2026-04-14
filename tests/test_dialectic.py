@@ -182,3 +182,31 @@ def test_nixon_diamond_tree_shape_under_trivial_preference() -> None:
     assert len(tree.children) == 1
     assert tree.children[0].argument == hawk
     assert tree.children[0].children == ()
+
+
+# -- Test 6 — marking on Nixon Diamond (Garcia 04 Proc 5.1). --
+
+
+def test_mark_nixon_diamond_is_defeated() -> None:
+    """Garcia 04 Proc 5.1: the hawk leaf marks ``U`` and the root
+    marks ``D`` — so ``pacifist(nixon)`` is NOT warranted, which is
+    the correct skeptical Nixon answer (Simari 92 §5 p.30)."""
+    theory = _direct_nixon_theory()
+    pacifist = _find_argument(theory, _ga("pacifist", "nixon"))
+    tree = build_tree(pacifist, TrivialPreference(), theory)
+    assert mark(tree.children[0]) == "U"
+    assert mark(tree) == "D"
+
+
+# -- Test 7 — marking on Tweety ``flies(tweety)`` (Garcia 04 Proc 5.1). --
+
+
+def test_mark_tweety_flies_is_undefeated() -> None:
+    """Garcia 04 Proc 5.1: there is no rule producing ``~flies(tweety)``
+    (no strict rule makes tweety a penguin) so the root has no
+    children and marks ``U`` — the query is warranted."""
+    theory = _tweety_theory()
+    flies_tweety = _find_argument(theory, _ga("flies", "tweety"))
+    tree = build_tree(flies_tweety, TrivialPreference(), theory)
+    assert tree.children == ()
+    assert mark(tree) == "U"
