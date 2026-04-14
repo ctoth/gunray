@@ -18,11 +18,15 @@ construction from Garcia & Simari 2004. The public surface here is:
 - ``mark`` (Proc 5.1) — pure post-order marking on the immutable
   tree. Leaves ``→ U``; any ``U`` child ``→ D``; all ``D`` children
   ``→ U`` (reinstatement).
+- ``render_tree`` — pure deterministic Unicode debugger for a
+  ``DialecticalNode``. Not a paper definition; a deliberate
+  engineering promotion per the B1.5 refactor plan so the renderer
+  can visually diagnose Def 4.7 acceptable-line bugs during B1.6.
 
-Explicitly **not** in this module: ``render_tree``, ``answer``, and
-wiring to ``DefeasibleEvaluator`` — those land in B1.5 and B1.6.
-Caching, pruning, or any other optimisation is also out of scope
-(Block 1 is correctness-first).
+Explicitly **not** in this module: ``answer`` (coming later in the
+B1.5 dispatch) and wiring to ``DefeasibleEvaluator`` (that lands in
+B1.6). Caching, pruning, or any other optimisation is also out of
+scope (Block 1 is correctness-first).
 """
 
 from __future__ import annotations
@@ -37,11 +41,12 @@ from .arguments import (
     build_arguments,
     is_subargument,
 )
+from .defeasible import _atom_sort_key
 from .disagreement import complement, disagrees, strict_closure
 from .parser import parse_defeasible_theory
 from .preference import PreferenceCriterion
 from .schema import DefeasibleTheory
-from .types import GroundDefeasibleRule
+from .types import GroundAtom, GroundDefeasibleRule
 
 
 def _theory_strict_rules(
@@ -339,3 +344,91 @@ def mark(node: DialecticalNode) -> Literal["U", "D"]:
     if any(mark(child) == "U" for child in node.children):
         return "D"
     return "U"
+
+
+def _format_atom(atom: GroundAtom) -> str:
+    """Pretty-print a ground atom for the tree renderer.
+
+    ``atom.predicate`` already carries the ``~`` prefix for strong
+    negation (per ``disagreement.complement``). Zero-arity atoms
+    render bare; others render as ``pred(a, b, c)``.
+    """
+    if not atom.arguments:
+        return atom.predicate
+    args = ", ".join(str(arg) for arg in atom.arguments)
+    return f"{atom.predicate}({args})"
+
+
+def _format_rule_ids(argument: Argument) -> str:
+    """Return the sorted rule-id list for an argument's header line."""
+    ids = sorted(rule.rule_id for rule in argument.rules)
+    return "[" + ", ".join(ids) + "]"
+
+
+def _sorted_children(node: DialecticalNode) -> tuple[DialecticalNode, ...]:
+    """Sort children by their argument's conclusion for stable rendering.
+
+    Uses ``defeasible._atom_sort_key`` as the primary key (by
+    ``(predicate, arguments)``) and the sorted rule-id tuple as a
+    secondary key to distinguish distinct arguments that share a
+    conclusion.
+    """
+    return tuple(
+        sorted(
+            node.children,
+            key=lambda child: (
+                _atom_sort_key(child.argument.conclusion),
+                tuple(sorted(rule.rule_id for rule in child.argument.rules)),
+            ),
+        )
+    )
+
+
+def render_tree(node: DialecticalNode) -> str:
+    """Render ``node`` as a deterministic Unicode tree.
+
+    Format::
+
+        conclusion  [rule_id, rule_id, ...]  (U|D)
+        ├─ child_conclusion  [...]  (U|D)
+        │  └─ ...
+        └─ last_child  [...]  (U|D)
+
+    The function is pure and deterministic: given the same input it
+    always produces byte-identical output. Children are sorted via
+    ``defeasible._atom_sort_key`` on their conclusion, with the
+    sorted rule-id tuple as a tiebreaker for distinct arguments
+    sharing a conclusion. ``mark`` is recomputed by calling the pure
+    ``mark(node)`` recursively — repeated recursion is deliberate
+    (Block 1 is correctness-first).
+    """
+    return "\n".join(_render_lines(node))
+
+
+def _render_lines(node: DialecticalNode) -> list[str]:
+    """Return the rendered lines for ``node`` and its descendants.
+
+    The header line is rendered without any prefix; caller-supplied
+    indentation is handled by ``_render_child_lines`` for nested
+    subtrees.
+    """
+    head = f"{_format_atom(node.argument.conclusion)}  {_format_rule_ids(node.argument)}  ({mark(node)})"
+    lines = [head]
+    children = _sorted_children(node)
+    for index, child in enumerate(children):
+        is_last = index == len(children) - 1
+        lines.extend(_render_child_lines(child, is_last))
+    return lines
+
+
+def _render_child_lines(child: DialecticalNode, is_last: bool) -> list[str]:
+    """Render ``child``'s subtree with tree-drawing prefixes."""
+    branch = "└─ " if is_last else "├─ "
+    continuation = "   " if is_last else "│  "
+    child_lines = _render_lines(child)
+    rendered = [branch + child_lines[0]]
+    for line in child_lines[1:]:
+        rendered.append(continuation + line)
+    return rendered
+
+
