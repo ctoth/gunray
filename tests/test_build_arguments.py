@@ -93,3 +93,29 @@ def test_nixon_diamond_has_both_arguments() -> None:
     assert not_pacifist_args, (
         f"no argument for ~pacifist(nixon): {arguments!r}"
     )
+
+
+def test_defeater_kind_cannot_be_argument_conclusion() -> None:
+    """Garcia & Simari 2004 Def 3.6: defeaters do not warrant conclusions.
+
+    A rule with ``kind="defeater"`` participates in defeat lines but
+    cannot itself head an argument. We build a minimal theory with a
+    defeater rule ``d1: banana(X) :- yellow(X)`` whose head appears
+    nowhere else, then assert that no argument in the result concludes
+    ``banana(x)``.
+    """
+
+    theory = DefeasibleTheory(
+        facts={"yellow": {("x",)}},
+        strict_rules=[],
+        defeasible_rules=[],
+        defeaters=[Rule(id="d1", head="banana(X)", body=["yellow(X)"])],
+        superiority=[],
+        conflicts=[],
+    )
+    arguments = build_arguments(theory)
+
+    banana_x = GroundAtom(predicate="banana", arguments=("x",))
+    assert not [a for a in arguments if a.conclusion == banana_x], (
+        f"defeater head surfaced as argument conclusion: {arguments!r}"
+    )
