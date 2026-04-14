@@ -61,3 +61,35 @@ def test_opus_not_flies_argument_exists() -> None:
     raise AssertionError(
         f"no argument for ~flies(opus) was backed by r2: {matching!r}"
     )
+
+
+def _nixon_theory() -> DefeasibleTheory:
+    return DefeasibleTheory(
+        facts={"republican": {("nixon",)}, "quaker": {("nixon",)}},
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="r1", head="~pacifist(X)", body=["republican(X)"]),
+            Rule(id="r2", head="pacifist(X)", body=["quaker(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
+def test_nixon_diamond_has_both_arguments() -> None:
+    """Garcia & Simari 2004 Def 3.1: both sides of Nixon must produce arguments."""
+
+    theory = _nixon_theory()
+    arguments = build_arguments(theory)
+
+    pacifist_nixon = GroundAtom(predicate="pacifist", arguments=("nixon",))
+    not_pacifist_nixon = GroundAtom(predicate="~pacifist", arguments=("nixon",))
+
+    pacifist_args = [a for a in arguments if a.conclusion == pacifist_nixon]
+    not_pacifist_args = [a for a in arguments if a.conclusion == not_pacifist_nixon]
+
+    assert pacifist_args, f"no argument for pacifist(nixon): {arguments!r}"
+    assert not_pacifist_args, (
+        f"no argument for ~pacifist(nixon): {arguments!r}"
+    )
