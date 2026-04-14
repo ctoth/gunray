@@ -22,11 +22,16 @@ construction from Garcia & Simari 2004. The public surface here is:
   ``DialecticalNode``. Not a paper definition; a deliberate
   engineering promotion per the B1.5 refactor plan so the renderer
   can visually diagnose Def 4.7 acceptable-line bugs during B1.6.
+- ``answer`` (Def 5.3) — four-valued warrant query: ``YES`` if
+  ``literal`` is warranted (some argument for ``literal`` roots a
+  tree marked ``U``), ``NO`` if its complement is warranted,
+  ``UNDECIDED`` if neither is warranted but at least one argument
+  exists for ``literal`` or its complement, ``UNKNOWN`` if
+  ``literal``'s predicate does not appear in the theory's language.
 
-Explicitly **not** in this module: ``answer`` (coming later in the
-B1.5 dispatch) and wiring to ``DefeasibleEvaluator`` (that lands in
-B1.6). Caching, pruning, or any other optimisation is also out of
-scope (Block 1 is correctness-first).
+Explicitly **not** in this module: wiring to ``DefeasibleEvaluator``
+— that lands in B1.6. Caching, pruning, or any other optimisation is
+also out of scope (Block 1 is correctness-first).
 """
 
 from __future__ import annotations
@@ -34,6 +39,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from .answer import Answer
 from .arguments import (
     Argument,
     _fact_atoms,
@@ -431,4 +437,102 @@ def _render_child_lines(child: DialecticalNode, is_last: bool) -> list[str]:
         rendered.append(continuation + line)
     return rendered
 
+
+def _theory_predicates(theory: DefeasibleTheory) -> frozenset[str]:
+    """Return the set of predicate names appearing in ``theory``'s language.
+
+    Garcia & Simari 2004 Def 5.3 UNKNOWN case: a literal ``h`` whose
+    predicate does not appear in the language of the program returns
+    ``UNKNOWN``. The language is the set of predicates mentioned in
+    the facts and in the heads and bodies of strict rules, defeasible
+    rules, and defeaters. Strong-negation prefixes are stripped so
+    ``p`` and ``~p`` live in the same language cell.
+    """
+    _facts, defeasible_rules, _conflicts = parse_defeasible_theory(theory)
+    predicates: set[str] = set(theory.facts.keys())
+    for rule in defeasible_rules:
+        predicates.add(_strip_negation(rule.head.predicate))
+        for atom in rule.body:
+            predicates.add(_strip_negation(atom.predicate))
+    return frozenset(predicates)
+
+
+def _strip_negation(predicate: str) -> str:
+    """Return ``predicate`` with its strong-negation ``~`` prefix removed."""
+    if predicate.startswith("~"):
+        return predicate[1:]
+    return predicate
+
+
+def _is_warranted(
+    literal: GroundAtom,
+    arguments: frozenset[Argument],
+    criterion: PreferenceCriterion,
+    theory: DefeasibleTheory,
+) -> bool:
+    """Return True iff some ``⟨A, literal⟩`` has a tree that marks ``U``.
+
+    Garcia & Simari 2004 Def 5.3: ``literal`` is *warranted* iff
+    there exists an argument for it whose dialectical tree
+    (Def 5.1 + Def 4.7) is marked ``U`` at the root under
+    Procedure 5.1.
+    """
+    for arg in arguments:
+        if arg.conclusion != literal:
+            continue
+        tree = build_tree(arg, criterion, theory)
+        if mark(tree) == "U":
+            return True
+    return False
+
+
+def answer(
+    theory: DefeasibleTheory,
+    literal: GroundAtom,
+    criterion: PreferenceCriterion,
+) -> Answer:
+    """Garcia & Simari 2004 Definition 5.3 — four-valued DeLP answer.
+
+    - ``YES`` if ``literal`` is warranted from ``theory`` (there
+      exists an argument ``⟨A, literal⟩`` whose marked dialectical
+      tree has root ``U``).
+    - ``NO`` if ``complement(literal)`` is warranted.
+    - ``UNDECIDED`` if neither is warranted but at least one
+      argument exists for ``literal`` or its complement.
+    - ``UNKNOWN`` if the predicate of ``literal`` (with strong
+      negation stripped) does not appear in the language of
+      ``theory``.
+
+    Under ``TrivialPreference`` (Block 1) nothing is proper, every
+    counter-argument is a blocking defeater, and the dialectical
+    tree structure together with Procedure 5.1 marking determines
+    the answer. Real specificity arrives in Block 2 via
+    ``GeneralizedSpecificity``.
+    """
+    arguments = build_arguments(theory)
+
+    if _is_warranted(literal, arguments, criterion, theory):
+        return Answer.YES
+
+    opposite = complement(literal)
+    if _is_warranted(opposite, arguments, criterion, theory):
+        return Answer.NO
+
+    has_argument_for_either = any(
+        arg.conclusion == literal or arg.conclusion == opposite
+        for arg in arguments
+    )
+    if has_argument_for_either:
+        return Answer.UNDECIDED
+
+    predicates = _theory_predicates(theory)
+    literal_predicate = _strip_negation(literal.predicate)
+    complement_predicate = _strip_negation(opposite.predicate)
+    if (
+        literal_predicate not in predicates
+        and complement_predicate not in predicates
+    ):
+        return Answer.UNKNOWN
+
+    return Answer.UNDECIDED
 
