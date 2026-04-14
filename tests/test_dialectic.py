@@ -152,3 +152,33 @@ def test_proper_defeater_under_mock_preference() -> None:
     # The dispreferred direction is neither proper nor a blocker
     # *towards* a strictly better opponent — it's the strict loser.
     assert not proper_defeater(flies, not_flies, criterion, theory)
+
+
+# -- Test 5 — Nixon Diamond tree shape (Garcia 04 Def 5.1 + Def 4.7). --
+
+
+def test_nixon_diamond_tree_shape_under_trivial_preference() -> None:
+    """Garcia 04 Def 5.1 with Def 4.7 cond 3 and cond 4.
+
+    ``direct_nixon`` has two defeasible rules::
+        r1: ~pacifist(X) :- republican(X).
+        r2:  pacifist(X) :- quaker(X).
+    Under ``TrivialPreference`` both sides are blocking defeaters of
+    each other. The tree rooted at ``⟨{r2}, pacifist(nixon)⟩``:
+
+    - the root has exactly one child, ``⟨{r1}, ~pacifist(nixon)⟩``
+      (the hawk argument);
+    - the hawk node has **no** children because the only candidate
+      counter-attack is the pacifist argument again, which is a
+      sub-argument of the root (violating Def 4.7 cond 3) AND would
+      be a blocking defeater of a blocking defeater (violating cond
+      4).
+    """
+    theory = _direct_nixon_theory()
+    pacifist = _find_argument(theory, _ga("pacifist", "nixon"))
+    hawk = _find_argument(theory, _ga("~pacifist", "nixon"))
+    tree = build_tree(pacifist, TrivialPreference(), theory)
+    assert tree.argument == pacifist
+    assert len(tree.children) == 1
+    assert tree.children[0].argument == hawk
+    assert tree.children[0].children == ()
