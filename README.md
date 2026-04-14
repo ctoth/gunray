@@ -124,6 +124,60 @@ Defeasible traces carry each proof attempt, its final classification
 and attacked it, and the atoms in conflict. For theories with no defeasible
 content, you get the strict Datalog trace in its place.
 
+## Query arguments and render trees
+
+When you want a single literal classified rather than the full model, go
+straight to the Garcia & Simari 2004 four-valued `answer` and, if you want
+to see the shape of the dialectical tree behind it, `render_tree`:
+
+```python
+from gunray import (
+    DefeasibleTheory, Rule, Policy,
+    GunrayEvaluator,
+    Answer, answer, build_arguments,
+    build_tree, mark, render_tree,
+)
+from gunray.preference import GeneralizedSpecificity
+from gunray.types import GroundAtom
+
+theory = DefeasibleTheory(
+    facts={"bird": {("tweety",), ("opus",)}, "penguin": {("opus",)}},
+    strict_rules=[Rule(id="r0", head="bird(X)", body=["penguin(X)"])],
+    defeasible_rules=[
+        Rule(id="r1", head="flies(X)",  body=["bird(X)"]),
+        Rule(id="r2", head="~flies(X)", body=["penguin(X)"]),
+    ],
+)
+
+# The four-section model projection (Def 5.3) — same content as above.
+model = GunrayEvaluator().evaluate(theory, Policy.BLOCKING)
+assert ("tweety",) in model.sections["defeasibly"]["flies"]
+assert ("opus",) in model.sections["defeasibly"]["~flies"]
+
+# Or query literal-by-literal.
+criterion = GeneralizedSpecificity(theory)
+flies_tweety = GroundAtom(predicate="flies", arguments=("tweety",))
+flies_opus   = GroundAtom(predicate="flies", arguments=("opus",))
+assert answer(theory, flies_tweety, criterion) is Answer.YES
+assert answer(theory, flies_opus,   criterion) is Answer.NO
+
+# And render the tree behind a specific argument.
+for arg in build_arguments(theory):
+    if arg.conclusion == flies_tweety:
+        tree = build_tree(arg, criterion, theory)
+        print(render_tree(tree))
+        assert mark(tree) == "U"  # warranted
+        break
+```
+
+`Answer.YES` means the literal is warranted (its dialectical tree marks
+`U` under Procedure 5.1), `Answer.NO` means the complement is warranted,
+`Answer.UNDECIDED` means arguments exist on both sides and neither wins,
+and `Answer.UNKNOWN` means the predicate is not in the language of the
+theory. `render_tree` returns a Unicode string suitable for pasting into
+logs or test failure messages; it is how the defeasible evaluator's
+internals become legible when a case disagrees with your intuition.
+
 ## Running the tests
 
 Local unit suite:
