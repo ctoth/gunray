@@ -69,3 +69,53 @@ def test_render_leaf_node() -> None:
     assert "flies(tweety)" in lines[0]
     assert "r1" in lines[0]
     assert "(U)" in lines[0]
+
+
+def test_render_tweety_opus_tree_snapshot() -> None:
+    """Snapshot of the dialectical tree rooted at ``⟨{r1@opus}, flies(opus)⟩``.
+
+    Scout Section 5.1 Tweety theory: opus is a penguin, so
+    ``~flies(opus)`` is a blocking defeater of ``flies(opus)`` under
+    ``TrivialPreference``. The root marks ``D``; the child marks
+    ``U``. The exact byte-for-byte string below is the renderer's
+    contract — changes require a deliberate update to this snapshot.
+    """
+    theory = _tweety_theory()
+    flies_opus = _find_argument(theory, _ga("flies", "opus"))
+    tree = build_tree(flies_opus, TrivialPreference(), theory)
+    expected = (
+        "flies(opus)  [r1]  (D)\n"
+        "└─ ~flies(opus)  [r2]  (U)"
+    )
+    assert render_tree(tree) == expected
+
+
+def test_render_nixon_diamond_tree_snapshot() -> None:
+    """Snapshot of the Nixon Diamond tree rooted at ``⟨{r2}, pacifist(nixon)⟩``.
+
+    Scout Section 5.2 direct Nixon theory: Garcia & Simari 2004
+    Def 5.1 + Def 4.7 give a single-child tree — the pacifist root
+    marks ``D`` and the hawk leaf marks ``U``. Def 4.7 cond 3 and
+    cond 4 together prevent any grandchild.
+    """
+    theory = _direct_nixon_theory()
+    pacifist = _find_argument(theory, _ga("pacifist", "nixon"))
+    tree = build_tree(pacifist, TrivialPreference(), theory)
+    expected = (
+        "pacifist(nixon)  [r2]  (D)\n"
+        "└─ ~pacifist(nixon)  [r1]  (U)"
+    )
+    assert render_tree(tree) == expected
+
+
+def test_render_is_deterministic() -> None:
+    """``render_tree`` is pure — two calls on the same node are byte-identical.
+
+    This is a guard against any future caching / mutation / hash
+    nondeterminism leaking into the renderer. The prompt names it
+    explicitly as a dedicated unit test and as a Hypothesis property.
+    """
+    theory = _direct_nixon_theory()
+    pacifist = _find_argument(theory, _ga("pacifist", "nixon"))
+    tree = build_tree(pacifist, TrivialPreference(), theory)
+    assert render_tree(tree) == render_tree(tree)
