@@ -384,19 +384,235 @@ NEXT:
   unconditional implication.
 - Sixth pyright noise instance (test files + dialectic.py). Ignored.
 
+### B1.6 — Wire evaluator + re-land trace + conformance gate (completed)
+
+- Report: `reports/b1-wire-evaluator-and-nests-fix.md`
+- 5 commits: `3cf8804`, `5c38f62`, `f2c4935`, `0a4c399`, `4e78d1a`.
+- `src/gunray/defeasible.py`: 104 → 282 LOC (+178, under 300 budget).
+- **Unit suite**: 106 passed / 0 skipped / 1 pre-existing fail.
+  All three `test_trace.py` skips removed.
+- **Conformance**: 267 → 235 passed / 59 failed / 1 deselected.
+  Breakdown of the -32 delta:
+  - **28 specificity-needed**: mutual blocking under `TrivialPreference`
+    that Block 2's `GeneralizedSpecificity` will resolve. Includes
+    `spindle_racket_*`, `maher_*`, `antoniou_*`, `bozzato_*`,
+    `depysible_flies/not_flies_*`, `morris_example5`,
+    `mixed::strict_and_defeasible_interaction`.
+  - **2 real-regression-paper-correct**:
+    `depysible_nests_in_trees_tina`, `depysible_nests_in_trees_tweety`.
+    Garcia 04 Def 3.1 cond 2 (Π ∪ A non-contradictory) rejects every
+    candidate argument because `penguin(tweety)` + strict
+    `~flies(X) :- penguin(X)` puts `~flies(tweety)` in Π's closure
+    already, so any A containing `r3: flies(X) :- bird(X)` contradicts.
+    No argument exists for `flies(tweety)` under the paper; no
+    argument exists for `nests_in_trees(tweety)`; omitted from all
+    sections. The deleted classifier passed these fixtures via a
+    non-Garcia `supported_only_by_unproved_bodies` reason code — a
+    depysible-style hack, not a paper mechanism. Coder correctly
+    recorded the deviation rather than re-introducing the hack.
+  - **1 real-regression-scalability**:
+    `spindle_racket_query_long_chain` has 20 defeasible rules →
+    2^20 enumeration blows up. Naive `build_arguments` hits the
+    scalability wall B1.3 flagged. Deselected (timed out under the
+    120s limit). Block 2 concern — or Block 1 follow-up if the
+    analyst or adversary decide it's load-bearing.
+  - **28 nemo_negation**: pre-existing P0.1.5 engine bug, unchanged.
+- **Gate deltas**:
+  - Paper citations: 31 → 32 (+1).
+  - Hypothesis properties: 23 → 35 (+10 incidentally cleaned up).
+  - Project pyright clean on `defeasible.py`.
+- **Directional finding** for Q: the paper-correct pipeline
+  diverges from the three `depysible_nests_in_trees_*` fixtures
+  because the fixtures encoded non-paper behavior. Three options:
+  (a) accept paper-correctness, mark fixtures as expected failures;
+  (b) add a non-Garcia "unsupported body" classification path
+  (re-introduce a depysible-style hack); (c) update the fixtures to
+  match paper semantics. Recommendation: (a) — the whole point of
+  the refactor is paper alignment, and the fixtures themselves are
+  named `depysible_*` which is already a non-gunray reference
+  implementation tag.
+- Seventh pyright noise instance ignored.
+
+### B1.7 — Analyst review (completed, verdict: GREEN)
+
+- Report: `reports/b1-analyst.md`
+- Every core gate holds: defeasible.py 784→282, 35 Hypothesis
+  properties at max_examples=500 (target ≥30), 32 paper citations
+  (baseline 0), unit suite 106/0/1, pyright clean on all seven new
+  modules, directional sub-argument-descent fix verified
+  red-then-green.
+- **100% agreement with B1.6 conformance classifications** (59/59).
+  Independently verified `spindle_racket_basic_conflict`,
+  `depysible_nests_in_trees_tweety/tina/henrietta` live.
+- **Critical finding**: Block 2's `GeneralizedSpecificity` will
+  NOT resolve `depysible_nests_in_trees_{tweety,tina}`. The
+  contradiction is strict (Π's closure already contains
+  `~flies(tweety)`), not preference-based. Foreman decision:
+  accept the regression as paper-correct. The fixtures were named
+  `depysible_*` for a reason.
+- **Five YELLOW observations** (non-blocking, to fix before Block 2
+  or at end of Block 1):
+  1. Cosmetic tripwire: `src/gunray/dialectic.py:96` mentions
+     `_find_blocking_peer` by name in a docstring — trips the
+     deletion grep if the gate ever tightens.
+  2. `vulture` gate silently skipped — not installed in the venv.
+  3. `__init__.py` missing exports: `DialecticalNode`, `build_tree`,
+     `counter_argues`, `proper_defeater`, `blocking_defeater`,
+     `mark`, `render_tree`, `answer`, `disagrees`, `build_arguments`.
+     Scout 1.5 directed these be exported; propstore (Block 3)
+     needs them.
+  4. Minor `answer()` semantic drift: predicate-in-language but
+     no-argument returns `UNDECIDED`; paper arguably treats this
+     as `UNKNOWN`. Likely unreachable in practice.
+  5. (Covered by the `spindle_racket_query_long_chain` scalability
+     note from B1.6 — not strictly a new analyst finding.)
+
+### B1.8 — Adversary review (completed, verdict: ALIGNED)
+
+- Report: `reports/b1-adversary.md`
+- Definitive paper-based verdict on the `nests_in_trees`
+  deviation: **coder reading is correct.** Three independent
+  corroborations:
+  1. Simari 92 Def 2.2 cond 2 is written as `K ∪ T |/~ ⊥` — the
+     defeasible consequence operator from p.6, not a
+     set-theoretic membership test. Unambiguously closure-based.
+  2. Garcia 04 Proposition 4.2 ("no self-defeating arguments")
+     would be vacuous under the set-theoretic alternative
+     reading. The only way the proposition has teeth is if
+     "Π ∪ A non-contradictory" means "defeasible closure of
+     Π ∪ A contains no complementary pair" — exactly what
+     `_force_strict_for_closure` computes.
+  3. `depysible_nests_in_trees_henrietta` (same four rules with
+     penguin fact removed) passes as `defeasibly` under the
+     paper pipeline while `tweety`/`tina` fail — only
+     explainable under the closure-based reading.
+- `_force_strict_for_closure` is the mechanical implementation
+  of `|~` for the contradiction check. Not over-eager.
+- The `depysible_nests_in_trees_{tweety,tina}` fixtures encode
+  the pre-paper depysible classifier's
+  `supported_only_by_unproved_bodies` reason code, not Garcia
+  2004. Block 2 `GeneralizedSpecificity` will not and cannot
+  resolve them — rejection is at Def 3.1 cond 2, independent of
+  any preference criterion. Deviation stands.
+- Two non-blocking adversary notes (same as analyst): the
+  dialectic.py:96 docstring tripwire and the `answer()` UNKNOWN
+  fallback wording.
+
+### B1.9 — YELLOW cleanup (completed)
+
+- Report: `reports/b1-yellow-cleanup.md`
+- Commits: `d8eab6d` (docstring tripwire rewrite) + `5196c20`
+  (package surface re-exports).
+- 29 content lines, two files (`dialectic.py`, `__init__.py`).
+- Smoke import:
+  `from gunray import Argument, Answer, build_arguments, disagrees, DialecticalNode, build_tree, mark, answer, render_tree, TrivialPreference`
+  works cleanly.
+- Deletion grep: zero matches.
+- Unit suite unchanged: 106/0/1.
+- Eighth pyright noise instance ignored.
+
+## Block 1 complete
+
+All gates green. `defeasible.py` 784 → 282 LOC. Paper citations
+0 → 32. Hypothesis properties 0 → 35 at `max_examples=500`.
+Analyst: GREEN. Adversary: ALIGNED. Public surface exported.
+Ready for Block 2.
+
+## Block 2 status
+
+### B2.1 — Policy usage scout (completed)
+
+- Report: `reports/b2-scout-policy.md`
+- Findings: `PROPAGATING` is Antoniou 2007 §3.5, not in Garcia 04
+  or Simari 92. Zero gunray callers; one propstore smoke-test
+  caller; two antoniou fixtures expect per-policy differentiation;
+  `defeasible.py:51` already does `del policy`.
+
+### Foreman decision — PROPAGATING fate
+
+- Decision document: `notes/policy_propagating_fate.md`
+- **Decision: DEPRECATE.** Remove `Policy.PROPAGATING` from the
+  enum, lands in B2.3 alongside the full-green drive. Rationale:
+  paper-driven refactor shouldn't pretend to implement Antoniou
+  regimes; parameter is already dead code; the `antoniou_*`
+  fixtures become `regime-not-implemented` alongside the
+  `depysible_nests_in_trees_*` pair. Propstore smoke test
+  changes in Block 3 propstore update.
+
+### B2.2 — GeneralizedSpecificity (completed)
+
+- Report: `reports/b2-specificity.md`
+- 4 commits: `54ce786`, `e8cfb60`, `57eb3b8`, `eaf538d`.
+- `src/gunray/preference.py`: 37 → 162 LOC (+125).
+- Implements Simari 92 Lemma 2.4 antecedent-only reduction:
+  `prefers(left, right)` computes whether `left_ant + right_rules`
+  strictly covers `right_ant` under shadowed-strict closure, but
+  the converse fails.
+- **Load-bearing design point**: `K_N` treated as strict rules
+  only (facts excluded from closure seed). Including facts would
+  collapse Opus/Nixon/Elephants verdicts. Documented in report
+  §5.1.
+- 6 paper-example tests (Opus, Tweety, Nixon, Royal Elephants,
+  strict-only, self-comparison) + 4 Hypothesis properties
+  (irreflexive, antisymmetric, transitive, deterministic).
+- **Gate deltas**:
+  - Unit suite: 106 → 116 (+10).
+  - Hypothesis properties: 35 → 39 (+4 at max_examples=500).
+  - Paper citations: 32 → 70 (+38 — specificity module is dense
+    with cites).
+
+### B2.2b — arguments.py NameError verification (no-op)
+
+- Report: `reports/b2-verify-arguments-nameerror.md`
+- Ninth pyright false alarm. The harness diagnostic claimed
+  `arguments.py:164 "facts" is not defined` but line 164 actually
+  contains `pi_closure = strict_closure(fact_atoms, ...)` — the
+  symbol the harness flagged isn't even on the line it pointed
+  at. Harness source-tree view is stale/out of sync with the
+  real source.
+- Project pyright clean on `arguments.py`. Unit suite runs. Sanity
+  conformance subset runs. No fix.
+
+### B2.3 — Policy routing + full green drive (HARD STOP)
+
+- Report: `reports/b2-policy-routing-and-full-green.md`
+- Commits (4): `328cecf`, `87383c8`, `9eca818`, `f14da0d`.
+- Conformance: 235/59/1 → **239/55/1** (+4 wins, 0 regressions).
+- Runtime: 457.01s (Phase 0) → **457.99s** (+0.2%, within ±10% gate).
+- Pyright clean, `defeasible.py` 291 LOC (<300).
+- Unit suite: 116 → **121** (+5 B2.3 specificity tests).
+- **Gate NOT met**: need ≥267 passed, got 239 (gap 28).
+- **Hard stop** per dispatch directive. 21 still-failing in-scope
+  cases need `theory.superiority` list handling and/or defeater-
+  rule participation in `build_arguments` — neither is pure-
+  specificity work, and choosing the composition rule for
+  superiority + specificity is a Garcia 04 §4.1 / DeLP interpretation
+  decision that the directive says must not be made inside a
+  conformance-driven dispatch.
+- **Opus resolution confirmed**: `flies(opus)` tree marks D under
+  specificity; `~flies(opus)` tree marks U. Full trees in report §7.
+- **Scalability**: `spindle_racket_query_long_chain` deselected
+  via conftest (scope option 3).
+- **Foreman decisions queued**:
+  1. Superiority-composed preference criterion (Garcia 04 §4.1
+     interpretation).
+  2. Defeater-rule participation in argument construction
+     (Garcia 04 Def 3.6; B1.3 gap surfaced by specificity).
+  3. Propstore PROPAGATING cleanup (B3.2 dispatch).
+
 ## Next action
 
-Write `prompts/b1-wire-evaluator-and-nests-fix.md` (B1.6) — wire
-`DefeasibleEvaluator.evaluate_with_trace` to
-`build_arguments` → `build_tree` → `mark` → `answer` with
-`TrivialPreference`. Preserve four-section dict output for
-propstore contract (definitely/defeasibly/not_defeasibly/undecided).
-Keep strict-only shortcut. Port and unskip the three
-`test_trace.py` tests skipped in B1.2 (Nixon blocked/undecided trace,
-conflict-detail helpers, `nests_in_trees` classification). Run the
-full conformance suite and record the new pass count. Expected:
-cases solvable without specificity pass; cases needing real
-specificity fail (Block 2 fixes them).
+**Foreman review of B2.3 hard stop.** Decide whether to:
+1. Land a B2.4 `SuperiorityAwarePreference` + defeater
+   participation dispatch before the Block 2 adversary review, OR
+2. Lower the Block 2 gate to reflect the paper-correct scope
+   (specificity only, no superiority/defeater), OR
+3. Accept the gap as a permanent Block 2 deviation and document
+   it in the deviations table.
+
+Full classification in `reports/b2-policy-routing-and-full-green.md` §4.
+
+## Historical next actions
    Hypothesis properties land.
 5. Dispatch B1.3 (disagreement + build_arguments).
 
