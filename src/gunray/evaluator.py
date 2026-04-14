@@ -434,14 +434,6 @@ def _iter_matches_from(
         _rollback_binding(binding, changes)
 
 
-def _match_positive_body_with_overrides(
-    atoms: tuple[Atom, ...],
-    model: dict[str, IndexedRelation],
-    overrides: dict[int, IndexedRelation],
-) -> list[dict[str, object]]:
-    return list(_iter_positive_body_matches_with_overrides(atoms, model, overrides))
-
-
 def _order_positive_body(
     atoms: tuple[Atom, ...],
     model: dict[str, IndexedRelation],
