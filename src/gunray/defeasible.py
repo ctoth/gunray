@@ -88,13 +88,25 @@ def _evaluate_via_argument_pipeline(
     from .arguments import build_arguments
     from .dialectic import _theory_predicates, build_tree, mark
     from .disagreement import complement
-    from .preference import GeneralizedSpecificity
+    from .preference import (
+        CompositePreference,
+        GeneralizedSpecificity,
+        SuperiorityPreference,
+    )
 
     arguments = build_arguments(theory)
-    # Simari 92 Lemma 2.4 / Garcia 04 Def 3.5 preference criterion.
-    # Instantiated once per call — the constructor grounds the strict
-    # rules and caches them for every subsequent prefers() call.
-    criterion = GeneralizedSpecificity(theory)
+    # Composed preference: Garcia & Simari 2004 §4.1 notes that the
+    # rule priority criterion (explicit ``superiority`` pairs) and
+    # generalized specificity (Lemma 2.4) are modular alternatives.
+    # The B2.5 foreman decision is "explicit user-supplied priority
+    # wins, otherwise fall through to specificity" — encoded as the
+    # any-wins ``CompositePreference``. Both child criteria cache
+    # their per-theory state at construction; the composite itself is
+    # a thin delegator.
+    criterion = CompositePreference(
+        SuperiorityPreference(theory),
+        GeneralizedSpecificity(theory),
+    )
     predicates = _theory_predicates(theory)
 
     # Group every distinct ground conclusion by literal so each atom
