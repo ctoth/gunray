@@ -246,10 +246,6 @@ def theory_with_arguments(
     return theory, args
 
 
-def _pick(draw: st.DrawFn, args: tuple[Argument, ...]) -> Argument:
-    return args[draw(st.integers(min_value=0, max_value=len(args) - 1))]
-
-
 @given(pair=theory_with_arguments(), data=st.data())
 @settings(
     max_examples=500,
@@ -264,7 +260,7 @@ def test_hypothesis_specificity_is_irreflexive(
 
     theory, args = pair
     criterion = GeneralizedSpecificity(theory)
-    a = _pick(data.draw, args)
+    a = args[data.draw(st.integers(min_value=0, max_value=len(args) - 1))]
     assert criterion.prefers(a, a) is False
 
 
@@ -282,8 +278,9 @@ def test_hypothesis_specificity_is_antisymmetric(
 
     theory, args = pair
     criterion = GeneralizedSpecificity(theory)
-    a = _pick(data.draw, args)
-    b = _pick(data.draw, args)
+    idx = st.integers(min_value=0, max_value=len(args) - 1)
+    a = args[data.draw(idx)]
+    b = args[data.draw(idx)]
     assert not (criterion.prefers(a, b) and criterion.prefers(b, a))
 
 
@@ -301,9 +298,10 @@ def test_hypothesis_specificity_is_transitive(
 
     theory, args = pair
     criterion = GeneralizedSpecificity(theory)
-    a = _pick(data.draw, args)
-    b = _pick(data.draw, args)
-    c = _pick(data.draw, args)
+    idx = st.integers(min_value=0, max_value=len(args) - 1)
+    a = args[data.draw(idx)]
+    b = args[data.draw(idx)]
+    c = args[data.draw(idx)]
     if criterion.prefers(a, b) and criterion.prefers(b, c):
         assert criterion.prefers(a, c)
 
@@ -322,8 +320,9 @@ def test_hypothesis_specificity_is_determined(
 
     theory, args = pair
     criterion = GeneralizedSpecificity(theory)
-    a = _pick(data.draw, args)
-    b = _pick(data.draw, args)
+    idx = st.integers(min_value=0, max_value=len(args) - 1)
+    a = args[data.draw(idx)]
+    b = args[data.draw(idx)]
     first = criterion.prefers(a, b)
     second = criterion.prefers(a, b)
     third = GeneralizedSpecificity(theory).prefers(a, b)
