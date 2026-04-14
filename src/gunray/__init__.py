@@ -2,8 +2,19 @@
 
 from .adapter import GunrayEvaluator
 from .answer import Answer
-from .arguments import Argument, is_subargument
+from .arguments import Argument, build_arguments, is_subargument
 from .defeasible import DefeasibleEvaluator
+from .dialectic import (
+    DialecticalNode,
+    answer,
+    blocking_defeater,
+    build_tree,
+    counter_argues,
+    mark,
+    proper_defeater,
+    render_tree,
+)
+from .disagreement import complement, disagrees, strict_closure
 from .evaluator import SemiNaiveEvaluator
 from .preference import PreferenceCriterion, TrivialPreference
 from .schema import DefeasibleModel, DefeasibleTheory, Model, Policy, Program, Rule
@@ -19,11 +30,12 @@ __all__ = [
     "Answer",
     "Argument",
     "ClassificationTrace",
-    "DefeasibleModel",
     "DatalogTrace",
     "DefeasibleEvaluator",
+    "DefeasibleModel",
     "DefeasibleTheory",
     "DefeasibleTrace",
+    "DialecticalNode",
     "GunrayEvaluator",
     "Model",
     "Policy",
@@ -34,5 +46,16 @@ __all__ = [
     "SemiNaiveEvaluator",
     "TraceConfig",
     "TrivialPreference",
+    "answer",
+    "blocking_defeater",
+    "build_arguments",
+    "build_tree",
+    "complement",
+    "counter_argues",
+    "disagrees",
     "is_subargument",
+    "mark",
+    "proper_defeater",
+    "render_tree",
+    "strict_closure",
 ]
