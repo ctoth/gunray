@@ -206,3 +206,34 @@ GOOD. K_N must be strict rules only (no facts).
 4. Write reports/b2-specificity.md.
 5. Final LOC count for preference.py.
 
+## 2026-04-13 dispatch complete
+
+**DONE:**
+- 4 commits landed:
+  - 54ce786 test(specificity): paper-example and Hypothesis property tests (red)
+  - e8cfb60 feat(preference): GeneralizedSpecificity via Simari 92 Lemma 2.4 (green)
+  - 57eb3b8 test(specificity): inline index strategy to satisfy pyright DrawFn protocol
+  - eaf538d docs(b2-specificity): dispatch report and progress notes
+- Full non-conformance suite: 116 passed / 1 pre-existing fail
+  (test_formula_entailment_matches_ranked_world_reference_for_small_theories
+  unchanged from baseline).
+- Pyright clean: 0 errors on preference.py + tests/test_specificity.py.
+- All 4 Hypothesis properties at max_examples=500 converged clean.
+- Report written to reports/b2-specificity.md.
+- preference.py final LOC: 162 (from 37 = +125).
+- Paper citations in src/gunray/: 70 across 6 files (Block 1 had 32 = +38).
+
+**OBSERVED:**
+- K_N as strict-rules-only was load-bearing as predicted. No
+  adjustments needed; the Opus/Elephants/Nixon tests all validated
+  first green.
+- build_arguments refactor (extracting _ground_theory) was a pure
+  behavior-preserving extraction — all 15 arguments/build_arguments
+  tests still pass.
+- Pyright caught one test-file issue with `data.draw` bound-method
+  vs DrawFn protocol; fixed by inlining the index strategy.
+
+**STUCK:** none. B2.2 complete. B2.3 can proceed with wiring
+GeneralizedSpecificity into DefeasibleEvaluator.evaluate.
+
+

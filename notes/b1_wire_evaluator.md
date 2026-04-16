@@ -279,6 +279,50 @@ Pattern: `..........................FF..FF.FF...FFF.F...` (15%) `....F..F..FF...
 ## Pattern
 All non-nemo_negation failures appear to fall into specificity-needed (Block 2) or paper-correct divergence (the 3 nests_in_trees cases). I have NOT seen any "real-regression-other" yet. Will spot-check a few more to confirm.
 
+## DISPATCH COMPLETE
+All deliverables landed. Final state:
+
+### Commits (5 total in B1.6)
+1. `3cf8804` test(defeasible): sections projection for Tweety, Nixon, missing body (red)
+2. `5c38f62` feat(defeasible): wire evaluator to argument pipeline (green)
+3. `f2c4935` test(trace): unskip Nixon and nests_in_trees against new pipeline (green)
+4. `0a4c399` fix(defeasible): typed _supporter_rule_ids, drop getattr fallbacks
+5. `4e78d1a` docs(b1.6): record full conformance numbers after rewire
+
+### LOC
+- defeasible.py: 282 (was 104, +178)
+
+### Conformance delta
+- Baseline (P0.1.5 pre-scorch): 267 passed / 28 failed
+- B1.6 post-wire: 235 passed / 59 failed / 1 deselected of 295
+
+### Failure classification (every case)
+- 28 nemo_negation (pre-existing P0.1.5)
+- 28 specificity-needed (Block 2)
+- 2 real-regression-paper-correct (depysible_nests_in_trees_tina/tweety; recorded as deviation)
+- 1 real-regression-build-arguments-scalability (long_chain, deselected)
+
+### Unit tests
+- 106 passed / 0 skipped / 1 failed (pre-existing closure_faithfulness)
+- 4 new sections projection tests
+- 3 re-landed trace tests
+- ZERO @pytest.mark.skip in test_trace.py
+
+### Pyright
+- defeasible.py: 0 errors
+
+### Hypothesis
+- 35 @given total (was 25 at end of B1.5, +10 from late-B1.5 + B1.6)
+
+### Paper citations
+- 32 (was 31, +1 in defeasible.py docstring)
+
+### Report
+- reports/b1-wire-evaluator-and-nests-fix.md (988 lines, all sections per prompt)
+
+### Deviation recorded
+- notes/refactor_progress.md#deviations: B1.6 — `nests_in_trees(tweety)` paper-rejected, conformance fixture expects undecided
+
 ## Final TODO before report
 - Re-check unit suite to confirm no regression
 - LOC on defeasible.py: 282 (was 104, +178). Within "well under 300" budget
