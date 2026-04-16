@@ -64,9 +64,7 @@ def main() -> int:
     print(f"rules: {len(rules)}")
     print(f"predicates: {len(model)}")
     for stratum_index, predicates in enumerate(strata):
-        stratum_rules = [
-            rule for rule in rules if rule.heads[0].predicate in predicates
-        ]
+        stratum_rules = [rule for rule in rules if rule.heads[0].predicate in predicates]
         print(
             f"stratum {stratum_index}: predicates={sorted(predicates)} rules={len(stratum_rules)}"
         )
@@ -110,16 +108,12 @@ def _instrument_stratum(
                 (atom.predicate, len(model.get(atom.predicate, set())))
                 for atom in rule.positive_body
             ]
-            print(
-                f"rule {index}/{len(rules)}: {rule.source_text} body_counts={body_counts}"
-            )
+            print(f"rule {index}/{len(rules)}: {rule.source_text} body_counts={body_counts}")
             join_started = time.perf_counter()
             bindings = _match_positive_body(rule.positive_body, model)
             join_ms = (time.perf_counter() - join_started) * 1000.0
             if join_ms >= slow_ms:
-                print(
-                    f"slow join {join_ms:.1f}ms bindings={len(bindings)} rule={rule.source_text}"
-                )
+                print(f"slow join {join_ms:.1f}ms bindings={len(bindings)} rule={rule.source_text}")
                 if not run_full:
                     return
 
@@ -146,11 +140,7 @@ def _load_case(name: str, yaml_relpath: str) -> TestCase:
     package_tests_dir = get_tests_dir()
     repo_root = Path(__file__).resolve().parents[1]
     tests_dir = (
-        repo_root.parent
-        / "datalog-conformance-suite"
-        / "src"
-        / "datalog_conformance"
-        / "_tests"
+        repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
     )
     if not tests_dir.exists():
         tests_dir = package_tests_dir
@@ -183,10 +173,7 @@ def _case_program(case: TestCase) -> SchemaProgram:
         )
     return SchemaProgram(
         facts=theory.facts,
-        rules=[
-            _strict_rule_to_program_text(rule.head, rule.body)
-            for rule in theory.strict_rules
-        ],
+        rules=[_strict_rule_to_program_text(rule.head, rule.body) for rule in theory.strict_rules],
     )
 
 

@@ -19,10 +19,9 @@ Block 2+ concern.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import combinations, product
-
-from collections.abc import Mapping
 
 from .disagreement import complement, strict_closure
 from .evaluator import _match_positive_body
@@ -116,9 +115,7 @@ def _ground_theory(theory: SchemaDefeasibleTheory) -> _GroundedTheory:
         for instance in _ground_rule_instances(rule, positive_model)
     )
     grounded_defeasible_rules: tuple[GroundDefeasibleRule, ...] = tuple(
-        instance
-        for rule in body_rules
-        for instance in _ground_rule_instances(rule, positive_model)
+        instance for rule in body_rules for instance in _ground_rule_instances(rule, positive_model)
     )
     grounded_defeater_rules: tuple[GroundDefeasibleRule, ...] = tuple(
         instance
@@ -194,9 +191,7 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
     # Condition (2) needs to be checkable per subset. Compute it using
     # the ground strict rules + the ground rules in the subset (treating
     # defeasible rules like strict rules for the purpose of closure).
-    minimal_for_conclusion: dict[
-        GroundAtom, list[frozenset[GroundDefeasibleRule]]
-    ] = {}
+    minimal_for_conclusion: dict[GroundAtom, list[frozenset[GroundDefeasibleRule]]] = {}
 
     rule_universe = list(grounded_defeasible_rules)
     for size in range(0, len(rule_universe) + 1):
@@ -234,9 +229,7 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
 
                 # This rule_set derives `head` minimally so far. Drop
                 # any previously stored supersets; add rule_set.
-                survivors = [
-                    existing for existing in prior if not (rule_set < existing)
-                ]
+                survivors = [existing for existing in prior if not (rule_set < existing)]
                 survivors.append(rule_set)
                 minimal_for_conclusion[head] = survivors
 
@@ -389,17 +382,10 @@ def _head_only_bindings(
     """
 
     constants = sorted(
-        {
-            value
-            for relation in model.values()
-            for row in relation
-            for value in row
-        },
+        {value for relation in model.values() for row in relation for value in row},
         key=repr,
     )
-    variables = [
-        term.name for term in rule.head.terms if isinstance(term, Variable)
-    ]
+    variables = [term.name for term in rule.head.terms if isinstance(term, Variable)]
     if not variables:
         return [{}]
     if not constants:

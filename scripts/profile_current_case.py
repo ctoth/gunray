@@ -96,10 +96,7 @@ def _profile_stratum(
                 if atom.predicate in stratum_predicates
             ]
             rule_started = time.perf_counter()
-            before_sizes = {
-                predicate: len(rows)
-                for predicate, rows in next_delta.items()
-            }
+            before_sizes = {predicate: len(rows) for predicate, rows in next_delta.items()}
             if recursive_positions:
                 for delta_position in recursive_positions:
                     atom = rule.positive_body[delta_position]
@@ -137,9 +134,7 @@ def _profile_stratum(
             }
             if rule_ms >= slow_ms:
                 live_delta_sizes = {
-                    predicate: len(rows)
-                    for predicate, rows in next_delta.items()
-                    if len(rows)
+                    predicate: len(rows) for predicate, rows in next_delta.items() if len(rows)
                 }
                 print(
                     f"slow rule {rule_ms:.1f}ms"
@@ -162,11 +157,7 @@ def _load_case(name: str, yaml_relpath: str) -> TestCase:
     package_tests_dir = get_tests_dir()
     repo_root = Path(__file__).resolve().parents[1]
     tests_dir = (
-        repo_root.parent
-        / "datalog-conformance-suite"
-        / "src"
-        / "datalog_conformance"
-        / "_tests"
+        repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
     )
     if not tests_dir.exists():
         tests_dir = package_tests_dir

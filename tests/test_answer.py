@@ -10,6 +10,7 @@ This file covers two surfaces:
 
 from __future__ import annotations
 
+from conftest import ground_atom_strategy, small_theory_strategy
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -20,7 +21,6 @@ from gunray.disagreement import complement
 from gunray.preference import GeneralizedSpecificity, TrivialPreference
 from gunray.schema import DefeasibleTheory, Policy, Rule
 from gunray.types import GroundAtom
-from conftest import ground_atom_strategy, small_theory_strategy
 
 
 def _ga(predicate: str, *args: str) -> GroundAtom:

@@ -35,10 +35,7 @@ def _require_suite_support() -> None:
 
 
 def _copy_facts(raw_facts: dict[str, Any]) -> dict[str, list[tuple[Any, ...]]]:
-    return {
-        predicate: [tuple(row) for row in rows]
-        for predicate, rows in raw_facts.items()
-    }
+    return {predicate: [tuple(row) for row in rows] for predicate, rows in raw_facts.items()}
 
 
 def _translate_rule(rule: Any) -> Rule:

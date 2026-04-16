@@ -9,6 +9,7 @@ Garcia & Simari 2004 Procedure 5.1.
 
 from __future__ import annotations
 
+from conftest import theory_with_root_argument_strategy
 from hypothesis import given, settings
 
 from gunray.arguments import Argument, build_arguments
@@ -16,7 +17,6 @@ from gunray.dialectic import build_tree, render_tree
 from gunray.preference import TrivialPreference
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom
-from conftest import theory_with_root_argument_strategy
 
 
 def _ga(predicate: str, *args: str) -> GroundAtom:
@@ -86,10 +86,7 @@ def test_render_tweety_opus_tree_snapshot() -> None:
     theory = _tweety_theory()
     flies_opus = _find_argument(theory, _ga("flies", "opus"))
     tree = build_tree(flies_opus, TrivialPreference(), theory)
-    expected = (
-        "flies(opus)  [r1]  (D)\n"
-        "└─ ~flies(opus)  [r2]  (U)"
-    )
+    expected = "flies(opus)  [r1]  (D)\n└─ ~flies(opus)  [r2]  (U)"
     assert render_tree(tree) == expected
 
 
@@ -104,10 +101,7 @@ def test_render_nixon_diamond_tree_snapshot() -> None:
     theory = _direct_nixon_theory()
     pacifist = _find_argument(theory, _ga("pacifist", "nixon"))
     tree = build_tree(pacifist, TrivialPreference(), theory)
-    expected = (
-        "pacifist(nixon)  [r2]  (D)\n"
-        "└─ ~pacifist(nixon)  [r1]  (U)"
-    )
+    expected = "pacifist(nixon)  [r2]  (D)\n└─ ~pacifist(nixon)  [r1]  (U)"
     assert render_tree(tree) == expected
 
 

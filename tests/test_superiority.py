@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import random
 
+from conftest import small_theory_strategy
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
@@ -25,9 +26,6 @@ from gunray.preference import (
     SuperiorityPreference,
 )
 from gunray.schema import DefeasibleTheory, Rule
-
-from conftest import small_theory_strategy
-
 
 # ---------------------------------------------------------------------------
 # Paper-example theories

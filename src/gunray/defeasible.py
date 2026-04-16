@@ -147,9 +147,7 @@ def _evaluate_via_argument_pipeline(
         arg.conclusion for arg in arguments if _is_defeater_argument(arg)
     }
 
-    strict_atoms: set[GroundAtom] = {
-        arg.conclusion for arg in arguments if not arg.rules
-    }
+    strict_atoms: set[GroundAtom] = {arg.conclusion for arg in arguments if not arg.rules}
     conclusions: set[GroundAtom] = {arg.conclusion for arg in arguments}
     conclusions.update(complement(atom) for atom in strict_atoms)
 
@@ -180,18 +178,13 @@ def _evaluate_via_argument_pipeline(
 
         strict = atom in strict_atoms
         yes = atom in warranted
-        no = (
-            complement(atom) in warranted
-            or complement(atom) in strict_atoms
-        )
+        no = complement(atom) in warranted or complement(atom) in strict_atoms
         # Nute/Antoniou defeater contribution: a defeater rule whose
         # head is ``atom`` or ``complement(atom)`` probes the literal
         # without ever warranting it, and routes both sides of the
         # probe into ``not_defeasibly``. See
         # ``notes/b2_defeater_participation.md``.
-        defeater_touches = (
-            atom in defeater_probed or complement(atom) in defeater_probed
-        )
+        defeater_touches = atom in defeater_probed or complement(atom) in defeater_probed
 
         if strict:
             definitely_atoms.add(atom)
@@ -212,9 +205,7 @@ def _evaluate_via_argument_pipeline(
                 ClassificationTrace(
                     atom=atom,
                     result="not_defeasibly",
-                    reason=(
-                        "complement_warranted" if no else "defeater_probed"
-                    ),
+                    reason=("complement_warranted" if no else "defeater_probed"),
                     attacker_rule_ids=_supporter_rule_ids(complement(atom), arguments),
                     opposing_atoms=(complement(atom),),
                 )
@@ -257,9 +248,7 @@ def _evaluate_via_argument_pipeline(
 
     trace = DefeasibleTrace(config=trace_config)
     trace.definitely = tuple(sorted(definitely_atoms, key=_atom_sort_key))
-    trace.supported = tuple(
-        sorted(definitely_atoms | defeasibly_atoms, key=_atom_sort_key)
-    )
+    trace.supported = tuple(sorted(definitely_atoms | defeasibly_atoms, key=_atom_sort_key))
     trace.classifications = classifications
     trace.proof_attempts = proof_attempts
     return model, trace

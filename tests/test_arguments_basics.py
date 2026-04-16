@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+from conftest import RULE_POOL, arguments_strategy, make_ground_atom
 from hypothesis import given, settings
 
 from gunray.arguments import Argument, is_subargument
-
-from conftest import RULE_POOL, arguments_strategy, make_ground_atom
 
 
 def test_empty_argument_is_hashable_and_equal_to_duplicate() -> None:

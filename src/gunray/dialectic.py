@@ -81,9 +81,7 @@ def _theory_strict_rules(
     return grounded
 
 
-def counter_argues(
-    attacker: Argument, target: Argument, theory: DefeasibleTheory
-) -> bool:
+def counter_argues(attacker: Argument, target: Argument, theory: DefeasibleTheory) -> bool:
     """Garcia & Simari 2004 Definition 3.4.
 
     ``⟨A₁, h₁⟩`` counter-argues ``⟨A₂, h₂⟩`` at literal ``h`` iff
@@ -158,9 +156,7 @@ def blocking_defeater(
     ``⟨A, h⟩ > a1``).
     """
     for sub in _disagreeing_subarguments(attacker, target, theory):
-        if not criterion.prefers(attacker, sub) and not criterion.prefers(
-            sub, attacker
-        ):
+        if not criterion.prefers(attacker, sub) and not criterion.prefers(sub, attacker):
             return True
     return False
 
@@ -308,12 +304,8 @@ def _expand(
         # positions) must each remain concordant with `candidate`
         # added to its appropriate set.
         new_index = len(line)  # position of `candidate` if admitted
-        supporting = [
-            line[i].rules for i in range(len(line)) if i % 2 == 0
-        ]
-        interfering = [
-            line[i].rules for i in range(len(line)) if i % 2 == 1
-        ]
+        supporting = [line[i].rules for i in range(len(line)) if i % 2 == 0]
+        interfering = [line[i].rules for i in range(len(line)) if i % 2 == 1]
         if new_index % 2 == 0:
             supporting.append(candidate.rules)
         else:
@@ -326,9 +318,7 @@ def _expand(
         # All Def 4.7 conditions satisfied — recurse.
         new_line = line + [candidate]
         new_edges = edge_kinds + [kind]
-        children_nodes.append(
-            _expand(candidate, new_line, new_edges, universe, criterion, theory)
-        )
+        children_nodes.append(_expand(candidate, new_line, new_edges, universe, criterion, theory))
 
     return DialecticalNode(argument=current, children=tuple(children_nodes))
 
@@ -418,7 +408,10 @@ def _render_lines(node: DialecticalNode) -> list[str]:
     indentation is handled by ``_render_child_lines`` for nested
     subtrees.
     """
-    head = f"{_format_atom(node.argument.conclusion)}  {_format_rule_ids(node.argument)}  ({mark(node)})"
+    head = (
+        f"{_format_atom(node.argument.conclusion)}  "
+        f"{_format_rule_ids(node.argument)}  ({mark(node)})"
+    )
     lines = [head]
     children = _sorted_children(node)
     for index, child in enumerate(children):
@@ -529,8 +522,7 @@ def answer(
         return Answer.NO
 
     has_argument_for_either = any(
-        arg.conclusion == literal or arg.conclusion == opposite
-        for arg in arguments
+        arg.conclusion == literal or arg.conclusion == opposite for arg in arguments
     )
     if has_argument_for_either:
         return Answer.UNDECIDED
@@ -538,11 +530,7 @@ def answer(
     predicates = _theory_predicates(theory)
     literal_predicate = _strip_negation(literal.predicate)
     complement_predicate = _strip_negation(opposite.predicate)
-    if (
-        literal_predicate not in predicates
-        and complement_predicate not in predicates
-    ):
+    if literal_predicate not in predicates and complement_predicate not in predicates:
         return Answer.UNKNOWN
 
     return Answer.UNDECIDED
-

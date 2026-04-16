@@ -10,15 +10,13 @@ axioms the criterion must satisfy.
 
 from __future__ import annotations
 
+from conftest import small_theory_strategy
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
 from gunray.arguments import Argument, build_arguments
 from gunray.preference import GeneralizedSpecificity
 from gunray.schema import DefeasibleTheory, Rule
-
-from conftest import small_theory_strategy
-
 
 # ---------------------------------------------------------------------------
 # Paper-example theories

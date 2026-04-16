@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import TypeAlias, cast
 
 import yaml
 from datalog_conformance.references import PropositionalClosureEvaluator
 from datalog_conformance.schema import (
     DefeasibleTheory as SuiteTheory,
+)
+from datalog_conformance.schema import (
     Policy as SuitePolicy,
+)
+from datalog_conformance.schema import (
     Rule as SuiteRule,
+)
+from datalog_conformance.schema import (
     TestCase as SuiteCase,
 )
 from hypothesis import given, settings
@@ -30,6 +36,11 @@ _MORRIS_CLOSURE_FILE = (
 )
 
 _ATOMS = ("a", "b", "c")
+RawTheory: TypeAlias = tuple[
+    frozenset[str],
+    tuple[tuple[str, tuple[str, ...]], ...],
+    tuple[tuple[str, tuple[str, ...]], ...],
+]
 _POLICY_PAIRS = (
     (Policy.RATIONAL_CLOSURE, SuitePolicy.RATIONAL_CLOSURE),
     (Policy.LEXICOGRAPHIC_CLOSURE, SuitePolicy.LEXICOGRAPHIC_CLOSURE),
@@ -98,7 +109,7 @@ def test_morris_closure_corpus_matches_ranked_world_reference() -> None:
     data=st.data(),
 )
 def test_formula_entailment_matches_ranked_world_reference_for_small_theories(
-    raw_theory: tuple[frozenset[str], tuple[tuple[str, tuple[str, ...]], ...], tuple[tuple[str, tuple[str, ...]], ...]],
+    raw_theory: RawTheory,
     data: st.DataObject,
 ) -> None:
     """Small-theory closure entailment should match the exact ranked-world reference.
@@ -140,7 +151,7 @@ def test_formula_entailment_matches_ranked_world_reference_for_small_theories(
 @settings(max_examples=30, deadline=None)
 @given(raw_theory=_raw_theory_strategy())
 def test_or_property_matches_ranked_world_reference_for_small_theories(
-    raw_theory: tuple[frozenset[str], tuple[tuple[str, tuple[str, ...]], ...], tuple[tuple[str, tuple[str, ...]], ...]],
+    raw_theory: RawTheory,
 ) -> None:
     """The public Or check should agree with the ranked-world reference.
 
@@ -159,18 +170,14 @@ def test_or_property_matches_ranked_world_reference_for_small_theories(
         assert actual is expected
 
 
-def _build_theories(
-    raw_theory: tuple[frozenset[str], tuple[tuple[str, tuple[str, ...]], ...], tuple[tuple[str, tuple[str, ...]], ...]],
-) -> tuple[DefeasibleTheory, SuiteTheory]:
+def _build_theories(raw_theory: RawTheory) -> tuple[DefeasibleTheory, SuiteTheory]:
     facts, strict_rules, defeasible_rules = raw_theory
     return _to_gunray_theory_from_raw(
         facts, strict_rules, defeasible_rules
     ), _to_suite_theory_from_raw(facts, strict_rules, defeasible_rules)
 
 
-def _atoms_for_raw_theory(
-    raw_theory: tuple[frozenset[str], tuple[tuple[str, tuple[str, ...]], ...], tuple[tuple[str, tuple[str, ...]], ...]],
-) -> tuple[str, ...]:
+def _atoms_for_raw_theory(raw_theory: RawTheory) -> tuple[str, ...]:
     facts, strict_rules, defeasible_rules = raw_theory
     atoms = set(facts)
     for head, body in (*strict_rules, *defeasible_rules):
@@ -211,7 +218,8 @@ def _to_gunray_theory(theory: SuiteTheory) -> DefeasibleTheory:
             Rule(id=rule.id, head=rule.head, body=list(rule.body)) for rule in theory.strict_rules
         ],
         defeasible_rules=[
-            Rule(id=rule.id, head=rule.head, body=list(rule.body)) for rule in theory.defeasible_rules
+            Rule(id=rule.id, head=rule.head, body=list(rule.body))
+            for rule in theory.defeasible_rules
         ],
         defeaters=[],
         superiority=[],

@@ -59,14 +59,9 @@ class SemiNaiveEvaluator:
         actual_trace_config = trace_config or TraceConfig()
         trace = DatalogTrace(config=actual_trace_config)
 
-        model = {
-            predicate: IndexedRelation(rows)
-            for predicate, rows in facts.items()
-        }
+        model = {predicate: IndexedRelation(rows) for predicate, rows in facts.items()}
         for predicates in strata:
-            stratum_rules = [
-                rule for rule in rules if rule.heads[0].predicate in predicates
-            ]
+            stratum_rules = [rule for rule in rules if rule.heads[0].predicate in predicates]
             _evaluate_stratum(model, stratum_rules, trace, actual_trace_config)
 
         return Model(
@@ -138,26 +133,17 @@ def _evaluate_stratum(
         trace.strata.append(stratum_trace)
 
     delta = {
-        predicate: IndexedRelation(
-            model.get(predicate, IndexedRelation()).as_set()
-        )
+        predicate: IndexedRelation(model.get(predicate, IndexedRelation()).as_set())
         for predicate in stratum_predicates
     }
     first_iteration = True
     iteration_number = 0
     while first_iteration or any(delta_relation for delta_relation in delta.values()):
         iteration_number += 1
-        next_delta = {
-            predicate: IndexedRelation()
-            for predicate in stratum_predicates
-        }
+        next_delta = {predicate: IndexedRelation() for predicate in stratum_predicates}
         iteration_trace = IterationTrace(
             iteration=iteration_number,
-            delta_sizes={
-                predicate: len(rows)
-                for predicate, rows in delta.items()
-                if len(rows)
-            },
+            delta_sizes={predicate: len(rows) for predicate, rows in delta.items() if len(rows)},
         )
         stratum_trace.iterations.append(iteration_trace)
         previous_only = {
@@ -453,11 +439,7 @@ def _order_positive_body(
             remaining.remove(preferred)
 
     while remaining:
-        ready = [
-            item
-            for item in remaining
-            if _expression_variables_in_atom(item[1]) <= bound_vars
-        ]
+        ready = [item for item in remaining if _expression_variables_in_atom(item[1]) <= bound_vars]
         if not ready:
             ready = remaining
         chosen = min(

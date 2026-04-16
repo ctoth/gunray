@@ -48,9 +48,7 @@ def main() -> int:
         evaluator = GunrayConformanceEvaluator()
         try:
             if args.show_trace:
-                raw_model, raw_trace = evaluator.evaluate_with_trace(
-                    case.theory, Policy.BLOCKING
-                )
+                raw_model, raw_trace = evaluator.evaluate_with_trace(case.theory, Policy.BLOCKING)
                 model = cast("DefeasibleModel", raw_model)
                 trace = cast("DefeasibleTrace", raw_trace)
             else:
@@ -120,9 +118,7 @@ def main() -> int:
             result = answer(native_theory, literal, criterion)
             print(f"query {literal.predicate}{list(literal.arguments)} -> {result.value}")
             arguments_for_literal = [
-                arg
-                for arg in build_arguments(native_theory)
-                if arg.conclusion == literal
+                arg for arg in build_arguments(native_theory) if arg.conclusion == literal
             ]
             if not arguments_for_literal:
                 print("  (no argument for this literal)")
@@ -179,11 +175,7 @@ def _load_case(name: str, yaml_relpath: str) -> TestCase:
     package_tests_dir = get_tests_dir()
     repo_root = Path(__file__).resolve().parents[1]
     tests_dir = (
-        repo_root.parent
-        / "datalog-conformance-suite"
-        / "src"
-        / "datalog_conformance"
-        / "_tests"
+        repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
     )
     if not tests_dir.exists():
         tests_dir = package_tests_dir

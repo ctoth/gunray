@@ -8,13 +8,18 @@ old `2^n` world enumeration path while keeping the existing Formula/test API.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from itertools import combinations
+from typing import TypeVar
 
 from .schema import DefeasibleModel, DefeasibleTheory, Policy, Rule
 from .trace import DefeasibleTrace, TraceConfig
+from .types import GroundAtom
 
 World = frozenset[str]
+RankScore = int | tuple[int, ...]
+RankScoreT = TypeVar("RankScoreT", int, tuple[int, ...])
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +29,9 @@ class RankedDefaults:
     atoms: tuple[str, ...]
     finite_ranks: tuple[tuple[Rule, ...], ...]
     infinite_rank: tuple[Rule, ...]
+
+
+ScoreFunction = Callable[[RankedDefaults, World], RankScoreT]
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,8 +138,7 @@ def _ensure_propositional(theory: DefeasibleTheory) -> None:
         for row in rows:
             if tuple(row) != ():
                 raise ValueError(
-                    "Closure evaluator expects zero-arity facts, "
-                    f"got {predicate}{tuple(row)!r}"
+                    f"Closure evaluator expects zero-arity facts, got {predicate}{tuple(row)!r}"
                 )
     for collection in (theory.strict_rules, theory.defeasible_rules):
         for rule in collection:
@@ -161,9 +168,7 @@ def _ranked_defaults(theory: DefeasibleTheory) -> RankedDefaults:
     while remaining:
         active_rules: list[Rule] = [*theory.strict_rules, *remaining]
         current_rank_items = [
-            rule
-            for rule in remaining
-            if _branch_satisfiable(frozenset(rule.body), active_rules)
+            rule for rule in remaining if _branch_satisfiable(frozenset(rule.body), active_rules)
         ]
         current_rank = tuple(current_rank_items)
         if not current_rank:
@@ -279,7 +284,7 @@ def _ranked_formula_entails(
     antecedent: Formula,
     consequent: Formula,
     *,
-    score,
+    score: ScoreFunction[RankScoreT],
 ) -> bool:
     atoms = _atoms_for_rules_and_formulas(
         [*theory.strict_rules, *theory.defeasible_rules],
@@ -288,7 +293,7 @@ def _ranked_formula_entails(
     )
     strict_rules = list(theory.strict_rules)
     any_context = False
-    best_score = None
+    best_score: RankScoreT | None = None
     countermodel_at_best = False
 
     def visit(assignment: dict[str, bool]) -> None:
@@ -350,9 +355,7 @@ def _relevant_formula_entails(
         if not _is_exceptional(theory.strict_rules, active_defaults, antecedent):
             break
         active_defaults = [
-            rule
-            for rule in active_defaults
-            if rule.id not in relevant_ids or rule not in level
+            rule for rule in active_defaults if rule.id not in relevant_ids or rule not in level
         ]
 
     return _classically_entails(theory.strict_rules, active_defaults, antecedent, consequent)
@@ -429,8 +432,7 @@ def _minimal_relevant_rule_ids(
         for subset in combinations(defaults, size):
             subset_ids = {rule.id for rule in subset}
             if any(
-                {rule.id for rule in existing}.issubset(subset_ids)
-                for existing in justifications
+                {rule.id for rule in existing}.issubset(subset_ids) for existing in justifications
             ):
                 continue
             if not _is_exceptional(theory.strict_rules, list(subset), antecedent):
@@ -441,9 +443,7 @@ def _minimal_relevant_rule_ids(
     for justification in justifications:
         min_rank = min(_rule_rank(ranked, rule) for rule in justification)
         relevant_ids.update(
-            rule.id
-            for rule in justification
-            if _rule_rank(ranked, rule) == min_rank
+            rule.id for rule in justification if _rule_rank(ranked, rule) == min_rank
         )
     return relevant_ids
 
@@ -805,9 +805,7 @@ def _atoms_to_section(atoms: set[str]) -> dict[str, set[tuple[()]]]:
     return {atom: {()} for atom in sorted(atoms)}
 
 
-def _ground_atoms_from_literals(literals: set[str]) -> list[object]:
-    from .types import GroundAtom
-
+def _ground_atoms_from_literals(literals: set[str]) -> list[GroundAtom]:
     return [GroundAtom(predicate=literal, arguments=()) for literal in sorted(literals)]
 
 

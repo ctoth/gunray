@@ -9,7 +9,6 @@ from gunray.arguments import Argument
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom, GroundDefeasibleRule
 
-
 # Conformance scalability-out-of-scope cases.
 #
 # ``spindle_racket_query_long_chain`` has 20 defeasible rules in a
@@ -25,8 +24,7 @@ from gunray.types import GroundAtom, GroundDefeasibleRule
 # to treat as default-corpus health checks.
 _CONFORMANCE_DESELECTED = frozenset(
     {
-        "defeasible/basic/spindle_racket_query_integration"
-        "::spindle_racket_query_long_chain",
+        "defeasible/basic/spindle_racket_query_integration::spindle_racket_query_long_chain",
         "defeasible/strict_only/strict_only_recursion_souffle_example_hmmer"
         "::strict_only_souffle_hmmer_CPtrLoad",
         "recursion/souffle_example_hmmer::souffle_hmmer_CPtrLoad",
@@ -69,10 +67,7 @@ _CONFORMANCE_SKIPPED: dict[str, str] = {
         "Unsupported Spindle projection: gunray does not classify defined-but-unprovable "
         "rule heads into not_defeasibly when no argument exists on either side."
     ),
-    (
-        "defeasible/basic/spindle_racket_query_tests"
-        "::spindle_racket_query_missing_premise_theory"
-    ): (
+    ("defeasible/basic/spindle_racket_query_tests::spindle_racket_query_missing_premise_theory"): (
         "Unsupported Spindle projection: gunray does not classify defined-but-unprovable "
         "rule heads into not_defeasibly when no argument exists on either side."
     ),
@@ -81,10 +76,7 @@ _CONFORMANCE_SKIPPED: dict[str, str] = {
         "Section 4.1 requires every rule in the stronger argument to dominate every "
         "rule in the weaker argument."
     ),
-    (
-        "defeasible/basic/spindle_racket_test_theories"
-        "::spindle_racket_penguin_exception"
-    ): (
+    ("defeasible/basic/spindle_racket_test_theories::spindle_racket_penguin_exception"): (
         "Unsupported partial-dominance superiority reading: Garcia & Simari 2004 "
         "Section 4.1 requires every rule in the stronger argument to dominate every "
         "rule in the weaker argument."
@@ -101,9 +93,7 @@ def _has_param_id(item: pytest.Item, param_id: str) -> bool:
     return f"[{param_id}]" in item.nodeid
 
 
-def pytest_collection_modifyitems(
-    config: pytest.Config, items: list[pytest.Item]
-) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Deselect or skip conformance cases outside gunray's public contract.
 
     Matches on the parametrize id substring so we do not depend on

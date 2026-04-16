@@ -7,18 +7,17 @@ from __future__ import annotations
 
 from itertools import combinations
 
+from conftest import small_theory_strategy
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from gunray.answer import Answer
-from gunray.arguments import Argument, build_arguments
+from gunray.arguments import build_arguments
 from gunray.dialectic import answer
-from gunray.disagreement import disagrees, strict_closure
+from gunray.disagreement import strict_closure
 from gunray.preference import GeneralizedSpecificity
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom, GroundDefeasibleRule
-
-from conftest import small_theory_strategy
 
 
 def _tweety_theory() -> DefeasibleTheory:
@@ -50,9 +49,7 @@ def test_tweety_flies_argument_exists() -> None:
         grounded_rule_ids = {rule.rule_id for rule in arg.rules}
         if "r1" in grounded_rule_ids:
             return
-    raise AssertionError(
-        f"no argument for flies(tweety) was backed by r1: {matching!r}"
-    )
+    raise AssertionError(f"no argument for flies(tweety) was backed by r1: {matching!r}")
 
 
 def test_opus_not_flies_argument_exists() -> None:
@@ -69,9 +66,7 @@ def test_opus_not_flies_argument_exists() -> None:
         grounded_rule_ids = {rule.rule_id for rule in arg.rules}
         if "r2" in grounded_rule_ids:
             return
-    raise AssertionError(
-        f"no argument for ~flies(opus) was backed by r2: {matching!r}"
-    )
+    raise AssertionError(f"no argument for ~flies(opus) was backed by r2: {matching!r}")
 
 
 def _nixon_theory() -> DefeasibleTheory:
@@ -101,9 +96,7 @@ def test_nixon_diamond_has_both_arguments() -> None:
     not_pacifist_args = [a for a in arguments if a.conclusion == not_pacifist_nixon]
 
     assert pacifist_args, f"no argument for pacifist(nixon): {arguments!r}"
-    assert not_pacifist_args, (
-        f"no argument for ~pacifist(nixon): {arguments!r}"
-    )
+    assert not_pacifist_args, f"no argument for ~pacifist(nixon): {arguments!r}"
 
 
 def test_defeater_rule_emits_one_rule_argument() -> None:
@@ -137,9 +130,7 @@ def test_defeater_rule_emits_one_rule_argument() -> None:
 
     banana_x = GroundAtom(predicate="banana", arguments=("x",))
     matching = [a for a in arguments if a.conclusion == banana_x]
-    assert matching, (
-        f"no defeater-argument for banana(x) in {arguments!r}"
-    )
+    assert matching, f"no defeater-argument for banana(x) in {arguments!r}"
     for arg in matching:
         assert any(r.rule_id == "d1" for r in arg.rules), (
             f"argument for banana(x) not backed by d1: {arg!r}"
@@ -332,8 +323,7 @@ def test_hypothesis_build_arguments_is_monotonic_in_facts(
     extended_arguments = build_arguments(extended)
 
     assert base_arguments <= extended_arguments, (
-        f"fact monotonicity violated: "
-        f"missing={base_arguments - extended_arguments!r}"
+        f"fact monotonicity violated: missing={base_arguments - extended_arguments!r}"
     )
 
 
@@ -394,9 +384,7 @@ def test_hypothesis_defeater_rules_never_warrant_by_answer(
     arguments = build_arguments(theory)
 
     defeater_arguments = [
-        arg
-        for arg in arguments
-        if any(rule.kind == "defeater" for rule in arg.rules)
+        arg for arg in arguments if any(rule.kind == "defeater" for rule in arg.rules)
     ]
     if not defeater_arguments:
         return
@@ -406,8 +394,7 @@ def test_hypothesis_defeater_rules_never_warrant_by_answer(
         non_defeater_args_for_atom = [
             arg
             for arg in arguments
-            if arg.conclusion == atom
-            and not any(rule.kind == "defeater" for rule in arg.rules)
+            if arg.conclusion == atom and not any(rule.kind == "defeater" for rule in arg.rules)
         ]
         result = answer(theory, atom, criterion)
         if result is Answer.YES:

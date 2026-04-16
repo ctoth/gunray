@@ -213,9 +213,7 @@ def test_defeasible_trace_marks_supported_but_unproved_body_as_undecided() -> No
     # land in defeasibly, definitely, or not_defeasibly.
     defeasibly = model.sections.get("defeasibly", {}).get("nests_in_trees", set())
     definitely = model.sections.get("definitely", {}).get("nests_in_trees", set())
-    not_defeasibly = model.sections.get("not_defeasibly", {}).get(
-        "nests_in_trees", set()
-    )
+    not_defeasibly = model.sections.get("not_defeasibly", {}).get("nests_in_trees", set())
     assert ("tweety",) not in defeasibly
     assert ("tweety",) not in definitely
     assert ("tweety",) not in not_defeasibly
@@ -315,10 +313,13 @@ def test_datalog_trace_property_find_rule_fires_matches_manual_filter(
         if fire.head_predicate == head_predicate and fire.derived_count >= minimum_count
     )
 
-    assert trace.find_rule_fires(
-        head_predicate=head_predicate,
-        derived_count_at_least=minimum_count,
-    ) == expected
+    assert (
+        trace.find_rule_fires(
+            head_predicate=head_predicate,
+            derived_count_at_least=minimum_count,
+        )
+        == expected
+    )
 
 
 @given(edges=_edge_sets(), row_limit=st.integers(min_value=0, max_value=3))

@@ -14,11 +14,7 @@ from datalog_conformance.schema import TestCase as SuiteCase
 def _suite_root() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
     suite_root = (
-        repo_root.parent
-        / "datalog-conformance-suite"
-        / "src"
-        / "datalog_conformance"
-        / "_tests"
+        repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
     )
     if not suite_root.exists():
         raise FileNotFoundError(f"Conformance suite not found at {suite_root}")

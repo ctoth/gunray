@@ -86,9 +86,7 @@ class GeneralizedSpecificity:
         # excluded: seeding the strict_closure with facts would let
         # every fact-backed antecedent cover itself trivially and
         # destroy the antecedent-only distinction Lemma 2.4 relies on.
-        self._strict_rules: tuple[GroundDefeasibleRule, ...] = (
-            grounded.grounded_strict_rules
-        )
+        self._strict_rules: tuple[GroundDefeasibleRule, ...] = grounded.grounded_strict_rules
 
     def prefers(self, left: Argument, right: Argument) -> bool:
         """Return ``True`` iff ``left`` is strictly more specific than ``right``.
@@ -140,9 +138,7 @@ class GeneralizedSpecificity:
             # entailed.
             return True
 
-        shadowed = tuple(
-            _force_strict_for_closure(rule) for rule in covered_argument.rules
-        )
+        shadowed = tuple(_force_strict_for_closure(rule) for rule in covered_argument.rules)
         closure = strict_closure(
             covering_antecedents,
             self._strict_rules + shadowed,
@@ -331,6 +327,4 @@ def _antecedents_of(argument: Argument) -> frozenset[GroundAtom]:
     ``rule`` in ``argument.rules``.
     """
 
-    return frozenset(
-        atom for rule in argument.rules for atom in rule.body
-    )
+    return frozenset(atom for rule in argument.rules for atom in rule.body)

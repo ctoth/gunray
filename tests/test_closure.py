@@ -85,13 +85,13 @@ def test_impossible_antecedent_is_handled_consistently_across_closure_policies()
     consequent = _literal_formula("p")
 
     assert _formula_entails(ranked, theory, antecedent, consequent, Policy.RATIONAL_CLOSURE)
-    assert _formula_entails(
-        ranked, theory, antecedent, consequent, Policy.LEXICOGRAPHIC_CLOSURE
-    )
+    assert _formula_entails(ranked, theory, antecedent, consequent, Policy.LEXICOGRAPHIC_CLOSURE)
     assert _formula_entails(ranked, theory, antecedent, consequent, Policy.RELEVANT_CLOSURE)
 
 
-def test_public_closure_policies_do_not_materialize_all_worlds(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_public_closure_policies_do_not_materialize_all_worlds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The public closure surface should not depend on full truth-table expansion.
 
     Morris, Ross, and Meyer 2020 define Rational / Lexicographic / Relevant

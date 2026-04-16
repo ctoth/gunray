@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from conftest import theory_with_root_argument_strategy
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
@@ -18,7 +19,6 @@ from gunray.dialectic import (
 from gunray.preference import TrivialPreference
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom
-from conftest import theory_with_root_argument_strategy
 
 
 def _ga(predicate: str, *args: str) -> GroundAtom:
@@ -283,14 +283,12 @@ def test_reciprocal_blocking_rejects_blocker_of_blocker() -> None:
     r1_arg = next(
         a
         for a in build_arguments(theory)
-        if a.conclusion == _ga("p", "x")
-        and any(r.rule_id == "r1" for r in a.rules)
+        if a.conclusion == _ga("p", "x") and any(r.rule_id == "r1" for r in a.rules)
     )
     r3_arg = next(
         a
         for a in build_arguments(theory)
-        if a.conclusion == _ga("p", "x")
-        and any(r.rule_id == "r3" for r in a.rules)
+        if a.conclusion == _ga("p", "x") and any(r.rule_id == "r3" for r in a.rules)
     )
     # Precondition: r1_arg and r3_arg are distinct and neither is a
     # sub-argument of the other, so Def 4.7 cond 3 is silent here.
@@ -382,8 +380,7 @@ def test_contradictory_supporting_line_is_truncated() -> None:
     for child in tree.children:
         if child.argument.conclusion == _ga("~p", "x"):
             assert not any(
-                grand.argument.conclusion == _ga("~hard", "x")
-                for grand in child.children
+                grand.argument.conclusion == _ga("~hard", "x") for grand in child.children
             ), "Def 4.7 cond 2 must reject the contradictory supporting-set extension"
 
 
@@ -439,9 +436,7 @@ def test_hypothesis_mark_is_deterministic(
     st.lists(st.sampled_from(["U", "D"]), min_size=0, max_size=4),
     st.lists(st.sampled_from(["U", "D"]), min_size=0, max_size=4),
 )
-def test_hypothesis_mark_is_local(
-    left_marks: list[str], right_marks: list[str]
-) -> None:
+def test_hypothesis_mark_is_local(left_marks: list[str], right_marks: list[str]) -> None:
     """Garcia 04 Proc 5.1 depends only on children's marks. Two
     trees sharing the same root argument and the same multiset of
     child marks must mark the root the same way, regardless of the
@@ -528,9 +523,7 @@ def test_hypothesis_supporting_set_concordant(
     assume(_concordant([], theory))
     tree = build_tree(root, TrivialPreference(), theory)
     for path in _collect_paths(tree):
-        supporting = [
-            path[i].argument.rules for i in range(len(path)) if i % 2 == 0
-        ]
+        supporting = [path[i].argument.rules for i in range(len(path)) if i % 2 == 0]
         assert _concordant(supporting, theory)
 
 
@@ -551,7 +544,5 @@ def test_hypothesis_interfering_set_concordant(
     assume(_concordant([], theory))
     tree = build_tree(root, TrivialPreference(), theory)
     for path in _collect_paths(tree):
-        interfering = [
-            path[i].argument.rules for i in range(len(path)) if i % 2 == 1
-        ]
+        interfering = [path[i].argument.rules for i in range(len(path)) if i % 2 == 1]
         assert _concordant(interfering, theory)

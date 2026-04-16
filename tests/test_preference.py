@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from conftest import RULE_POOL, arguments_strategy, make_ground_atom
 from hypothesis import given, settings
 
 from gunray.arguments import Argument
 from gunray.preference import PreferenceCriterion, TrivialPreference
-
-from conftest import RULE_POOL, arguments_strategy, make_ground_atom
 
 
 def test_trivial_preference_satisfies_protocol_and_returns_false() -> None:

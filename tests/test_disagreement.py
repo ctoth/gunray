@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+from conftest import ground_atom_strategy, strict_context_strategy
 from hypothesis import assume, given, settings
 
 from gunray.disagreement import complement, disagrees, strict_closure
 from gunray.types import GroundAtom, GroundDefeasibleRule
-
-from conftest import ground_atom_strategy, strict_context_strategy
 
 
 def test_disagrees_on_complementary_literals() -> None:

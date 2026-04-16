@@ -50,9 +50,7 @@ def main() -> int:
     print(f"elapsed_seconds: {elapsed:.3f}")
     for section, predicates in sorted(facts.items()):
         row_count = sum(len(rows) for rows in predicates.values())
-        print(
-            f"section={section} predicates={len(predicates)} rows={row_count}"
-        )
+        print(f"section={section} predicates={len(predicates)} rows={row_count}")
     return 0
 
 
@@ -60,11 +58,7 @@ def _load_case(name: str, yaml_relpath: str) -> TestCase:
     package_tests_dir = get_tests_dir()
     repo_root = Path(__file__).resolve().parents[1]
     tests_dir = (
-        repo_root.parent
-        / "datalog-conformance-suite"
-        / "src"
-        / "datalog_conformance"
-        / "_tests"
+        repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
     )
     if not tests_dir.exists():
         tests_dir = package_tests_dir

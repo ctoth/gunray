@@ -33,11 +33,7 @@ def main() -> int:
     package_tests_dir = get_tests_dir()
     repo_root = Path(__file__).resolve().parents[1]
     tests_dir = (
-        repo_root.parent
-        / "datalog-conformance-suite"
-        / "src"
-        / "datalog_conformance"
-        / "_tests"
+        repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
     )
     if not tests_dir.exists():
         tests_dir = package_tests_dir

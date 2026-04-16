@@ -34,10 +34,7 @@ def normalize_facts(
     """Normalize YAML fact rows to a set-based model representation."""
 
     return {
-        predicate: {
-            tuple(_normalize_scalar_value(value) for value in row)
-            for row in rows
-        }
+        predicate: {tuple(_normalize_scalar_value(value) for value in row) for row in rows}
         for predicate, rows in raw_facts.items()
     }
 

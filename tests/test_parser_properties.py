@@ -281,19 +281,13 @@ def test_parse_rule_text_property_partitions_body_items_by_kind(
 ) -> None:
     rule = parse_rule_text(f"head(X) :- {', '.join(text for _, text in body_items)}.")
     expected_positive = tuple(
-        parse_atom_text(text)
-        for kind, text in body_items
-        if kind == "positive"
+        parse_atom_text(text) for kind, text in body_items if kind == "positive"
     )
     expected_negative = tuple(
-        parse_atom_text(text[4:].strip())
-        for kind, text in body_items
-        if kind == "negative"
+        parse_atom_text(text[4:].strip()) for kind, text in body_items if kind == "negative"
     )
     expected_constraints = tuple(
-        parse_constraint_text(text)
-        for kind, text in body_items
-        if kind == "constraint"
+        parse_constraint_text(text) for kind, text in body_items if kind == "constraint"
     )
 
     assert rule.positive_body == expected_positive

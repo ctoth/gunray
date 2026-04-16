@@ -113,10 +113,7 @@ def compile_simple_rule(
 
     head_slots: list[int | None] = []
     head_constants: list[object | None] = []
-    slot_indexes = {
-        name: index
-        for index, name in enumerate(matcher.slot_names)
-    }
+    slot_indexes = {name: index for index, name in enumerate(matcher.slot_names)}
     for term in rule.terms:
         if isinstance(term, Constant):
             head_slots.append(None)
@@ -155,10 +152,7 @@ def _iter_compiled_matches(
     overrides: dict[int, IndexedRelation],
 ) -> Iterator[dict[str, object]]:
     if offset >= len(compiled.atoms):
-        yield {
-            name: slots[index]
-            for index, name in enumerate(compiled.slot_names)
-        }
+        yield {name: slots[index] for index, name in enumerate(compiled.slot_names)}
         return
 
     atom = compiled.atoms[offset]
