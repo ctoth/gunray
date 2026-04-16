@@ -170,3 +170,21 @@ def test_order_positive_body_prefers_lower_lookup_fanout() -> None:
     ordered = _order_positive_body(atoms, model, {}, preferred_first_index=0)
 
     assert [item[0] for item in ordered[:2]] == [0, 2]
+
+
+def test_order_positive_body_does_not_materialize_costing_indexes() -> None:
+    atoms = (
+        Atom("seed", (Variable("x"),)),
+        Atom("left", (Variable("x"), Variable("y"))),
+        Atom("right", (Variable("x"), Variable("z"))),
+    )
+    model = {
+        "seed": IndexedRelation({("k",)}),
+        "left": IndexedRelation({("k", 1), ("k", 2), ("m", 3)}),
+        "right": IndexedRelation({("k", 1), ("n", 2), ("o", 3)}),
+    }
+
+    _order_positive_body(atoms, model, {}, preferred_first_index=0)
+
+    assert model["left"]._indexes == {}
+    assert model["right"]._indexes == {}
