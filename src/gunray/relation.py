@@ -73,6 +73,34 @@ class IndexedRelation:
             return 0.0
         return len(self._rows) / len(index)
 
+    def estimated_lookup_size(
+        self,
+        columns: tuple[int, ...],
+        *,
+        sample_size: int = 256,
+    ) -> float:
+        if not self._rows:
+            return 0.0
+        if not columns:
+            return float(len(self._rows))
+
+        existing = self._indexes.get(columns)
+        if existing is not None:
+            if not existing:
+                return 0.0
+            return len(self._rows) / len(existing)
+
+        sampled_keys: set[tuple[object, ...]] = set()
+        sampled_count = 0
+        for row in self._rows:
+            sampled_keys.add(tuple(row[position] for position in columns))
+            sampled_count += 1
+            if sampled_count >= sample_size:
+                break
+        if not sampled_keys:
+            return 0.0
+        return sampled_count / len(sampled_keys)
+
     def as_set(self) -> set[tuple[object, ...]]:
         return set(self._rows)
 

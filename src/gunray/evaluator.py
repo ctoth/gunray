@@ -481,7 +481,7 @@ def _positive_atom_cost(
             constrained_terms += 1
 
     return (
-        rows.average_lookup_size(tuple(lookup_columns)),
+        rows.estimated_lookup_size(tuple(lookup_columns)),
         len(rows),
         -constrained_terms,
         -bound_term_variables,
