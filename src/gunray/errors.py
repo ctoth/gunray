@@ -37,3 +37,9 @@ class CyclicNegationError(GunrayError):
     """Raised when a program contains recursive negation."""
 
     code = "cyclic_negation"
+
+
+class ContradictoryStrictTheoryError(GunrayError):
+    """Raised when Pi (strict rules plus facts) is contradictory."""
+
+    code = "contradictory_strict_theory"
