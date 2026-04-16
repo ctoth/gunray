@@ -77,4 +77,6 @@ class IndexedRelation:
         return set(self._rows)
 
     def difference(self, other: "IndexedRelation") -> "IndexedRelation":
-        return IndexedRelation(self._rows - other._rows)
+        result = IndexedRelation()
+        result._rows = self._rows - other._rows
+        return result
