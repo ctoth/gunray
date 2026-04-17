@@ -23,7 +23,7 @@
 
 ## Commit
 
-(see below — filled after `git commit`)
+`2fbd46c` on top of `393253c`.
 
 ## Abbreviated stdout
 
