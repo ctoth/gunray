@@ -55,3 +55,18 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `282 passed, 10 skipped, 3 deselected in 314.27s`
 - `uv run pyright src/gunray/preference.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check src/gunray/preference.py tests/test_specificity.py`: `All checks passed!`
+
+## P1-T3 summary
+
+- Red commit: `bfc41fc` reproduced the Def 3.3 Pi-facts drop with a direct disagreement test, a facts-monotonicity property, and an end-to-end `DefeasibleEvaluator` case.
+- Green change: `strict_closure()` and `disagrees()` accept strict facts and seed closure with `seeds | facts`.
+- Green change: dialectic disagreement checks now pass grounded Pi facts through `_theory_pi_facts()`.
+- Audit note: `GeneralizedSpecificity._covers()` still excludes facts because the existing implementation documents K_N as strict-rule coverage only; no fact plumbing was added there.
+- Unblocker: `281a8cc` / `7d4ea60` pinned and fixed an unrelated closure full-suite failure where `_branch_satisfiable()` treated negative strict body literals as derivable atoms instead of absence constraints.
+- `uv run pytest tests/test_disagreement.py -v`: `9 passed`
+- `uv run pytest tests/test_disagreement.py tests/test_dialectic.py tests/test_specificity.py -v`: `38 passed`
+- `uv run pytest tests/test_closure.py tests/test_closure_faithfulness.py -v`: `8 passed`
+- `uv run pytest tests -q`: `150 passed, 292 skipped, 3 deselected in 98.70s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `282 passed, 10 skipped, 3 deselected in 318.46s` (no pass-count delta)
+- `uv run pyright src/gunray/disagreement.py src/gunray/dialectic.py src/gunray/preference.py src/gunray/arguments.py src/gunray/closure.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check`: `All checks passed!`

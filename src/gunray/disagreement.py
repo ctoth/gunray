@@ -41,8 +41,9 @@ def complement(atom: GroundAtom) -> GroundAtom:
 def strict_closure(
     seeds: frozenset[GroundAtom],
     strict_rules: tuple[GroundDefeasibleRule, ...],
+    facts: frozenset[GroundAtom] = frozenset(),
 ) -> frozenset[GroundAtom]:
-    """Forward-chain ``seeds`` under the ground strict rules.
+    """Forward-chain ``seeds`` plus strict ``facts`` under the ground strict rules.
 
     Recreates the body of the deleted ``_strict_body_closure`` helper
     (scout report Section 3.4) without memoization. Only rules with
@@ -50,7 +51,7 @@ def strict_closure(
     callers can pass a heterogenous tuple.
     """
 
-    closure: set[GroundAtom] = set(seeds)
+    closure: set[GroundAtom] = set(seeds) | set(facts)
     changed = True
     while changed:
         changed = False
@@ -69,18 +70,21 @@ def disagrees(
     h1: GroundAtom,
     h2: GroundAtom,
     strict_context: tuple[GroundDefeasibleRule, ...],
+    facts: frozenset[GroundAtom] = frozenset(),
 ) -> bool:
     """Return True iff ``{h1, h2}`` is contradictory under ``strict_context``.
 
     Garcia & Simari 2004 Def 3.3: two literals disagree iff their
-    union with ``Pi`` is contradictory. We compute the strict closure
-    of ``{h1, h2}`` under the given strict rules and return True iff
+    union with ``Pi`` is contradictory. ``Pi`` includes strict facts
+    as well as strict rules, so callers pass grounded facts separately
+    from ``strict_context``. We compute the strict closure of
+    ``{h1, h2}`` under that strict knowledge base and return True iff
     any atom in that closure has its complement also present.
     """
 
     if h1 == complement(h2):
         return True
-    closure = strict_closure(frozenset({h1, h2}), strict_context)
+    closure = strict_closure(frozenset({h1, h2}), strict_context, facts=facts)
     for atom in closure:
         if complement(atom) in closure:
             return True

@@ -81,6 +81,13 @@ def _theory_strict_rules(
     return grounded
 
 
+def _theory_pi_facts(theory: DefeasibleTheory) -> frozenset[GroundAtom]:
+    """Return the ground facts in ``Pi`` for disagreement checks."""
+
+    facts, _defeasible_rules, _conflicts = parse_defeasible_theory(theory)
+    return _fact_atoms(facts)
+
+
 def counter_argues(attacker: Argument, target: Argument, theory: DefeasibleTheory) -> bool:
     """Garcia & Simari 2004 Definition 3.4.
 
@@ -112,11 +119,12 @@ def _disagreeing_subarguments(
     sub-argument, not the root of ``target``.
     """
     strict_rules = _theory_strict_rules(theory)
+    facts = _theory_pi_facts(theory)
     hits: list[Argument] = []
     for sub in build_arguments(theory):
         if not is_subargument(sub, target):
             continue
-        if disagrees(attacker.conclusion, sub.conclusion, strict_rules):
+        if disagrees(attacker.conclusion, sub.conclusion, strict_rules, facts=facts):
             hits.append(sub)
     return hits
 
@@ -197,7 +205,7 @@ def _concordant(
     for rule_set in rule_sets:
         for rule in rule_set:
             combined.append(_force_strict_for_closure(rule))
-    closure = strict_closure(seeds, tuple(combined))
+    closure = strict_closure(frozenset(), tuple(combined), facts=seeds)
     for atom in closure:
         if complement(atom) in closure:
             return False
