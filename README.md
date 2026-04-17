@@ -53,6 +53,10 @@ The defeasible pipeline is Garcia & Simari's 2004 DeLP, run verbatim:
   rules with empty body, written `h -< true`; the `presumptions` slot
   on `DefeasibleTheory` carries them and they flow through the
   argument pipeline as ordinary defeasible rules.
+- **Explanations** (García & Simari 2004 §6 p. 29) — `gunray.explain`
+  walks a marked dialectical tree and returns a prose transcript
+  naming the supporting argument, each defeater considered, and the
+  preference reason that decided every edge.
 
 Strict-only theories (no defeasible rules, defeaters, or superiority)
 take a shortcut around the argument pipeline and run through the

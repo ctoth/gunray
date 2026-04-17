@@ -29,6 +29,18 @@ class PreferenceCriterion(Protocol):
         """Return True iff ``left`` is strictly preferred to ``right``."""
         ...
 
+    def explain_preference(self, left: Argument, right: Argument) -> str | None:
+        """Return a brief reason string iff ``prefers(left, right)`` is True.
+
+        Used by :func:`gunray.dialectic.explain` to render why one
+        argument defeats another. Implementations MUST return
+        ``None`` whenever ``prefers(left, right)`` is False. The
+        returned string should be a short clause (no trailing
+        punctuation) suitable for embedding in a sentence such as
+        "which is <reason>".
+        """
+        ...
+
 
 class TrivialPreference:
     """A preference criterion that prefers nothing over nothing.
@@ -42,6 +54,10 @@ class TrivialPreference:
 
     def prefers(self, left: Argument, right: Argument) -> bool:
         return False
+
+    def explain_preference(self, left: Argument, right: Argument) -> str | None:
+        """``TrivialPreference`` never prefers anything; always ``None``."""
+        return None
 
 
 class GeneralizedSpecificity:
@@ -121,6 +137,28 @@ class GeneralizedSpecificity:
         if self._covers(right_ant, left, left_ant):
             return False
         return True
+
+    def explain_preference(self, left: Argument, right: Argument) -> str | None:
+        """Return a brief reason iff ``left`` is strictly more specific.
+
+        Garcia & Simari 2004 §6 (explanation of defeat): a proper
+        defeater grounded in specificity is justified by noting that
+        the attacker's antecedents strictly entail the target's, but
+        not vice versa. This helper renders that reason.
+        """
+
+        if not self.prefers(left, right):
+            return None
+        left_ant = _antecedents_of(left)
+        right_ant = _antecedents_of(right)
+        if not left_ant and right_ant:
+            # Empty-antecedent ("presumption-like") attacker case: the
+            # attacker has no conditions to discharge, so it dominates
+            # by vacuous cover while the target's antecedents block
+            # the converse. The prefers guard above already excluded
+            # empty-rule arguments.
+            return "strictly more specific (no antecedents to discharge)"
+        return "strictly more specific"
 
     def _covers(
         self,
@@ -241,6 +279,17 @@ class SuperiorityPreference:
                     return False
         return True
 
+    def explain_preference(self, left: Argument, right: Argument) -> str | None:
+        """Return a brief reason iff ``left`` dominates ``right`` by priority.
+
+        Garcia & Simari 2004 §6 justifies a priority-based defeat by
+        citing the explicit superiority pair(s) that decide it.
+        """
+
+        if not self.prefers(left, right):
+            return None
+        return "explicitly prioritised by the theory's superiority relation"
+
 
 class CompositePreference:
     """First-criterion-to-fire composition of preference criteria.
@@ -322,6 +371,22 @@ class CompositePreference:
             if criterion.prefers(right, left):
                 return False
         return False
+
+    def explain_preference(self, left: Argument, right: Argument) -> str | None:
+        """Return the reason from the first child criterion to fire.
+
+        Matches the first-criterion-to-fire semantics of ``prefers``:
+        the first child that expresses an opinion on ``(left, right)``
+        monopolises the answer. If a child prefers the reverse
+        direction first, the composite is silent on ``(left, right)``.
+        """
+        for criterion in self._criteria:
+            reason = criterion.explain_preference(left, right)
+            if reason is not None:
+                return reason
+            if criterion.prefers(right, left):
+                return None
+        return None
 
 
 def _antecedents_of(argument: Argument) -> frozenset[GroundAtom]:

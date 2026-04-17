@@ -541,6 +541,137 @@ def _render_child_lines(
     return rendered
 
 
+def _format_antecedents(argument: Argument) -> str:
+    """Return a brace-delimited list of an argument's rule bodies.
+
+    Used by :func:`explain` when describing what an argument is
+    ``from``. Matches Garcia & Simari 2004 §6 reader-facing prose:
+    an argument is characterised by the antecedents that ground its
+    derivation. Strict-only arguments (empty ``rules``) render as
+    ``{}``.
+    """
+
+    antecedents: set[GroundAtom] = set()
+    for rule in argument.rules:
+        for atom in rule.body:
+            antecedents.add(atom)
+    sorted_atoms = sorted(antecedents, key=_atom_sort_key)
+    return "{" + ", ".join(_format_atom(atom) for atom in sorted_atoms) + "}"
+
+
+def explain(
+    tree: DialecticalNode,
+    criterion: PreferenceCriterion,
+) -> str:
+    """Render a dialectical tree as prose, citing Garcia & Simari 2004 §6.
+
+    Garcia & Simari 2004 §6 ("Explaining answers") describes DeLP's
+    obligation to justify every answer: for a query ``h``, the
+    system must identify the argument that supports ``h`` and the
+    dialectical analysis that either warrants it or defeats it. This
+    helper walks the *already-marked* tree top-down and produces a
+    prose transcript of that analysis.
+
+    The first line names the root conclusion and its four-valued
+    verdict at the root: ``YES`` if the root marks ``U``, ``NO``
+    otherwise (``D``). Each node below reports its conclusion,
+    antecedent set, rule ids, and — for non-root nodes — the
+    preference reason ``criterion.explain_preference`` returns for
+    its victory over its parent (or, when the parent mark is ``U``
+    and the child's mark is ``D``, the reverse direction).
+
+    Reuses :func:`_mark_table` and :func:`_sorted_children` so the
+    output is deterministic and consistent with :func:`render_tree`.
+
+    Parameters
+    ----------
+    tree
+        A ``DialecticalNode`` as returned by :func:`build_tree`.
+    criterion
+        The preference criterion that was used to build ``tree``.
+        Needed to produce the "why-prefer" reason on each edge.
+
+    Returns
+    -------
+    str
+        A multi-line prose explanation, without a trailing newline.
+    """
+
+    marks = _mark_table(tree)
+    root_mark = marks[tree]
+    verdict = "YES" if root_mark == "U" else "NO"
+    root_conclusion = _format_atom(tree.argument.conclusion)
+    root_ants = _format_antecedents(tree.argument)
+    root_rules = ", ".join(sorted(rule.rule_id for rule in tree.argument.rules))
+    lines: list[str] = [
+        f"{root_conclusion} is {verdict}.",
+        f"An argument supports {root_conclusion} from {root_ants} via {root_rules}.",
+    ]
+    for child in _sorted_children(tree):
+        lines.extend(_explain_child_lines(child, tree, criterion, marks))
+    return "\n".join(lines)
+
+
+def _explain_child_lines(
+    child: DialecticalNode,
+    parent: DialecticalNode,
+    criterion: PreferenceCriterion,
+    marks: dict[DialecticalNode, Literal["U", "D"]],
+) -> list[str]:
+    """Return the prose lines describing ``child``'s defeat of ``parent``.
+
+    Walks ``child``'s subtree recursively. The verb depends on
+    relative marks: a ``U`` child defeats its parent (which marks
+    ``D``); a ``D`` child failed to defeat its parent (which marks
+    ``U``). The preference-reason clause is drawn from
+    ``criterion.explain_preference`` in the appropriate direction,
+    with a blocking-defeat fallback when neither direction is
+    strictly preferred.
+    """
+
+    child_mark = marks[child]
+    child_conclusion = _format_atom(child.argument.conclusion)
+    child_ants = _format_antecedents(child.argument)
+    child_rules = ", ".join(sorted(rule.rule_id for rule in child.argument.rules))
+
+    if child_mark == "U":
+        # Child wins over parent. Garcia & Simari 2004 §6: the reason
+        # is the preference ``criterion`` awards the child over the
+        # parent. Under blocking defeat neither side is strictly
+        # preferred; we say so explicitly.
+        reason = criterion.explain_preference(child.argument, parent.argument)
+        clause = (
+            f"which is {reason}"
+            if reason is not None
+            else "which is a blocking defeater (neither side strictly preferred)"
+        )
+        head = (
+            f"It is defeated by an argument for {child_conclusion} "
+            f"from {child_ants} via {child_rules}, {clause}."
+        )
+    else:
+        # Child failed to defeat parent — either it was itself
+        # defeated by a grandchild (reinstatement, Proc 5.1) or it
+        # was strictly out-preferred at construction time but still
+        # admitted because it counter-argued. We report the
+        # reinstatement narrative; the tree structure carries the
+        # detail on why.
+        reason_parent_wins = criterion.explain_preference(parent.argument, child.argument)
+        if reason_parent_wins is not None:
+            clause = f"but the parent is {reason_parent_wins}"
+        else:
+            clause = "but it is itself defeated further down"
+        head = (
+            f"An attacker for {child_conclusion} from {child_ants} "
+            f"via {child_rules} was considered, {clause}."
+        )
+
+    lines = [head]
+    for grandchild in _sorted_children(child):
+        lines.extend(_explain_child_lines(grandchild, child, criterion, marks))
+    return lines
+
+
 def _theory_predicates(theory: DefeasibleTheory) -> frozenset[str]:
     """Return the set of predicate names appearing in ``theory``'s language.
 
