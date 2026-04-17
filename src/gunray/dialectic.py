@@ -541,6 +541,49 @@ def _render_child_lines(
     return rendered
 
 
+def render_tree_mermaid(tree: DialecticalNode) -> str:
+    """Render ``tree`` as GitHub-native Mermaid flowchart source.
+
+    Pure deterministic output formatter — no semantic risk. The
+    emitted Mermaid uses a ``flowchart TD`` (top-down) layout. Each
+    :class:`DialecticalNode` produces a single node line of the form
+    ``nK["conclusion [rule_ids] U|D"]`` and each parent→child
+    relation produces an edge line ``nI --> nJ``. Synthetic node ids
+    (``n0``, ``n1``, ...) are assigned via pre-order traversal using
+    :func:`_sorted_children`, so output is byte-stable for any tree.
+
+    U/D marks come from :func:`_mark_table`; the conclusion is
+    formatted with :func:`_format_atom` and the rule list with
+    :func:`_format_rule_ids` so the Mermaid label matches
+    :func:`render_tree` semantics modulo layout.
+    """
+    marks = _mark_table(tree)
+    lines: list[str] = ["flowchart TD"]
+    ids: dict[int, str] = {}
+    edges: list[str] = []
+
+    def visit(node: DialecticalNode) -> None:
+        node_id = f"n{len(ids)}"
+        ids[id(node)] = node_id
+        label = (
+            f"{_format_atom(node.argument.conclusion)} "
+            f"{_format_rule_ids(node.argument)} "
+            f"{marks[node]}"
+        )
+        lines.append(f'    {node_id}["{label}"]')
+        children = _sorted_children(node)
+        child_ids: list[str] = []
+        for child in children:
+            visit(child)
+            child_ids.append(ids[id(child)])
+        for child_id in child_ids:
+            edges.append(f"    {node_id} --> {child_id}")
+
+    visit(tree)
+    lines.extend(edges)
+    return "\n".join(lines)
+
+
 def _format_antecedents(argument: Argument) -> str:
     """Return a brace-delimited list of an argument's rule bodies.
 

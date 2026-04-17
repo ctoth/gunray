@@ -14,6 +14,7 @@ from .dialectic import (
     mark,
     proper_defeater,
     render_tree,
+    render_tree_mermaid,
 )
 from .disagreement import complement, disagrees, strict_closure
 from .evaluator import SemiNaiveEvaluator
@@ -73,5 +74,6 @@ __all__ = [
     "mark",
     "proper_defeater",
     "render_tree",
+    "render_tree_mermaid",
     "strict_closure",
 ]
