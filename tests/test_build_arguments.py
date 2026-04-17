@@ -8,13 +8,14 @@ from __future__ import annotations
 from itertools import combinations
 
 from conftest import small_theory_strategy
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from gunray.answer import Answer
 from gunray.arguments import build_arguments
 from gunray.dialectic import answer
 from gunray.disagreement import strict_closure
+from gunray.parser import parse_atom_text
 from gunray.preference import GeneralizedSpecificity
 from gunray.schema import DefeasibleTheory, Rule
 from gunray.types import GroundAtom, GroundDefeasibleRule
@@ -275,11 +276,11 @@ def test_hypothesis_every_argument_is_non_contradictory(
 def _theory_plus_fact(
     theory: DefeasibleTheory,
     predicate: str,
-    row: tuple[str, ...],
+    row: tuple[object, ...],
 ) -> DefeasibleTheory:
     """Return a copy of ``theory`` with one extra fact row."""
 
-    new_facts: dict[str, set[tuple[str, ...]]] = {
+    new_facts: dict[str, set[tuple[object, ...]]] = {
         pred: set(rows) for pred, rows in theory.facts.items()
     }
     new_facts.setdefault(predicate, set()).add(row)
@@ -293,33 +294,42 @@ def _theory_plus_fact(
     )
 
 
+def _defeasible_body_predicate_arities(
+    theory: DefeasibleTheory,
+) -> frozenset[tuple[str, int]]:
+    """Predicates that appear in at least one defeasible or defeater body."""
+
+    body_predicates: set[tuple[str, int]] = set()
+    for rule in (*theory.defeasible_rules, *theory.defeaters):
+        for body_literal in rule.body:
+            atom = parse_atom_text(body_literal)
+            body_predicates.add((atom.predicate, len(atom.terms)))
+    return frozenset(body_predicates)
+
+
 @given(theory=small_theory_strategy())
 @settings(max_examples=500, deadline=None)
-def test_hypothesis_build_arguments_is_monotonic_in_facts(
+def test_hypothesis_build_arguments_monotonic_under_body_fact_addition(
     theory: DefeasibleTheory,
 ) -> None:
-    """Adding a fact can only add arguments, never remove them.
+    """Adding a fact for an in-body predicate cannot remove existing arguments.
 
     Formally: ``build_arguments(T) subset build_arguments(T_plus_fact)``.
     This is a structural property of Def 3.1 — new facts can enlarge
-    the strict closure and satisfy more rule bodies, but cannot
-    invalidate any existing derivation or contradict any already
-    non-contradictory set.
-
-    CAVEAT: this only holds when the added fact does not *itself*
-    introduce a new contradiction that propagates into an existing
-    argument's closure. To stay safe under arbitrary random
-    theories we pick a fact predicate whose complement does not
-    appear anywhere in the original theory, making contradiction
-    introduction impossible by construction.
+    the set of satisfied defeasible/defeater rule bodies, but cannot
+    invalidate any existing derivation. The added row uses a fresh
+    constant and this property filters to theories with no strict rules
+    so the new fact cannot make the strict base itself contradictory.
     """
 
+    assume(not theory.strict_rules)
     base_arguments = build_arguments(theory)
+    body_predicates = _defeasible_body_predicate_arities(theory)
+    assume(body_predicates)
 
-    # Pick a fact predicate that cannot introduce a new contradiction.
-    # Use a fresh predicate name that does not appear in facts or rules.
-    fresh_predicate = "__fresh_fact_predicate__"
-    extended = _theory_plus_fact(theory, fresh_predicate, ("a",))
+    predicate, arity = sorted(body_predicates)[0]
+    fresh_row = tuple(f"__fresh_fact_{index}__" for index in range(arity))
+    extended = _theory_plus_fact(theory, predicate, fresh_row)
     extended_arguments = build_arguments(extended)
 
     assert base_arguments <= extended_arguments, (

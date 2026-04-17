@@ -148,3 +148,16 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `283 passed, 9 skipped, 3 deselected in 296.60s`
 - `uv run pyright src/gunray/schema.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check src/gunray/schema.py tests/test_schema.py`: `All checks passed!`
+
+## P3-T4 summary
+
+- Green change: replaced vacuous dialectic mark-local property with `test_hypothesis_mark_follows_child_labels`, which checks Procedure 5.1 directly over generated child U/D labels.
+- Green change: replaced the fact-monotonicity property's unused fresh predicate with an in-body defeasible/defeater predicate and a fresh constant row; filtered out strict-rule theories so the added fact cannot make Pi contradictory.
+- Green change: added `test_hypothesis_render_tree_contains_root_conclusion` so `render_tree()` cannot satisfy the property by returning an empty string; kept deterministic rendering as a separate property.
+- Mutation validation: temporarily changed `mark()` to return `U` for non-leaves; `uv run pytest tests/test_dialectic.py::test_hypothesis_mark_follows_child_labels -q` failed with Hypothesis examples `['D']` and `['U']`; reverted the break.
+- Mutation validation: temporarily changed `build_arguments()` to return an empty set when the fresh added fact was present; `uv run pytest tests/test_build_arguments.py::test_hypothesis_build_arguments_monotonic_under_body_fact_addition -q` failed with missing base arguments; reverted the break.
+- Mutation validation: temporarily changed `render_tree()` to return `""`; `uv run pytest tests/test_render.py::test_hypothesis_render_tree_contains_root_conclusion -q` failed on missing root predicate text; reverted the break.
+- `uv run pytest tests/test_dialectic.py tests/test_build_arguments.py tests/test_render.py -v`: `33 passed`
+- `uv run pytest tests -q`: `170 passed, 292 skipped, 3 deselected in 133.45s`
+- `uv run ruff check tests/test_dialectic.py tests/test_build_arguments.py tests/test_render.py`: `All checks passed!`
+- `uv run pyright tests/` was intentionally not run because Q's current instruction is not to typecheck tests.

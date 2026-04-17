@@ -120,17 +120,22 @@ def test_render_is_deterministic() -> None:
 
 @given(theory_with_root=theory_with_root_argument_strategy())
 @settings(max_examples=500, deadline=None)
+def test_hypothesis_render_tree_contains_root_conclusion(
+    theory_with_root: tuple[DefeasibleTheory, Argument],
+) -> None:
+    """Property: rendered output must include the root conclusion text."""
+    theory, root = theory_with_root
+    tree = build_tree(root, TrivialPreference(), theory)
+    rendered = render_tree(tree)
+    assert root.conclusion.predicate in rendered
+
+
+@given(theory_with_root=theory_with_root_argument_strategy())
+@settings(max_examples=500, deadline=None)
 def test_hypothesis_render_tree_is_deterministic(
     theory_with_root: tuple[DefeasibleTheory, Argument],
 ) -> None:
-    """Property: for any generated dialectical tree, two calls to
-    ``render_tree`` produce byte-identical output.
-
-    ``render_tree`` is documented as pure. Hypothesis sweeps the
-    small-theory space with random roots from ``build_arguments`` to
-    catch any nondeterminism in child ordering, mark recomputation,
-    or rule-id sorting that a hand-authored test might miss.
-    """
+    """Property: any generated dialectical tree renders byte-identically."""
     theory, root = theory_with_root
     tree = build_tree(root, TrivialPreference(), theory)
     assert render_tree(tree) == render_tree(tree)

@@ -431,45 +431,29 @@ def test_hypothesis_mark_is_deterministic(
     assert mark(tree) == mark(tree)
 
 
-# 13. mark is local — depends only on children's marks.
+# 13. mark obeys Procedure 5.1 over child labels.
 @given(
-    st.lists(st.sampled_from(["U", "D"]), min_size=0, max_size=4),
-    st.lists(st.sampled_from(["U", "D"]), min_size=0, max_size=4),
+    child_marks=st.lists(st.sampled_from(["U", "D"]), min_size=0, max_size=4),
 )
-def test_hypothesis_mark_is_local(left_marks: list[str], right_marks: list[str]) -> None:
-    """Garcia 04 Proc 5.1 depends only on children's marks. Two
-    trees sharing the same root argument and the same multiset of
-    child marks must mark the root the same way, regardless of the
-    deeper structure under each child."""
+def test_hypothesis_mark_follows_child_labels(child_marks: list[str]) -> None:
+    """Garcia 04 Proc 5.1: a node is D iff it has any U-marked child."""
 
-    # Build a stub root argument via the arguments_strategy pool.
     from conftest import CONCLUSION, RULE_POOL
 
     root_arg = Argument(rules=frozenset(RULE_POOL[:1]), conclusion=CONCLUSION)
 
     def _leaf_with_mark(label: str) -> DialecticalNode:
-        # A bare leaf marks U. For "D" we wrap it in one extra
-        # leaf child so the inner node marks D (any U child → D).
         leaf = DialecticalNode(argument=root_arg, children=())
         if label == "U":
             return leaf
         return DialecticalNode(argument=root_arg, children=(leaf,))
 
-    left_children = tuple(_leaf_with_mark(m) for m in left_marks)
-    right_children = tuple(
-        # Wrap each into a deeper but same-marking subtree.
-        DialecticalNode(
-            argument=root_arg,
-            children=(_leaf_with_mark(m),),
-        )
-        if False  # placeholder so deeper/shallower differ structurally
-        else _leaf_with_mark(m)
-        for m in left_marks
-    )
-    del right_marks  # unused on purpose — we duplicate left to guarantee parity
-    left_tree = DialecticalNode(argument=root_arg, children=left_children)
-    right_tree = DialecticalNode(argument=root_arg, children=right_children)
-    assert mark(left_tree) == mark(right_tree)
+    children = tuple(_leaf_with_mark(label) for label in child_marks)
+    for child, expected_mark in zip(children, child_marks, strict=True):
+        assert mark(child) == expected_mark
+
+    expected = "D" if "U" in child_marks else "U"
+    assert mark(DialecticalNode(argument=root_arg, children=children)) == expected
 
 
 # 14. Every root-to-leaf path is finite (depth-bound sanity check).
