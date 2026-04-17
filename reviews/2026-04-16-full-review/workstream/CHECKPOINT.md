@@ -113,3 +113,14 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `283 passed, 9 skipped, 3 deselected in 319.25s`
 - `uv run pyright src`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check`: `All checks passed!`
+
+## P3-T1 summary
+
+- Red commit: `694688f` pinned `_unify()` treating `{"X": None}` as a bound value, not an absent binding.
+- Green change: `_unify()` now uses `candidate.get(term.name, _UNBOUND)` and checks `is _UNBOUND` for binding absence.
+- Audit note: nearby `is None` checks were left alone where they represent non-binding control flow or expression-evaluation failure, not direct binding absence in `_unify()`.
+- `uv run pytest tests/test_evaluator_review_v2.py -v`: `3 passed`
+- `uv run pytest tests -q`: `159 passed, 292 skipped, 3 deselected in 88.72s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `283 passed, 9 skipped, 3 deselected in 279.73s`
+- `uv run pyright src/gunray/evaluator.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check src/gunray/evaluator.py tests/test_evaluator_review_v2.py`: `All checks passed!`

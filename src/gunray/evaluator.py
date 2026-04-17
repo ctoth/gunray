@@ -625,8 +625,8 @@ def _unify(
         if isinstance(term, Wildcard):
             continue
         if isinstance(term, Variable):
-            existing = candidate.get(term.name)
-            if existing is None:
+            existing = candidate.get(term.name, _UNBOUND)
+            if existing is _UNBOUND:
                 candidate[term.name] = value
             elif not values_equal(existing, value):
                 return None
