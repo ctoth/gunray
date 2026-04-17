@@ -4,6 +4,7 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
+import datalog_conformance
 import pytest
 import yaml
 from datalog_conformance.plugin import _load_multi_case_file
@@ -23,12 +24,17 @@ _EXPECTED_ERROR_OVERRIDES = {
 
 def _suite_root() -> Path:
     repo_root = Path(__file__).resolve().parents[1]
-    suite_root = (
+    suite_roots = []
+    if datalog_conformance.__file__ is not None:
+        suite_roots.append(Path(datalog_conformance.__file__).resolve().parent / "_tests")
+    suite_roots.append(
         repo_root.parent / "datalog-conformance-suite" / "src" / "datalog_conformance" / "_tests"
     )
-    if not suite_root.exists():
-        raise FileNotFoundError(f"Conformance suite not found at {suite_root}")
-    return suite_root
+    for suite_root in suite_roots:
+        if suite_root.exists():
+            return suite_root
+    locations = ", ".join(str(path) for path in suite_roots)
+    raise FileNotFoundError(f"Conformance suite not found at any of: {locations}")
 
 
 def _discover_yaml_tests(test_dir: Path) -> list[tuple[Path, SuiteCase]]:
