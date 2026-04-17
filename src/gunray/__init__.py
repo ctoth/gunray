@@ -16,7 +16,13 @@ from .dialectic import (
 )
 from .disagreement import complement, disagrees, strict_closure
 from .evaluator import SemiNaiveEvaluator
-from .preference import PreferenceCriterion, TrivialPreference
+from .preference import (
+    CompositePreference,
+    GeneralizedSpecificity,
+    PreferenceCriterion,
+    SuperiorityPreference,
+    TrivialPreference,
+)
 from .schema import DefeasibleModel, DefeasibleTheory, Model, Policy, Program, Rule
 from .trace import (
     ClassificationTrace,
@@ -30,20 +36,23 @@ __all__ = [
     "Answer",
     "Argument",
     "ClassificationTrace",
+    "CompositePreference",
     "DatalogTrace",
     "DefeasibleEvaluator",
     "DefeasibleModel",
     "DefeasibleTheory",
     "DefeasibleTrace",
     "DialecticalNode",
+    "GeneralizedSpecificity",
     "GunrayEvaluator",
     "Model",
     "Policy",
     "PreferenceCriterion",
-    "ProofAttemptTrace",
     "Program",
+    "ProofAttemptTrace",
     "Rule",
     "SemiNaiveEvaluator",
+    "SuperiorityPreference",
     "TraceConfig",
     "TrivialPreference",
     "answer",

@@ -70,3 +70,14 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `282 passed, 10 skipped, 3 deselected in 318.46s` (no pass-count delta)
 - `uv run pyright src/gunray/disagreement.py src/gunray/dialectic.py src/gunray/preference.py src/gunray/arguments.py src/gunray/closure.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check`: `All checks passed!`
+
+## P2-T1 summary
+
+- Red commit: `36f72d1` pinned the package-level preference subclass export contract and `__all__` completeness/sort order.
+- Green change: exported `CompositePreference`, `GeneralizedSpecificity`, and `SuperiorityPreference` from `gunray.__init__`.
+- Green change: sorted the existing `Program` / `ProofAttemptTrace` ordering in `__all__`.
+- `uv run pytest tests/test_public_api.py -v`: `2 passed`
+- `uv run pytest tests -q`: `152 passed, 292 skipped, 3 deselected in 90.71s`
+- `uv run pyright src/gunray/__init__.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check`: `All checks passed!`
+- Inline import command from the task file was not run because the repo Python tooling rule forbids `python -c`; the import path is covered by `tests/test_public_api.py`.
