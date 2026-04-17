@@ -1,0 +1,10 @@
+flowchart TD
+    n0["eligible(dave, author_d) [d1] D"]
+    n1["~eligible(dave, author_d) [d3] U"]
+    n2["eligible(dave, author_d) [df1] D"]
+    n3["~eligible(dave, author_d) [d4] U"]
+    n4["~eligible(dave, author_d) [d4] U"]
+    n2 --> n3
+    n1 --> n2
+    n0 --> n1
+    n0 --> n4

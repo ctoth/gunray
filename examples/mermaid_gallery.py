@@ -20,8 +20,12 @@ script stays self-contained:
    coerced-confession defeater (scenario B). Source:
    ``examples/innocent_until_proven_guilty.py``; García & Simari 2004
    §6.2 p.32.
-5. ``rbac_break_glass`` — three-level RBAC cascade resolved by
-   specificity alone. Source: ``examples/access_control_break_glass.py``.
+5. ``reviewer_waiver_overruled`` — multi-axis COI with an undercutting
+   waiver defeated by advisor-COI. Source:
+   ``examples/reviewer_assignment.py``.
+6. ``break_glass_vs_four_eyes`` — break-glass and four-eyes mutually
+   block, yielding UNDECIDED. Source:
+   ``examples/access_control_break_glass.py``.
 
 Output is deterministic: ``render_tree_mermaid`` assigns node ids
 ``n0, n1, ...`` via pre-order traversal with sorted children
@@ -191,28 +195,107 @@ def _innocent_coerced() -> tuple[DefeasibleTheory, GroundAtom, PreferenceCriteri
 
 
 # ---------------------------------------------------------------------------
-# Case 5 — RBAC break-glass, Carol (incident commander).
+# Case 5 — Reviewer assignment, Dave (advisor-COI overrules large-
+# institution waiver).
 # ---------------------------------------------------------------------------
 
 
-def _rbac_break_glass() -> tuple[DefeasibleTheory, GroundAtom, PreferenceCriterion]:
+def _reviewer_waiver_overruled() -> tuple[DefeasibleTheory, GroundAtom, PreferenceCriterion]:
     theory = DefeasibleTheory(
-        facts={"incident_commander": {("carol",)}},
+        facts={
+            "bid": {("dave", "author_d")},
+            "advisor_of": {("dave", "author_d")},
+            "large_institution": {("dave", "author_d")},
+            "different_department": {("dave", "author_d")},
+        },
         strict_rules=[
-            Rule(id="s1", head="terminated(X)", body=["incident_commander(X)"]),
-            Rule(id="s2", head="team_member(X)", body=["terminated(X)"]),
+            Rule(id="s1", head="co_worker(X,Y)", body=["same_institution(X,Y)"]),
+            Rule(id="s2", head="co_worker(X,Y)", body=["advisor_of(X,Y)"]),
         ],
         defeasible_rules=[
-            Rule(id="d1", head="access(X)", body=["team_member(X)"]),
-            Rule(id="d2", head="~access(X)", body=["terminated(X)"]),
-            Rule(id="d3", head="access(X)", body=["incident_commander(X)"]),
+            Rule(id="d1", head="eligible(X,Y)", body=["bid(X,Y)"]),
+            Rule(id="d2", head="~eligible(X,Y)", body=["recent_coauthor(X,Y)"]),
+            Rule(id="d3", head="~eligible(X,Y)", body=["co_worker(X,Y)"]),
+            Rule(id="d4", head="~eligible(X,Y)", body=["advisor_of(X,Y)"]),
+        ],
+        defeaters=[
+            Rule(
+                id="df1",
+                head="eligible(X,Y)",
+                body=[
+                    "co_worker(X,Y)",
+                    "large_institution(X,Y)",
+                    "different_department(X,Y)",
+                ],
+            ),
+        ],
+        presumptions=[],
+        superiority=[
+            ("d2", "d1"),
+            ("d3", "d1"),
+            ("d4", "d1"),
+            ("d4", "df1"),
+        ],
+        conflicts=[],
+    )
+    atom = GroundAtom(predicate="eligible", arguments=("dave", "author_d"))
+    criterion = CompositePreference(
+        SuperiorityPreference(theory),
+        GeneralizedSpecificity(theory),
+    )
+    return theory, atom, criterion
+
+
+# ---------------------------------------------------------------------------
+# Case 6 — Financial authorization, Frank (emergency vs four-eyes,
+# UNDECIDED via mutual block).
+# ---------------------------------------------------------------------------
+
+
+def _break_glass_vs_four_eyes() -> tuple[DefeasibleTheory, GroundAtom, PreferenceCriterion]:
+    theory = DefeasibleTheory(
+        facts={
+            "officer": {("frank",)},
+            "emergency": {("t_f",)},
+            "high_value": {("t_f",)},
+            "sole_approver": {("frank", "t_f")},
+        },
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(
+                id="d1",
+                head="can_authorize(X,T)",
+                body=["officer(X)", "within_limit(X,T)"],
+            ),
+            Rule(id="d2", head="~can_authorize(X,T)", body=["is_beneficiary(X,T)"]),
+            Rule(
+                id="d3",
+                head="~can_authorize(X,T)",
+                body=["under_audit(T)", "officer(X)"],
+            ),
+            Rule(
+                id="d4",
+                head="can_authorize(X,T)",
+                body=["emergency(T)", "officer(X)"],
+            ),
+            Rule(
+                id="d5",
+                head="~can_authorize(X,T)",
+                body=["high_value(T)", "sole_approver(X,T)"],
+            ),
         ],
         defeaters=[],
         presumptions=[],
-        superiority=[],
+        superiority=[
+            ("d2", "d1"),
+            ("d3", "d1"),
+            ("d5", "d1"),
+            ("d4", "d3"),
+            ("d2", "d4"),
+        ],
         conflicts=[],
     )
-    atom = GroundAtom(predicate="access", arguments=("carol",))
+    atom = GroundAtom(predicate="can_authorize", arguments=("frank", "t_f"))
     criterion = CompositePreference(
         SuperiorityPreference(theory),
         GeneralizedSpecificity(theory),
@@ -241,9 +324,14 @@ CASES: tuple[tuple[str, str, Builder], ...] = (
         _innocent_coerced,
     ),
     (
-        "rbac_break_glass",
-        "RBAC break-glass cascade — query access(carol)",
-        _rbac_break_glass,
+        "reviewer_waiver_overruled",
+        "Peer-review COI: advisor rule beats large-institution waiver — eligible(dave, author_d)",
+        _reviewer_waiver_overruled,
+    ),
+    (
+        "break_glass_vs_four_eyes",
+        "Emergency vs four-eyes: mutual block → UNDECIDED — query can_authorize(frank, t_f)",
+        _break_glass_vs_four_eyes,
     ),
 )
 

@@ -10,7 +10,8 @@ doubles as a self-checking assertion suite (every file ends with
 | --- | --- |
 | [`nixon_diamond.py`](nixon_diamond.py) | Equi-specific defeasible rules leave the query `UNDECIDED`. Shows: Garcia & Simari 2004 Def 5.3 four-valued answer. |
 | [`innocent_until_proven_guilty.py`](innocent_until_proven_guilty.py) | Presumption (`innocent -< true`) overridden by evidence and attacked by a blocking defeater. Shows: `presumptions=[...]` + `defeaters=[...]`. |
-| [`access_control_break_glass.py`](access_control_break_glass.py) | Three-level RBAC cascade (`team_member` → `terminated` → `incident_commander`) settled by `GeneralizedSpecificity` alone. Shows: specificity with *zero* superiority pairs. |
+| [`reviewer_assignment.py`](reviewer_assignment.py) | Multi-axis peer-review COI (coauthor / institution / advisor). An undercutting defeater waives only the institution axis; superiority keeps advisor-COI above the waiver. Shows: defeaters + incomparable disqualifiers — not scalar-reducible. |
+| [`access_control_break_glass.py`](access_control_break_glass.py) | Financial authorization where emergency overrides audit hold but is itself overridden by the self-dealing bar, and deliberately cannot trump four-eyes. Shows: partial-order superiority + `UNDECIDED` when policy is silent. |
 | [`gdpr_lawful_basis.py`](gdpr_lawful_basis.py) | Two independent lawful-basis paths; withdrawal beats consent via explicit `superiority=[("d2", "d0")]`. Shows: user superiority layered on specificity. |
 
 ## Tier 2 — Domain depth
@@ -37,4 +38,4 @@ doubles as a self-checking assertion suite (every file ends with
 | Script | What it shows |
 | --- | --- |
 | [`mermaid_gallery.py`](mermaid_gallery.py) | Emits `.mmd` files for five dialectical trees via `render_tree_mermaid` (F-C). |
-| [`mermaid/*.mmd`](mermaid/) | Rendered Mermaid diagrams: `nixon_diamond`, `innocent_coerced`, `rbac_break_glass`, `clinical_aspirin`, `opus`. |
+| [`mermaid/*.mmd`](mermaid/) | Rendered Mermaid diagrams: `nixon_diamond`, `innocent_coerced`, `reviewer_waiver_overruled`, `break_glass_vs_four_eyes`, `clinical_aspirin`, `opus`. |

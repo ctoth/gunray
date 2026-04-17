@@ -291,28 +291,71 @@ models a coerced confession. From [`examples/innocent_until_proven_guilty.py`](e
         superiority=[("d1", "df1")],
 ```
 
-**Break-glass RBAC — a three-level cascade with zero superiority pairs.**
-The strict role hierarchy `incident_commander → terminated → team_member`
-makes each defeasible access rule strictly entail the body of the less
-specific one, so `GeneralizedSpecificity` orders `d3 > d2 > d1` on its own.
-From [`examples/access_control_break_glass.py`](examples/access_control_break_glass.py):
+**Peer-review conflict of interest — disqualifiers on incomparable axes.**
+Three disqualifiers (recent co-authorship, same institution, doctoral
+advisor) disagree with a default eligibility rule on *independent* fact
+axes. A defeater (`df1`) waives only the institution axis, via
+specificity, when the reviewer is at a large institution in a separate
+department — and `superiority=[("d4", "df1")]` keeps that waiver from
+rescuing advisor-COI. No scalar priority captures this: the same
+waiver that restores Carol's eligibility is overruled for Dave because
+it is an advisor relation, not an affiliation, at issue. From
+[`examples/reviewer_assignment.py`](examples/reviewer_assignment.py):
 
 ```python
         defeasible_rules=[
-            # Default: team members have access.
-            Rule(id="d1", head="access(X)", body=["team_member(X)"]),
-            # Override: terminated users are denied (more specific —
-            # terminated(X) strictly implies team_member(X) via s2).
-            Rule(id="d2", head="~access(X)", body=["terminated(X)"]),
-            # Break-glass: a declared incident commander regains
-            # access (most specific — incident_commander(X) strictly
-            # implies terminated(X) via s1 and team_member(X) via s1+s2).
-            Rule(id="d3", head="access(X)", body=["incident_commander(X)"]),
+            Rule(id="d1", head="eligible(X,Y)", body=["bid(X,Y)"]),
+            Rule(id="d2", head="~eligible(X,Y)", body=["recent_coauthor(X,Y)"]),
+            Rule(id="d3", head="~eligible(X,Y)", body=["co_worker(X,Y)"]),
+            Rule(id="d4", head="~eligible(X,Y)", body=["advisor_of(X,Y)"]),
         ],
+        defeaters=[
+            # Undercutting waiver scoped to the institution axis only.
+            # Body strictly supersets d3's body, so specificity lifts
+            # df1 above d3 — but the superiority pair below keeps it
+            # below d4 (advisor COI).
+            Rule(
+                id="df1",
+                head="eligible(X,Y)",
+                body=[
+                    "co_worker(X,Y)",
+                    "large_institution(X,Y)",
+                    "different_department(X,Y)",
+                ],
+            ),
+        ],
+        superiority=[("d2", "d1"), ("d3", "d1"), ("d4", "d1"), ("d4", "df1")],
 ```
 
-`assert answer(theory, _access("bob"), criterion) is Answer.NO` — bob
-is terminated, so `d2` properly defeats `d1`.
+`answer(theory, eligible("carol", "author_c"), criterion) is Answer.YES`
+— the waiver defeats the institution COI. `answer(theory,
+eligible("dave", "author_d"), criterion) is Answer.NO` — the same
+waiver can't rescue a PhD-advisor relation.
+
+**Financial authorization — `UNDECIDED` when policy is deliberately silent.**
+Break-glass waives an audit hold but cannot trump the self-dealing bar;
+four-eyes is not ranked against break-glass at all, and when emergency
+meets a high-value sole-approver transaction the engine returns
+`Answer.UNDECIDED` rather than inventing a precedence. Garcia & Simari
+2004 Def 5.3 p. 28. From
+[`examples/access_control_break_glass.py`](examples/access_control_break_glass.py):
+
+```python
+        defeasible_rules=[
+            Rule(id="d1", head="can_authorize(X,T)", body=["officer(X)", "within_limit(X,T)"]),
+            Rule(id="d2", head="~can_authorize(X,T)", body=["is_beneficiary(X,T)"]),
+            Rule(id="d3", head="~can_authorize(X,T)", body=["under_audit(T)", "officer(X)"]),
+            Rule(id="d4", head="can_authorize(X,T)", body=["emergency(T)", "officer(X)"]),
+            Rule(id="d5", head="~can_authorize(X,T)", body=["high_value(T)", "sole_approver(X,T)"]),
+        ],
+        # (d4, d5) is deliberately missing — policy does not declare
+        # whether emergency can waive four-eyes, and the four-valued
+        # answer reflects that honestly.
+        superiority=[("d2", "d1"), ("d3", "d1"), ("d5", "d1"), ("d4", "d3"), ("d2", "d4")],
+```
+
+`assert answer(theory, can_authorize("frank", "t_f"), criterion) is Answer.UNDECIDED`
+— emergency and four-eyes mutually block.
 
 **GDPR lawful basis — explicit `superiority` overrides specificity.**
 Two independent defeasible paths reach `lawful_basis`; a filed withdrawal
@@ -338,15 +381,13 @@ beats the consent rule via a user-supplied priority pair
 ```
 
 Dialectical trees are renderable to Mermaid via `render_tree_mermaid`.
-The break-glass cascade for carol (`access(carol)` warranted despite
-the deny rule on terminated users) — `examples/mermaid/rbac_break_glass.mmd`:
+The emergency-vs-four-eyes stalemate for frank
+(`can_authorize(frank, t_f)` `UNDECIDED`) — `examples/mermaid/break_glass_vs_four_eyes.mmd`:
 
 ```mermaid
 flowchart TD
-    n0["access(carol) [d1] U"]
-    n1["~access(carol) [d2] D"]
-    n2["access(carol) [d3] U"]
-    n1 --> n2
+    n0["can_authorize(frank, t_f) [d4] D"]
+    n1["~can_authorize(frank, t_f) [d5] U"]
     n0 --> n1
 ```
 

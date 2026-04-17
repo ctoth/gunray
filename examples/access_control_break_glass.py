@@ -1,22 +1,41 @@
-"""RBAC break-glass: cascading overrides via generalized specificity alone.
+"""Financial-transaction authorization: break-glass as one axis among several.
 
-Shows: Simari & Loui 1992 Lemma 2.4 (``GeneralizedSpecificity``) picking
-the winner across three levels of rule specificity with *zero*
-``superiority`` pairs — the strict role hierarchy
+Shows: authorization on *non-linearly-ordered* overrides. Four
+defeasible rules and no strict rules; superiority pairs encode the
+policy relationships we know, and deliberately leave one pair
+*unordered* so that when both bodies fire together the engine returns
+``UNDECIDED`` rather than inventing a precedence that policy has not
+specified.
 
-    incident_commander(X) → terminated(X) → team_member(X)
+    d1: can_authorize(X,T)  <= officer(X), within_limit(X,T)    (default)
+    d2: ~can_authorize(X,T) <= is_beneficiary(X,T)              (self-dealing bar)
+    d3: ~can_authorize(X,T) <= under_audit(T), officer(X)       (audit hold)
+    d4: can_authorize(X,T)  <= emergency(T), officer(X)         (break-glass)
+    d5: ~can_authorize(X,T) <= high_value(T), sole_approver(X,T) (four-eyes rule)
 
-makes the body of each defeasible access rule strictly entail the body
-of the less specific one, so every pairwise comparison is settled by
-specificity alone.
+Superiority (Garcia & Simari 2004 §4.1 p. 17 — user priority composed
+ahead of ``GeneralizedSpecificity``):
 
-Defaults allow team members, deny terminated users (more specific), and
-re-allow incident commanders (most specific — the break-glass).
+    (d2, d1), (d3, d1), (d5, d1) — each disqualifier beats the
+                                  default on disjoint antecedents.
+    (d4, d3) — break-glass overrides an ordinary audit hold.
+    (d2, d4) — but the self-dealing bar survives break-glass.
 
-Source: García & Simari 2004 §4.1 p. 17 (``GeneralizedSpecificity`` as
-a preference criterion over defeasible arguments), built on Simari &
-Loui 1992 Lemma 2.4. Preference composition follows
-``src/gunray/defeasible.py:134``.
+Observe: ``d4`` is *not* ranked against ``d5``. Policy does not grant
+emergency the power to waive the four-eyes requirement, nor does it
+grant four-eyes enough weight to trump a declared emergency. When
+both fire together, specificity is silent (disjoint bodies) and
+superiority is silent, so ``d4`` and ``d5`` mutually block each
+other. The engine reports ``Answer.UNDECIDED`` — a principled refusal
+rather than a silent default. No scalar priority encoding of the
+five rules can produce this four-valued answer; any total order
+either lets emergency waive four-eyes or lets four-eyes override
+emergency, and the policy is deliberately agnostic between the two.
+
+Sources:
+- García & Simari 2004 §3.3 p. 14 (defeat); §4.1 p. 17 (composite
+  preference); Def 5.3 p. 28 (four-valued answer).
+- Simari & Loui 1992 Lemma 2.4 (``GeneralizedSpecificity``).
 """
 
 from __future__ import annotations
@@ -42,108 +61,145 @@ from gunray.types import GroundAtom
 def _build_theory(facts: PredicateFacts) -> DefeasibleTheory:
     return DefeasibleTheory(
         facts=facts,
-        strict_rules=[
-            # Role hierarchy as strict rules. Having either stronger
-            # role strictly implies the weaker ones, so any argument
-            # using a stronger-role premise semantically activates
-            # everything a weaker-role argument would.
-            Rule(id="s1", head="terminated(X)", body=["incident_commander(X)"]),
-            Rule(id="s2", head="team_member(X)", body=["terminated(X)"]),
-        ],
+        strict_rules=[],
         defeasible_rules=[
-            # Default: team members have access.
-            Rule(id="d1", head="access(X)", body=["team_member(X)"]),
-            # Override: terminated users are denied (more specific —
-            # terminated(X) strictly implies team_member(X) via s2).
-            Rule(id="d2", head="~access(X)", body=["terminated(X)"]),
-            # Break-glass: a declared incident commander regains
-            # access (most specific — incident_commander(X) strictly
-            # implies terminated(X) via s1 and team_member(X) via s1+s2).
-            Rule(id="d3", head="access(X)", body=["incident_commander(X)"]),
+            Rule(id="d1", head="can_authorize(X,T)", body=["officer(X)", "within_limit(X,T)"]),
+            Rule(id="d2", head="~can_authorize(X,T)", body=["is_beneficiary(X,T)"]),
+            Rule(id="d3", head="~can_authorize(X,T)", body=["under_audit(T)", "officer(X)"]),
+            Rule(id="d4", head="can_authorize(X,T)", body=["emergency(T)", "officer(X)"]),
+            Rule(
+                id="d5",
+                head="~can_authorize(X,T)",
+                body=["high_value(T)", "sole_approver(X,T)"],
+            ),
         ],
         defeaters=[],
         presumptions=[],
-        # No superiority pairs — the whole point is that specificity
-        # alone orders the three rules.
-        superiority=[],
+        superiority=[
+            # Disqualifiers outrank the default where specificity is
+            # silent (disjoint antecedents).
+            ("d2", "d1"),
+            ("d3", "d1"),
+            ("d5", "d1"),
+            # Break-glass waives an ordinary audit hold.
+            ("d4", "d3"),
+            # ...but the self-dealing bar survives break-glass.
+            ("d2", "d4"),
+            # Deliberately no pair between d4 and d5: policy does not
+            # grant emergency the authority to waive four-eyes, nor
+            # four-eyes the authority to trump emergency. The pairing
+            # is left to mutual block so the engine yields UNDECIDED.
+        ],
         conflicts=[],
     )
 
 
-def _access(name: str) -> GroundAtom:
-    return GroundAtom(predicate="access", arguments=(name,))
+def _query(user: str, txn: str) -> GroundAtom:
+    return GroundAtom(predicate="can_authorize", arguments=(user, txn))
 
 
-def _criterion(theory: DefeasibleTheory) -> CompositePreference:
-    # Same composite the engine uses at ``defeasible.py:134``: an empty
-    # ``superiority`` list makes ``SuperiorityPreference`` inert, so
-    # every comparison reaches ``GeneralizedSpecificity``.
-    return CompositePreference(
-        SuperiorityPreference(theory),
-        GeneralizedSpecificity(theory),
-    )
-
-
-# Three individuals. The strict role hierarchy means we only assert
-# each person's *strongest* role; the weaker roles follow via s1/s2.
+# Five scenarios probing each policy interaction independently.
 facts: PredicateFacts = {
-    "team_member": {("alice",)},
-    "terminated": {("bob",)},
-    "incident_commander": {("carol",)},
+    "officer": {("alice",), ("carol",), ("dave",), ("eve",), ("frank",)},
+    # Note: frank's high-value txn t_f is deliberately NOT within_limit —
+    # high-value transactions by definition exceed an individual
+    # officer's normal spending authority and require the four-eyes
+    # rule. That keeps d1 from firing for frank, so the frank scenario
+    # is a clean two-way fight between break-glass (d4) and four-eyes
+    # (d5).
+    "within_limit": {
+        ("alice", "t_a"),
+        ("carol", "t_c"),
+        ("dave", "t_d"),
+        ("eve", "t_e"),
+    },
+    "under_audit": {("t_c",), ("t_d",)},
+    "emergency": {("t_d",), ("t_e",), ("t_f",)},
+    "is_beneficiary": {("eve", "t_e")},
+    "high_value": {("t_f",)},
+    "sole_approver": {("frank", "t_f")},
 }
+
 theory = _build_theory(facts)
-criterion = _criterion(theory)
+criterion = CompositePreference(
+    SuperiorityPreference(theory),
+    GeneralizedSpecificity(theory),
+)
 
-alice_access = _access("alice")
-bob_access = _access("bob")
-carol_access = _access("carol")
+alice_q = _query("alice", "t_a")
+carol_q = _query("carol", "t_c")
+dave_q = _query("dave", "t_d")
+eve_q = _query("eve", "t_e")
+frank_q = _query("frank", "t_f")
 
-result_alice = answer(theory, alice_access, criterion)
-result_bob = answer(theory, bob_access, criterion)
-result_carol = answer(theory, carol_access, criterion)
+result_alice = answer(theory, alice_q, criterion)
+result_carol = answer(theory, carol_q, criterion)
+result_dave = answer(theory, dave_q, criterion)
+result_eve = answer(theory, eve_q, criterion)
+result_frank = answer(theory, frank_q, criterion)
 
 assert result_alice is Answer.YES, f"alice: expected YES, got {result_alice!r}"
-assert result_bob is Answer.NO, f"bob: expected NO, got {result_bob!r}"
-assert result_carol is Answer.YES, f"carol: expected YES, got {result_carol!r}"
+assert result_carol is Answer.NO, f"carol: expected NO, got {result_carol!r}"
+assert result_dave is Answer.YES, f"dave: expected YES, got {result_dave!r}"
+assert result_eve is Answer.NO, f"eve: expected NO, got {result_eve!r}"
+assert result_frank is Answer.UNDECIDED, f"frank: expected UNDECIDED, got {result_frank!r}"
 
 
 def _tree_for(atom: GroundAtom) -> DialecticalNode:
-    """Find the argument concluding ``atom`` and build its marked tree.
+    """Build the marked dialectical tree rooted at ``atom``.
 
-    Garcia & Simari 2004 Def 5.1: the dialectical tree is rooted at a
-    specific argument, so we pick the argument whose conclusion is the
-    query literal. The break-glass case has exactly one such argument
-    (``⟨{d3}, access(carol)⟩``), making this unambiguous.
+    Picks the defeasible argument concluding ``atom``. For ``eve``
+    and ``frank`` scenarios, the relevant root is the one derived
+    from ``d4`` (break-glass), since that is the argument under
+    defeat by ``d2``/``d5`` respectively.
     """
-    arguments = build_arguments(theory)
-    root = next(arg for arg in arguments if arg.conclusion == atom and arg.rules)
-    return build_tree(root, criterion, theory, universe=tuple(arguments))
+    arguments = tuple(build_arguments(theory))
+    roots = [arg for arg in arguments if arg.conclusion == atom and arg.rules]
+    if not roots:
+        raise AssertionError(f"no defeasible argument for {atom!r}")
+    # Prefer the argument using the most premises (break-glass wins
+    # over the plain default when both apply) for a richer tree.
+    return build_tree(
+        max(roots, key=lambda a: len(a.rules)),
+        criterion,
+        theory,
+        universe=arguments,
+    )
 
 
 if __name__ == "__main__":
-    print("Access control — break-glass via generalized specificity")
-    print("  strict s1:  terminated(X)   :- incident_commander(X)")
-    print("  strict s2:  team_member(X)  :- terminated(X)")
-    print("  default d1: access(X)       <= team_member(X)")
-    print("  deny    d2: ~access(X)      <= terminated(X)")
-    print("  break   d3: access(X)       <= incident_commander(X)")
-    print("  superiority: (none) — specificity orders d3 > d2 > d1")
+    print("Financial transaction authorization — break-glass as one axis among several")
+    print("  d1: can_authorize(X,T)  <= officer(X), within_limit(X,T)")
+    print("  d2: ~can_authorize(X,T) <= is_beneficiary(X,T)             (self-dealing bar)")
+    print("  d3: ~can_authorize(X,T) <= under_audit(T), officer(X)      (audit hold)")
+    print("  d4: can_authorize(X,T)  <= emergency(T), officer(X)        (break-glass)")
+    print("  d5: ~can_authorize(X,T) <= high_value(T), sole_approver(X,T) (four-eyes)")
+    print("  superiority: (d2,d1) (d3,d1) (d5,d1) (d4,d3) (d2,d4)")
+    print("  --- NO pair between d4 and d5 ---")
     print()
-    print("Scenario A — alice is a team member only.")
-    print("  Only d1 applies; no counter-argument exists.")
-    print(f"  answer(access(alice)) = {result_alice.name}")
+    print("Alice — routine authorization, within limit, nothing else fires.")
+    print(f"  answer(can_authorize(alice, t_a)) = {result_alice.name}")
     print()
-    print("Scenario B — bob is terminated (strictly a team member too).")
-    print("  d2 is more specific than d1 and properly defeats it.")
-    print(f"  answer(access(bob)) = {result_bob.name}")
+    print("Carol — transaction under audit, no emergency.")
+    print("  d3 defeats d1 via superiority. Audit hold stands.")
+    print(f"  answer(can_authorize(carol, t_c)) = {result_carol.name}")
     print()
-    print("Scenario C — carol is an incident commander (break-glass).")
-    print("  d3 is strictly more specific than d2, which is strictly")
-    print("  more specific than d1, so d3's access argument is warranted.")
-    print(f"  answer(access(carol)) = {result_carol.name}")
+    print("Dave — transaction under audit AND emergency declared.")
+    print("  d4 beats d3 via (d4, d3). Break-glass releases the audit hold.")
+    print(f"  answer(can_authorize(dave, t_d)) = {result_dave.name}")
     print()
-    print("Dialectical tree for access(carol):")
-    print(render_tree(_tree_for(carol_access)))
+    print("Eve — is the beneficiary, emergency declared.")
+    print("  d4 fires, but (d2, d4) keeps the self-dealing bar ahead of break-glass.")
+    print(f"  answer(can_authorize(eve, t_e)) = {result_eve.name}")
+    print()
+    print("Frank — emergency declared AND high-value txn AND sole approver.")
+    print("  d4 (can) and d5 (~can) have disjoint bodies and no superiority pair.")
+    print("  Specificity is silent, superiority is silent, so they mutually block:")
+    print("  emergency cannot waive four-eyes, four-eyes cannot trump emergency.")
+    print(f"  answer(can_authorize(frank, t_f)) = {result_frank.name}")
+    print()
+    print("Dialectical tree for can_authorize(frank, t_f):")
+    print(render_tree(_tree_for(frank_q)))
     print()
     print("Prose explanation (Garcia & Simari 2004 §6):")
-    print(explain(_tree_for(carol_access), criterion))
+    print(explain(_tree_for(frank_q), criterion))
