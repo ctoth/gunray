@@ -161,3 +161,20 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests -q`: `170 passed, 292 skipped, 3 deselected in 133.45s`
 - `uv run ruff check tests/test_dialectic.py tests/test_build_arguments.py tests/test_render.py`: `All checks passed!`
 - `uv run pyright tests/` was intentionally not run because Q's current instruction is not to typecheck tests.
+
+## P4-T1 summary
+
+- Pre-state LOC: `671` lines by `(Get-Content src/gunray/closure.py | Measure-Object -Line).Lines`; the workstream's 821 LOC value was stale before this slice.
+- Pre-state vulture: reported `RankScore`, public `ClosureEvaluator` members/trace attributes, `_lexicographic_preferred_default_sets`, `_branch_closure`, `_is_consistent`, and `_world_satisfies_rules`. `_formula_branches` and `_formula_true_in_closure` were not directly reported because they were only used inside already-dead helper code.
+- Reachability audit: `_search_model` is live through `_model_exists`; it was not deleted. The task text's claim that `_branch_closure` was the live engine was stale in current code, and `_branch_closure` was vulture-dead.
+- Green change: removed `RankScore`, `_lexicographic_preferred_default_sets`, `_branch_closure`, `_is_consistent`, `_formula_branches`, `_formula_true_in_closure`, and `_world_satisfies_rules`.
+- Green change: added `notes/code_review_2026-04-16.md` "Post-workstream delta" note recording the real 671 -> 549 LOC closure cull.
+- Post-state LOC: `549` lines.
+- Post-state vulture: only public API / trace attribute false positives remain (`ClosureEvaluator`, `evaluate`, `satisfies_klm_property`, `definitely`, `supported`).
+- `uv run pytest tests/test_closure.py tests/test_closure_faithfulness.py -v`: `8 passed`
+- `uv run pytest tests -q`: `170 passed, 292 skipped, 3 deselected in 132.09s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: timed out in known HMMER `strict_only_souffle_hmmer_CPtrStore` case under default 30s timeout.
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q -k "strict_only_souffle_hmmer_CPtrStore" --timeout=240`: `1 passed, 294 deselected in 158.89s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q --timeout=240`: `283 passed, 9 skipped, 3 deselected in 297.31s`
+- `uv run pyright src/gunray/closure.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check src/gunray/closure.py`: `All checks passed!`

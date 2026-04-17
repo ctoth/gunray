@@ -18,7 +18,6 @@ from .trace import DefeasibleTrace, TraceConfig
 from .types import GroundAtom
 
 World = frozenset[str]
-RankScore = int | tuple[int, ...]
 RankScoreT = TypeVar("RankScoreT", int, tuple[int, ...])
 
 
@@ -361,65 +360,6 @@ def _relevant_formula_entails(
     return _classically_entails(theory.strict_rules, active_defaults, antecedent, consequent)
 
 
-def _lexicographic_preferred_default_sets(
-    ranked: RankedDefaults,
-    theory: DefeasibleTheory,
-    antecedent: Formula,
-) -> list[list[Rule]]:
-    """Return the lexicographically preferred default sets for ``antecedent``.
-
-    Each iteration keeps only the largest subsets of the current rank that
-    remain satisfiable together with the already retained more-exceptional
-    defaults. This matches the subset-ranking intent of Morris et al. 2020
-    without enumerating truth-table worlds.
-    """
-
-    selected_sets: list[tuple[Rule, ...]] = [tuple(ranked.infinite_rank)]
-    for level in reversed(ranked.finite_ranks):
-        next_sets: list[tuple[Rule, ...]] = []
-        best_size = -1
-        seen: set[tuple[str, ...]] = set()
-        level_items = tuple(level)
-
-        for selected in selected_sets:
-            satisfiable_subsets: list[tuple[Rule, ...]] = []
-            chosen_size = -1
-            for size in range(len(level_items), -1, -1):
-                current = [
-                    subset
-                    for subset in combinations(level_items, size)
-                    if _is_formula_possible(
-                        theory.strict_rules,
-                        list(selected) + list(subset),
-                        antecedent,
-                    )
-                ]
-                if current:
-                    satisfiable_subsets = current
-                    chosen_size = size
-                    break
-
-            if chosen_size < best_size:
-                continue
-            if chosen_size > best_size:
-                best_size = chosen_size
-                next_sets = []
-                seen.clear()
-
-            for subset in satisfiable_subsets:
-                combined = tuple(sorted((*selected, *subset), key=lambda rule: rule.id))
-                key = tuple(rule.id for rule in combined)
-                if key in seen:
-                    continue
-                seen.add(key)
-                next_sets.append(combined)
-
-        if next_sets:
-            selected_sets = next_sets
-
-    return [list(selected) for selected in selected_sets]
-
-
 def _minimal_relevant_rule_ids(
     ranked: RankedDefaults,
     theory: DefeasibleTheory,
@@ -646,56 +586,6 @@ def _branch_satisfiable(
     return _is_formula_possible([], rules, _conjunction_formula(sorted(branch)))
 
 
-def _branch_closure(
-    branch: frozenset[str],
-    rules: list[Rule],
-) -> set[str]:
-    closure = set(branch)
-    changed = True
-    while changed:
-        changed = False
-        for rule in rules:
-            if rule.head in closure:
-                continue
-            if set(rule.body) <= closure:
-                closure.add(rule.head)
-                changed = True
-    return closure
-
-
-def _is_consistent(literals: set[str]) -> bool:
-    return all(_complement(literal) not in literals for literal in literals)
-
-
-def _formula_branches(formula: Formula) -> tuple[frozenset[str], ...]:
-    """Convert Formula to a deduplicated DNF branch list.
-
-    Gunray's closure tests only use literals, conjunctions, disjunctions, and
-    `true`, so a direct branch expansion is simpler than general SAT encoding.
-    """
-
-    if formula.kind == "true":
-        return (frozenset(),)
-    if formula.kind == "literal":
-        assert formula.literal is not None
-        return (frozenset({formula.literal}),)
-    if formula.kind == "and":
-        assert formula.left is not None
-        assert formula.right is not None
-        branches: set[frozenset[str]] = set()
-        for left in _formula_branches(formula.left):
-            for right in _formula_branches(formula.right):
-                branches.add(left | right)
-        return tuple(sorted(branches, key=lambda branch: tuple(sorted(branch))))
-    if formula.kind == "or":
-        assert formula.left is not None
-        assert formula.right is not None
-        branches = set(_formula_branches(formula.left))
-        branches.update(_formula_branches(formula.right))
-        return tuple(sorted(branches, key=lambda branch: tuple(sorted(branch))))
-    raise ValueError(f"Unsupported formula kind: {formula.kind}")
-
-
 def _formula_holds(world: World, formula: Formula) -> bool:
     if formula.kind == "true":
         return True
@@ -710,32 +600,6 @@ def _formula_holds(world: World, formula: Formula) -> bool:
         assert formula.left is not None
         assert formula.right is not None
         return _formula_holds(world, formula.left) or _formula_holds(world, formula.right)
-    raise ValueError(f"Unsupported formula kind: {formula.kind}")
-
-
-def _formula_true_in_closure(formula: Formula, closure: set[str]) -> bool:
-    if formula.kind == "true":
-        return True
-    if formula.kind == "literal":
-        assert formula.literal is not None
-        if formula.literal.startswith("~"):
-            # The reduced closure fragment still uses the paper's two-valued
-            # world semantics: a negative literal holds exactly when its
-            # positive atom is absent from the current world/closure state.
-            return formula.literal[1:] not in closure
-        return formula.literal in closure
-    if formula.kind == "and":
-        assert formula.left is not None
-        assert formula.right is not None
-        return _formula_true_in_closure(formula.left, closure) and _formula_true_in_closure(
-            formula.right, closure
-        )
-    if formula.kind == "or":
-        assert formula.left is not None
-        assert formula.right is not None
-        return _formula_true_in_closure(formula.left, closure) or _formula_true_in_closure(
-            formula.right, closure
-        )
     raise ValueError(f"Unsupported formula kind: {formula.kind}")
 
 
@@ -776,13 +640,6 @@ def _lexicographic_score(ranked: RankedDefaults, world: World) -> tuple[int, ...
     return tuple(
         sum(1 for rule in level if _violates(world, rule))
         for level in reversed(ranked.finite_ranks)
-    )
-
-
-def _world_satisfies_rules(world: World, rules: list[Rule]) -> bool:
-    return all(
-        not _world_satisfies_literals(world, set(rule.body)) or _literal_holds(world, rule.head)
-        for rule in rules
     )
 
 

@@ -162,3 +162,9 @@ SUMMARY/surface reports/papers).
 - Write the 8 remaining task files.
 - Report back to Q with file list + any design gaps surfaced during
   authoring.
+
+## Post-workstream delta
+
+- P4-T1 closure cull: `src/gunray/closure.py` was 671 LOC immediately before
+  the deletion slice and 549 LOC after removing the dead helpers. The earlier
+  review note's 821 LOC observation was stale by the time this slice ran.
