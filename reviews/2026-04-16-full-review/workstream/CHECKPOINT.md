@@ -124,3 +124,14 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `283 passed, 9 skipped, 3 deselected in 279.73s`
 - `uv run pyright src/gunray/evaluator.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check src/gunray/evaluator.py tests/test_evaluator_review_v2.py`: `All checks passed!`
+
+## P3-T2 summary
+
+- Red commit: `e73e996` pinned `add_values()` accepting numeric pairs and rejecting mixed, string-only, and bool operands.
+- Green change: `add_values()` now raises `SemanticError` for non-numeric and bool operands instead of string-concatenating.
+- Audit: `rg -n -F "add_values" src tests ../datalog-conformance-suite/src/datalog_conformance/_tests` found only parser/evaluator call sites and the new tests; no fixture depended on string concatenation.
+- `uv run pytest tests/test_semantics.py -v`: `4 passed`
+- `uv run pytest tests -q`: `163 passed, 292 skipped, 3 deselected in 127.55s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `283 passed, 9 skipped, 3 deselected in 359.62s`
+- `uv run pyright src/gunray/semantics.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check src/gunray/semantics.py tests/test_semantics.py`: `All checks passed!`
