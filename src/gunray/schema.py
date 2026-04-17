@@ -62,6 +62,13 @@ class Policy(str, Enum):
     RELEVANT_CLOSURE = "relevant_closure"
 
 
+class NegationSemantics(str, Enum):
+    """Semantics for variables that appear only in negated body literals."""
+
+    SAFE = "safe"
+    NEMO = "nemo"
+
+
 @dataclass(slots=True)
 class Program:
     """Core Datalog program."""

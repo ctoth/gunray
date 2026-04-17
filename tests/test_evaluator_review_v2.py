@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from gunray import Program, SemiNaiveEvaluator
+from gunray import NegationSemantics, Program, SemiNaiveEvaluator
 
 
 def test_negated_literal_allows_existentially_local_variable() -> None:
@@ -11,7 +11,10 @@ def test_negated_literal_allows_existentially_local_variable() -> None:
         ],
     )
 
-    model = SemiNaiveEvaluator().evaluate(program)
+    model = SemiNaiveEvaluator().evaluate(
+        program,
+        negation_semantics=NegationSemantics.NEMO,
+    )
 
     assert model.facts["ok"] == {("alice",)}
 
@@ -27,6 +30,9 @@ def test_negated_literal_blocks_when_any_matching_row_exists() -> None:
         ],
     )
 
-    model = SemiNaiveEvaluator().evaluate(program)
+    model = SemiNaiveEvaluator().evaluate(
+        program,
+        negation_semantics=NegationSemantics.NEMO,
+    )
 
     assert model.facts["ok"] == {("alice",)}

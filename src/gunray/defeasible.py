@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Literal
 
 from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
-from .schema import DefeasibleModel, FactTuple, ModelFacts, Policy
+from .schema import DefeasibleModel, FactTuple, ModelFacts, NegationSemantics, Policy
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
 from .schema import Program as SchemaProgram
 from .trace import (
@@ -52,8 +52,18 @@ if TYPE_CHECKING:  # pragma: no cover - import-time only
 class DefeasibleEvaluator:
     """Evaluate defeasible theories under Gunray's supported semantics."""
 
-    def evaluate(self, theory: SchemaDefeasibleTheory, policy: Policy) -> DefeasibleModel:
-        model, _ = self.evaluate_with_trace(theory, policy)
+    def evaluate(
+        self,
+        theory: SchemaDefeasibleTheory,
+        policy: Policy,
+        *,
+        negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+    ) -> DefeasibleModel:
+        model, _ = self.evaluate_with_trace(
+            theory,
+            policy,
+            negation_semantics=negation_semantics,
+        )
         return model
 
     def evaluate_with_trace(
@@ -61,6 +71,8 @@ class DefeasibleEvaluator:
         theory: SchemaDefeasibleTheory,
         policy: Policy,
         trace_config: TraceConfig | None = None,
+        *,
+        negation_semantics: NegationSemantics = NegationSemantics.SAFE,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]:
         # Post-Block-2, Policy.BLOCKING is the only supported value —
         # argument preference is resolved by GeneralizedSpecificity
@@ -74,6 +86,7 @@ class DefeasibleEvaluator:
             model, strict_trace = _evaluate_strict_only_theory_with_trace(
                 theory,
                 actual_trace_config,
+                negation_semantics,
             )
             trace = DefeasibleTrace(config=actual_trace_config)
             trace.strict_trace = strict_trace
@@ -250,12 +263,17 @@ def _is_strict_only_theory(theory: SchemaDefeasibleTheory) -> bool:
 def _evaluate_strict_only_theory_with_trace(
     theory: SchemaDefeasibleTheory,
     trace_config: TraceConfig,
+    negation_semantics: NegationSemantics,
 ) -> tuple[DefeasibleModel, DatalogTrace]:
     program = SchemaProgram(
         facts=theory.facts,
         rules=[_strict_rule_to_program_text(rule.head, rule.body) for rule in theory.strict_rules],
     )
-    model, trace = SemiNaiveEvaluator().evaluate_with_trace(program, trace_config)
+    model, trace = SemiNaiveEvaluator().evaluate_with_trace(
+        program,
+        trace_config,
+        negation_semantics=negation_semantics,
+    )
     _raise_if_strict_pi_contradictory(model.facts, theory.conflicts)
     sections = {
         "definitely": {predicate: set(rows) for predicate, rows in model.facts.items()},

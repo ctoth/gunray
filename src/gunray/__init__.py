@@ -23,7 +23,15 @@ from .preference import (
     SuperiorityPreference,
     TrivialPreference,
 )
-from .schema import DefeasibleModel, DefeasibleTheory, Model, Policy, Program, Rule
+from .schema import (
+    DefeasibleModel,
+    DefeasibleTheory,
+    Model,
+    NegationSemantics,
+    Policy,
+    Program,
+    Rule,
+)
 from .trace import (
     DatalogTrace,
     DefeasibleTrace,
@@ -43,6 +51,7 @@ __all__ = [
     "GeneralizedSpecificity",
     "GunrayEvaluator",
     "Model",
+    "NegationSemantics",
     "Policy",
     "PreferenceCriterion",
     "Program",

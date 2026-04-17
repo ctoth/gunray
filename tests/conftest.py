@@ -81,11 +81,6 @@ _CONFORMANCE_SKIPPED: dict[str, str] = {
         "Section 4.1 requires every rule in the stronger argument to dominate every "
         "rule in the weaker argument."
     ),
-    "errors/review_v2_unsafe_negation::unsafe_negation_variable_only_in_negative_literal": (
-        "Obsolete local safety fixture: gunray adopts the Nemo-style existential "
-        "reading for variables local to negated literals, which conflicts with this "
-        "manual review_v2 expectation."
-    ),
 }
 
 

@@ -15,7 +15,7 @@ from .compiled import (
 from .errors import ArityMismatchError, SafetyViolationError, UnboundVariableError
 from .parser import ground_atom, parse_program
 from .relation import IndexedRelation
-from .schema import FactTuple, Model
+from .schema import FactTuple, Model, NegationSemantics
 from .schema import Program as SchemaProgram
 from .semantics import (
     SemanticError,
@@ -43,18 +43,28 @@ from .types import (
 class SemiNaiveEvaluator:
     """Evaluate stratified Datalog programs under standard least-model semantics."""
 
-    def evaluate(self, program: SchemaProgram) -> Model:
-        model, _ = self.evaluate_with_trace(program)
+    def evaluate(
+        self,
+        program: SchemaProgram,
+        *,
+        negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+    ) -> Model:
+        model, _ = self.evaluate_with_trace(
+            program,
+            negation_semantics=negation_semantics,
+        )
         return model
 
     def evaluate_with_trace(
         self,
         program: SchemaProgram,
         trace_config: TraceConfig | None = None,
+        *,
+        negation_semantics: NegationSemantics = NegationSemantics.SAFE,
     ) -> tuple[Model, DatalogTrace]:
         facts, parsed_rules = parse_program(program)
         rules = _normalize_rules(parsed_rules)
-        _validate_program(facts, rules)
+        _validate_program(facts, rules, negation_semantics)
         strata = stratify(rules)
         actual_trace_config = trace_config or TraceConfig()
         trace = DatalogTrace(config=actual_trace_config)
@@ -91,7 +101,11 @@ def _normalize_rules(rules: list[Rule]) -> list[Rule]:
     return normalized
 
 
-def _validate_program(facts: dict[str, set[FactTuple]], rules: list[Rule]) -> None:
+def _validate_program(
+    facts: dict[str, set[FactTuple]],
+    rules: list[Rule],
+    negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+) -> None:
     arities: dict[str, int] = {}
 
     for predicate, rows in facts.items():
@@ -112,6 +126,14 @@ def _validate_program(facts: dict[str, set[FactTuple]], rules: list[Rule]) -> No
             positive_vars |= atom_vars
         for atom in rule.negative_body:
             _check_arity(arities, atom.predicate, atom.arity)
+            if (
+                negation_semantics is NegationSemantics.SAFE
+                and _variables_in_atom(atom) - positive_vars
+            ):
+                raise SafetyViolationError(
+                    "Variables in negated literals must be positively bound "
+                    "under NegationSemantics.SAFE"
+                )
         for constraint in rule.constraints:
             if _variables_in_comparison(constraint) - positive_vars:
                 raise UnboundVariableError("Constraint variables must be bound earlier")

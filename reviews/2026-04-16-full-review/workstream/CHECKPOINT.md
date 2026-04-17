@@ -97,3 +97,19 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pyright src`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check`: `All checks passed!`
 - README trace verification: temporary script run with `uv run python tools/readme_trace_example.py` exercised `find_rule_fires()`, `arguments_for_conclusion()`, `tree_for()`, and `marking_for()` successfully; script was removed before commit.
+
+## P2-T3 summary
+
+- Red commit: `2aac26c` pinned `NegationSemantics`, SAFE default rejection, NEMO opt-in, strict-only defeasible default safety, and real Nemo conformance adapter routing.
+- Green change: added `NegationSemantics.SAFE` / `NegationSemantics.NEMO` and exported it from `gunray`.
+- Green change: restored the unsafe negation variable check in `_validate_program()` when mode is SAFE.
+- Green change: threaded `negation_semantics` through `SemiNaiveEvaluator`, `DefeasibleEvaluator`, and `GunrayEvaluator`.
+- Green change: conformance adapter fingerprints the Nemo negation fixture families and routes only those suite items to NEMO mode.
+- Green change: removed the obsolete skip for `errors/review_v2_unsafe_negation::unsafe_negation_variable_only_in_negative_literal`; the fixture now passes under SAFE default.
+- Green change: old review-v2 Nemo behavior tests now request `NegationSemantics.NEMO` explicitly.
+- `uv run pytest tests/test_negation_semantics.py -v`: `5 passed`
+- `uv run pytest tests/test_negation_semantics.py tests/test_evaluator_review_v2.py -v`: `7 passed`
+- `uv run pytest tests -q`: `158 passed, 292 skipped, 3 deselected in 129.38s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `283 passed, 9 skipped, 3 deselected in 319.25s`
+- `uv run pyright src`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check`: `All checks passed!`
