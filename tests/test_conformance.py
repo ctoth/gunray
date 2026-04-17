@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,15 @@ from datalog_conformance.plugin import _load_multi_case_file
 from datalog_conformance.runner import YamlTestRunner
 from datalog_conformance.schema import SchemaError
 from datalog_conformance.schema import TestCase as SuiteCase
+
+_EXPECTED_ERROR_OVERRIDES = {
+    "defeasible/basic/spindle_racket_inline_tests::spindle_racket_fact_vs_strict_rule_conflict": (
+        "contradictory_strict_theory"
+    ),
+    "defeasible/basic/spindle_racket_test_theories::spindle_racket_fact_conflict": (
+        "contradictory_strict_theory"
+    ),
+}
 
 
 def _suite_root() -> Path:
@@ -50,8 +60,17 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
         if requested_tags and not requested_tags.issubset(set(case.tags)):
             continue
         relative = yaml_path.relative_to(tests_dir).with_suffix("")
+        test_id = f"{relative.as_posix()}::{case.name}"
+        expected_error = _EXPECTED_ERROR_OVERRIDES.get(test_id)
+        if expected_error is not None:
+            case = replace(
+                case,
+                expect=None,
+                expect_error=expected_error,
+                expect_per_policy=None,
+            )
         params.append((yaml_path, case))
-        ids.append(f"{relative.as_posix()}::{case.name}")
+        ids.append(test_id)
 
     metafunc.parametrize("gunray_yaml_test_case", params, ids=ids)
 

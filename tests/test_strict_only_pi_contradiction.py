@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from conftest import small_theory_strategy
 from hypothesis import assume, given, settings
 
-from conftest import small_theory_strategy
 from gunray.defeasible import DefeasibleEvaluator
 from gunray.errors import ContradictoryStrictTheoryError
 from gunray.schema import DefeasibleTheory, Policy, Rule

@@ -32,3 +32,16 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pyright`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check`: `All checks passed!`
 - `uv run ruff format --check`: `47 files already formatted`
+
+## P1-T1 summary
+
+- Red commit: `74d91f0` reproduced the strict-only Pi contradiction leak with two explicit tests and one Hypothesis property.
+- Green change: strict-only evaluation raises `ContradictoryStrictTheoryError` when Pi derives complementary literals or explicit conflict pairs.
+- Green change: `build_arguments()` raises the same error when Pi is contradictory before argument enumeration.
+- Test harness update: two external Spindle fixtures that expect contradictory strict facts are treated as local expected-error conformance cases.
+- Strategy update: shared small-theory Hypothesis generator avoids constructing contradictory strict knowledge bases for ordinary argument/preference properties.
+- `uv run pytest tests/test_strict_only_pi_contradiction.py -v`: `3 passed`
+- `uv run pytest tests -q`: `144 passed, 292 skipped, 3 deselected in 136.13s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `282 passed, 10 skipped, 3 deselected in 308.54s`
+- `uv run pyright src/gunray/defeasible.py src/gunray/errors.py src/gunray/arguments.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check src/gunray/defeasible.py src/gunray/errors.py src/gunray/arguments.py tests/conftest.py tests/test_conformance.py tests/test_strict_only_pi_contradiction.py`: `All checks passed!`

@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from itertools import combinations, product
 
 from .disagreement import complement, strict_closure
+from .errors import ContradictoryStrictTheoryError
 from .evaluator import _match_positive_body
 from .parser import ground_atom, parse_defeasible_theory
 from .relation import IndexedRelation
@@ -159,6 +160,10 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
 
     # Pi = strict facts, closed under ground strict rules.
     pi_closure = strict_closure(fact_atoms, grounded_strict_rules)
+    if _has_contradiction(pi_closure):
+        raise ContradictoryStrictTheoryError(
+            "Pi is contradictory under strict rules and facts"
+        )
 
     arguments: set[Argument] = set()
 

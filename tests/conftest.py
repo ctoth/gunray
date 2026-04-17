@@ -232,9 +232,9 @@ def small_theory_strategy(draw: st.DrawFn) -> DefeasibleTheory:
     strict_count = draw(st.integers(min_value=0, max_value=2))
     defeasible_count = draw(st.integers(min_value=0, max_value=3))
 
-    def _gen_rule(prefix: str, index: int) -> Rule:
+    def _gen_rule(prefix: str, index: int, *, allow_negated_head: bool) -> Rule:
         head_predicate = draw(st.sampled_from(_THEORY_PREDICATES))
-        head_negated = draw(st.booleans())
+        head_negated = draw(st.booleans()) if allow_negated_head else False
         body_predicate = draw(st.sampled_from(_THEORY_PREDICATES))
         body_negated = draw(st.booleans())
         return Rule(
@@ -243,8 +243,12 @@ def small_theory_strategy(draw: st.DrawFn) -> DefeasibleTheory:
             body=[_atom_text(body_predicate, "X", body_negated)],
         )
 
-    strict_rules = [_gen_rule("s", i) for i in range(strict_count)]
-    defeasible_rules = [_gen_rule("d", i) for i in range(defeasible_count)]
+    strict_rules = [
+        _gen_rule("s", i, allow_negated_head=False) for i in range(strict_count)
+    ]
+    defeasible_rules = [
+        _gen_rule("d", i, allow_negated_head=True) for i in range(defeasible_count)
+    ]
 
     return DefeasibleTheory(
         facts={pred: set(rows) for pred, rows in facts.items()},

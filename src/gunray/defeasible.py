@@ -33,6 +33,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
 from .schema import DefeasibleModel, FactTuple, ModelFacts, Policy
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
@@ -293,6 +294,7 @@ def _evaluate_strict_only_theory_with_trace(
         rules=[_strict_rule_to_program_text(rule.head, rule.body) for rule in theory.strict_rules],
     )
     model, trace = SemiNaiveEvaluator().evaluate_with_trace(program, trace_config)
+    _raise_if_strict_pi_contradictory(model.facts, theory.conflicts)
     sections = {
         "definitely": {predicate: set(rows) for predicate, rows in model.facts.items()},
         "defeasibly": {predicate: set(rows) for predicate, rows in model.facts.items()},
@@ -300,6 +302,30 @@ def _evaluate_strict_only_theory_with_trace(
     return DefeasibleModel(
         sections={name: facts_map for name, facts_map in sections.items() if facts_map}
     ), trace
+
+
+def _raise_if_strict_pi_contradictory(
+    facts: ModelFacts,
+    conflicts: list[tuple[str, str]],
+) -> None:
+    for predicate, rows in facts.items():
+        if predicate.startswith("~"):
+            continue
+        complement_predicate = f"~{predicate}"
+        overlap = rows & facts.get(complement_predicate, set())
+        if overlap:
+            row = next(iter(overlap))
+            raise ContradictoryStrictTheoryError(
+                f"Pi derives both {predicate}{row!r} and {complement_predicate}{row!r}"
+            )
+
+    for left, right in conflicts:
+        overlap = facts.get(left, set()) & facts.get(right, set())
+        if overlap:
+            row = next(iter(overlap))
+            raise ContradictoryStrictTheoryError(
+                f"Pi derives conflicting atoms {left}{row!r} and {right}{row!r}"
+            )
 
 
 def _strict_rule_to_program_text(head: str, body: list[str]) -> str:
