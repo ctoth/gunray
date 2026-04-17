@@ -220,6 +220,31 @@ def test_strict_only_arguments_incomparable() -> None:
             assert criterion.prefers(left, right) is False
 
 
+def test_generalized_specificity_does_not_prefer_defeasible_over_strict_empty_rules() -> None:
+    """Simari 92 Lemma 2.4: a purely strict argument is not dominated."""
+    theory = DefeasibleTheory(
+        facts={"p": {("a",)}, "q": {("a",)}},
+        strict_rules=[Rule(id="s1", head="h(X)", body=["p(X)"])],
+        defeasible_rules=[Rule(id="d1", head="h(X)", body=["q(X)"])],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+    criterion = GeneralizedSpecificity(theory)
+    args = list(build_arguments(theory))
+    strict_arg = next(
+        arg for arg in args if not arg.rules and arg.conclusion.predicate == "h"
+    )
+    defeasible_arg = next(
+        arg
+        for arg in args
+        if any(rule.rule_id == "d1" for rule in arg.rules)
+        and arg.conclusion.predicate == "h"
+    )
+
+    assert not criterion.prefers(defeasible_arg, strict_arg)
+
+
 def test_self_comparison_never_prefers() -> None:
     """``prefers(a, a) is False`` for every argument over Opus theory."""
 
@@ -325,3 +350,21 @@ def test_hypothesis_specificity_is_determined(
     second = criterion.prefers(a, b)
     third = GeneralizedSpecificity(theory).prefers(a, b)
     assert first == second == third
+
+
+@given(small_theory_strategy())
+@settings(max_examples=200, deadline=None)
+def test_hypothesis_genspec_does_not_dominate_empty_rules_side(
+    theory: DefeasibleTheory,
+) -> None:
+    """No argument with non-empty rules strictly prefers an empty-rules argument."""
+    criterion = GeneralizedSpecificity(theory)
+    args = list(build_arguments(theory))
+    empty_args = [arg for arg in args if not arg.rules]
+    nonempty_args = [arg for arg in args if arg.rules]
+
+    for empty in empty_args:
+        for nonempty in nonempty_args:
+            assert not criterion.prefers(nonempty, empty), (
+                f"Non-empty {nonempty} preferred over empty {empty}"
+            )
