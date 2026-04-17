@@ -1,10 +1,11 @@
 """Optional bridge from datalog-conformance-suite inputs to Gunray."""
-# pyright: reportMissingTypeStubs=false, reportUnknownVariableType=false
+# pyright: reportMissingTypeStubs=false
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Protocol, TypeAlias, cast
 
 import yaml
 
@@ -12,6 +13,11 @@ from .adapter import GunrayEvaluator
 from .schema import DefeasibleTheory, NegationSemantics, Policy, Program, Rule
 from .trace import TraceConfig
 
+RuleAttributeName: TypeAlias = str
+RuleAttributeMap: TypeAlias = Mapping[RuleAttributeName, object]
+RuleAttributeNames: TypeAlias = frozenset[RuleAttributeName]
+
+_SUPPORTED_RULE_ATTRIBUTES: RuleAttributeNames = frozenset(("id", "head", "body"))
 _suite_import_error: ImportError | None = None
 _datalog_conformance: Any | None = None
 _load_multi_case_file_func: Any | None = None
@@ -36,6 +42,14 @@ except ImportError as exc:  # pragma: no cover - exercised only without the opti
     _suite_import_error = exc
 
 
+class SuiteRuleLike(Protocol):
+    """Subset of datalog-conformance Rule consumed by Gunray."""
+
+    id: str
+    head: str
+    body: Iterable[str]
+
+
 def _require_suite_support() -> None:
     if _suite_import_error is not None:
         raise ModuleNotFoundError(
@@ -48,8 +62,22 @@ def _copy_facts(raw_facts: dict[str, Any]) -> dict[str, list[tuple[Any, ...]]]:
     return {predicate: [tuple(row) for row in rows] for predicate, rows in raw_facts.items()}
 
 
-def _translate_rule(rule: Any) -> Rule:
+def _translate_rule(rule: SuiteRuleLike) -> Rule:
+    _raise_on_unknown_suite_rule_attributes(rule)
     return Rule(id=rule.id, head=rule.head, body=list(rule.body))
+
+
+def _raise_on_unknown_suite_rule_attributes(rule: SuiteRuleLike) -> None:
+    raw_attrs = getattr(rule, "__dict__", None)
+    if not isinstance(raw_attrs, Mapping):
+        return
+
+    attrs = cast(RuleAttributeMap, raw_attrs)
+    unknown_attrs = sorted(set(attrs) - _SUPPORTED_RULE_ATTRIBUTES)
+    if unknown_attrs:
+        raise ValueError(
+            "Unsupported conformance Rule attributes: " + ", ".join(unknown_attrs)
+        )
 
 
 def _translate_program(program: Any) -> Program:

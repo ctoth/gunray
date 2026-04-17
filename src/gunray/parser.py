@@ -1,10 +1,19 @@
-"""Parser for the current Gunray Datalog and defeasible rule surface."""
+"""Parser for the current Gunray Datalog and defeasible rule surface.
+
+Gunray stores DeLP-style facts, strict rules, and defeasible rules as
+typed schema sections; the shared literal surface uses Garcia and Simari
+2004 Sec. 2 strong negation (`~`) and rule categories (local
+``papers/Garcia_2004_DefeasibleLogicProgramming/pngs/page-002.png``).
+The separate ``defeaters`` schema section is a Gunray/Nute-Antoniou
+extension rather than a Garcia 2004 rule kind.
+"""
 
 from __future__ import annotations
 
+import re
 from ast import literal_eval
 from collections.abc import Mapping
-from typing import cast
+from typing import TypeAlias, cast
 
 from .errors import ParseError
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
@@ -26,6 +35,14 @@ from .types import (
     Variable,
     Wildcard,
 )
+
+IdentifierText: TypeAlias = str
+
+_PREDICATE_IDENTIFIER_RE: re.Pattern[str] = re.compile(
+    r"~?(?:[A-Za-z][A-Za-z0-9_]*:)?[A-Za-z][A-Za-z0-9_]*\Z"
+)
+_TERM_IDENTIFIER_RE: re.Pattern[str] = re.compile(r"[A-Za-z][A-Za-z0-9_]*\Z")
+_WILDCARD_IDENTIFIER_RE: re.Pattern[str] = re.compile(r"_[A-Za-z0-9_]*\Z")
 
 
 def normalize_facts(
@@ -124,6 +141,7 @@ def parse_atom_text(text: str) -> Atom:
 
     bounds = _find_atom_argument_bounds(stripped)
     if bounds is None:
+        _validate_predicate_identifier(stripped, text)
         return Atom(predicate=stripped, terms=())
 
     open_index, close_index = bounds
@@ -134,6 +152,7 @@ def parse_atom_text(text: str) -> Atom:
     inner = stripped[open_index + 1 : close_index].strip()
     if not predicate:
         raise ParseError(f"Missing predicate name: {text}")
+    _validate_predicate_identifier(predicate, text)
     if not inner:
         return Atom(predicate=predicate, terms=())
 
@@ -151,6 +170,8 @@ def parse_term_text(text: str) -> AtomTerm:
         raise ParseError("Empty term")
 
     if stripped == "_" or stripped.startswith("_"):
+        if _WILDCARD_IDENTIFIER_RE.fullmatch(stripped) is None:
+            raise ParseError(f"Invalid wildcard identifier: {text}")
         return Wildcard(token=stripped)
 
     plus_index = _find_top_level_binary(stripped, "+")
@@ -181,6 +202,7 @@ def parse_value_term(text: str) -> Variable | Constant | AddExpression | Subtrac
     scalar = _parse_scalar(stripped)
     if scalar is not None:
         return Constant(value=scalar)
+    _validate_term_identifier(stripped, text)
     return Variable(name=stripped)
 
 
@@ -391,6 +413,18 @@ def _parse_scalar(text: str) -> Scalar | None:
             raise ParseError(f"Expected quoted string literal, got {text}")
         return parsed
     return _parse_unquoted_scalar(text)
+
+
+def _validate_predicate_identifier(predicate: IdentifierText, source_text: str) -> None:
+    if _PREDICATE_IDENTIFIER_RE.fullmatch(predicate) is None:
+        raise ParseError(f"Invalid predicate identifier {predicate!r}: {source_text}")
+
+
+def _validate_term_identifier(term: IdentifierText, source_text: str) -> None:
+    if not term:
+        raise ParseError("Empty term")
+    if _TERM_IDENTIFIER_RE.fullmatch(term) is None:
+        raise ParseError(f"Invalid term identifier {term!r}: {source_text}")
 
 
 def _normalize_scalar_value(value: Scalar) -> Scalar:

@@ -1,4 +1,12 @@
-"""Predicate stratification for negation-as-failure programs."""
+"""Predicate stratification for negation-as-failure programs.
+
+The implementation builds predicate SCCs, rejects negative cycles, then
+topologically orders the condensation graph. This is the classical
+stratified-negation construction from Apt, Blair, and Walker (1988),
+Towards a Theory of Declarative Knowledge, Sec. 6; Chandra and Harel
+(1982), Structure and Complexity of Relational Queries, is the earlier
+database-theory source for stratification.
+"""
 
 from __future__ import annotations
 

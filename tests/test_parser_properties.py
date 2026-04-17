@@ -223,6 +223,28 @@ def test_parse_atom_text_rejects_unbalanced_parentheses() -> None:
         parse_atom_text("p(q(X)")
 
 
+def test_parse_atom_text_rejects_invalid_predicate_identifier() -> None:
+    with pytest.raises(ParseError, match="Invalid predicate identifier"):
+        parse_atom_text("bad-predicate(X)")
+
+
+def test_parse_atom_text_accepts_prefixed_predicate_identifier() -> None:
+    atom = parse_atom_text("b:flies")
+
+    assert atom.predicate == "b:flies"
+    assert atom.terms == ()
+
+
+def test_parse_value_term_rejects_invalid_variable_identifier() -> None:
+    with pytest.raises(ParseError, match="Invalid term identifier"):
+        parse_value_term("$bad")
+
+
+def test_parse_constraint_text_rejects_empty_operands() -> None:
+    with pytest.raises(ParseError, match="Empty term"):
+        parse_constraint_text("( <= 2)")
+
+
 @given(items=st.lists(_top_level_items(), min_size=1, max_size=5))
 def test_split_top_level_property_round_trips_generated_top_level_items(items: list[str]) -> None:
     text = ", ".join(items)

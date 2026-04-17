@@ -63,7 +63,17 @@ class Policy(str, Enum):
 
 
 class NegationSemantics(str, Enum):
-    """Semantics for variables that appear only in negated body literals."""
+    """Semantics for variables that appear only in negated body literals.
+
+    ``SAFE`` is the standard stratified-Datalog safety requirement from
+    Apt, Blair, and Walker 1988: every variable in a negated literal must
+    be bound by a positive body literal. ``NEMO`` is Gunray's compatibility
+    mode for the conformance suite's Nemo fixtures, which read such
+    variables over the active Herbrand universe. The Nemo system/language
+    citation is Ivliev, Gerlach, Meusel, Steinberg, and Kroetzsch 2024,
+    "Nemo: Your Friendly and Versatile Rule Reasoning Toolkit", KR 2024,
+    pp. 743-754, doi:10.24963/kr.2024/70.
+    """
 
     SAFE = "safe"
     NEMO = "nemo"

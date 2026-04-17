@@ -1,4 +1,10 @@
-"""Bottom-up Datalog evaluation for the Gunray program schema."""
+"""Bottom-up Datalog evaluation for the Gunray program schema.
+
+References:
+- Abiteboul, Hull, and Vianu (1995), Foundations of Databases, Ch. 13.
+- Bancilhon (1985), Naive Evaluation of Recursively Defined Relations.
+- Ullman (1988), Principles of Database and Knowledge-Base Systems, Vol. 1.
+"""
 
 from __future__ import annotations
 
@@ -281,4 +287,3 @@ def _capture_derived_row(
     if len(captured_rows) >= trace_config.max_derived_rows_per_rule_fire:
         return
     captured_rows.append(row)
-

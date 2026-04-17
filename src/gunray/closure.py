@@ -96,6 +96,12 @@ class ClosureEvaluator:
         property_name: str,
         policy: Policy,
     ) -> bool:
+        # "Or" is the KLM disjunction postulate from Kraus, Lehmann, and
+        # Magidor 1990, Nonmonotonic Reasoning, Preferential Models and
+        # Cumulative Logics, Artificial Intelligence 44, pp. 167-207.
+        # Morris/Ross/Meyer 2020 restates the KLM properties for Datalog+
+        # on p. 143 / local
+        # ``papers/Morris_2020_DefeasibleDisjunctiveDatalog/pngs/page-002.png``.
         if property_name != "Or":
             raise ValueError(f"Unsupported KLM property: {property_name}")
         if policy not in {

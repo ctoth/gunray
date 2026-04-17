@@ -168,3 +168,9 @@ SUMMARY/surface reports/papers).
 - P4-T1 closure cull: `src/gunray/closure.py` was 671 LOC immediately before
   the deletion slice and 549 LOC after removing the dead helpers. The earlier
   review note's 821 LOC observation was stale by the time this slice ran.
+- P4-T4 final hygiene: standard algorithm citation gaps are closed in
+  `evaluator.py`, `stratify.py`, `closure.py`, `parser.py`, and `schema.py`.
+  `_variables_in_atom` is live in `_internal._validate_program`; parser
+  identifiers now reject malformed predicates/terms while preserving suite
+  namespace-prefixed predicates; conformance rule translation now rejects
+  unknown suite rule fields instead of silently dropping them.

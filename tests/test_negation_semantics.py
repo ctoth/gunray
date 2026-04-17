@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -15,7 +16,7 @@ from gunray import (
     Rule,
     SemiNaiveEvaluator,
 )
-from gunray.conformance_adapter import GunrayConformanceEvaluator
+from gunray.conformance_adapter import GunrayConformanceEvaluator, _translate_rule
 from gunray.errors import SafetyViolationError
 
 
@@ -82,3 +83,10 @@ def test_conformance_adapter_routes_nemo_fixtures_to_nemo_mode() -> None:
     model = GunrayConformanceEvaluator().evaluate(case.program)
 
     assert "projectedX" in model.facts
+
+
+def test_translate_rule_rejects_unknown_suite_fields() -> None:
+    suite_rule = SimpleNamespace(id="r1", head="q(X)", body=["p(X)"], source="suite.yaml")
+
+    with pytest.raises(ValueError, match="Unsupported conformance Rule attributes: source"):
+        _translate_rule(suite_rule)
