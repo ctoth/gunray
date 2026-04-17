@@ -122,10 +122,12 @@ model, trace = GunrayEvaluator().evaluate_with_trace(
 fires = trace.find_rule_fires(head_predicate="path")
 ```
 
-Defeasible traces carry each proof attempt, its final classification
-(`defeasibly`, `not_defeasibly`, `definitely`), the rule ids that supported
-and attacked it, and the atoms in conflict. For theories with no defeasible
-content, you get the strict Datalog trace in its place.
+Defeasible traces carry the generated arguments, the dialectical tree retained
+for each traced conclusion, and the U/D marking for that tree. Use
+`trace.arguments_for_conclusion(atom)`, `trace.tree_for(atom)`, and
+`trace.marking_for(atom)` to inspect the argument-centric explanation. For
+theories with no defeasible content, you get the strict Datalog trace in its
+place.
 
 ## Query arguments and render trees
 

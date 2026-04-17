@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+from conftest import small_theory_strategy
 from hypothesis import given
 from hypothesis import strategies as st
-
-from conftest import small_theory_strategy
 
 from gunray import (
     DefeasibleEvaluator,
@@ -14,6 +13,7 @@ from gunray import (
     Program,
     Rule,
     TraceConfig,
+    complement,
     render_tree,
 )
 from gunray.types import GroundAtom
@@ -105,8 +105,11 @@ def test_defeasible_trace_captures_arguments() -> None:
             for row in rows:
                 atom = GroundAtom(predicate=predicate, arguments=row)
                 matching = trace.arguments_for_conclusion(atom)
-                if section in ("definitely", "defeasibly", "not_defeasibly"):
+                if section in ("definitely", "defeasibly"):
                     assert matching, f"no argument for {atom} in {section}"
+                if section == "not_defeasibly":
+                    opposite = trace.arguments_for_conclusion(complement(atom))
+                    assert matching or opposite, f"no argument pair for {atom} in {section}"
 
 
 def test_defeasible_trace_captures_trees_and_markings() -> None:

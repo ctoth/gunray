@@ -25,17 +25,14 @@ from .preference import (
 )
 from .schema import DefeasibleModel, DefeasibleTheory, Model, Policy, Program, Rule
 from .trace import (
-    ClassificationTrace,
     DatalogTrace,
     DefeasibleTrace,
-    ProofAttemptTrace,
     TraceConfig,
 )
 
 __all__ = [
     "Answer",
     "Argument",
-    "ClassificationTrace",
     "CompositePreference",
     "DatalogTrace",
     "DefeasibleEvaluator",
@@ -49,7 +46,6 @@ __all__ = [
     "Policy",
     "PreferenceCriterion",
     "Program",
-    "ProofAttemptTrace",
     "Rule",
     "SemiNaiveEvaluator",
     "SuperiorityPreference",

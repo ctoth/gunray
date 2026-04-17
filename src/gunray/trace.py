@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Literal
 
 from .types import GroundAtom
+
+if TYPE_CHECKING:
+    from .arguments import Argument
+    from .dialectic import DialecticalNode
 
 
 def _rule_fire_trace_list_factory() -> list["RuleFireTrace"]:
@@ -19,12 +24,12 @@ def _stratum_trace_list_factory() -> list["StratumTrace"]:
     return []
 
 
-def _proof_attempt_trace_list_factory() -> list["ProofAttemptTrace"]:
-    return []
+def _tree_dict_factory() -> dict[GroundAtom, "DialecticalNode"]:
+    return {}
 
 
-def _classification_trace_list_factory() -> list["ClassificationTrace"]:
-    return []
+def _marking_dict_factory() -> dict[GroundAtom, Literal["U", "D"]]:
+    return {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,68 +127,25 @@ class DatalogTrace:
 
 
 @dataclass(slots=True)
-class ProofAttemptTrace:
-    atom: GroundAtom
-    result: str
-    reason: str
-    supporter_rule_ids: tuple[str, ...] = ()
-    attacker_rule_ids: tuple[str, ...] = ()
-    opposing_atoms: tuple[GroundAtom, ...] = ()
-
-
-@dataclass(slots=True)
-class ClassificationTrace:
-    atom: GroundAtom
-    result: str
-    reason: str
-    supporter_rule_ids: tuple[str, ...] = ()
-    attacker_rule_ids: tuple[str, ...] = ()
-    opposing_atoms: tuple[GroundAtom, ...] = ()
-
-
-@dataclass(slots=True)
 class DefeasibleTrace:
     config: TraceConfig = field(default_factory=TraceConfig)
     definitely: tuple[GroundAtom, ...] = ()
     supported: tuple[GroundAtom, ...] = ()
     strict_trace: DatalogTrace | None = None
-    proof_attempts: list[ProofAttemptTrace] = field(
-        default_factory=_proof_attempt_trace_list_factory
-    )
-    classifications: list[ClassificationTrace] = field(
-        default_factory=_classification_trace_list_factory
+    arguments: tuple["Argument", ...] = ()
+    trees: dict[GroundAtom, "DialecticalNode"] = field(default_factory=_tree_dict_factory)
+    markings: dict[GroundAtom, Literal["U", "D"]] = field(
+        default_factory=_marking_dict_factory
     )
 
-    def proof_attempts_for(
-        self,
-        atom: GroundAtom,
-        *,
-        result: str | None = None,
-        reason: str | None = None,
-    ) -> tuple[ProofAttemptTrace, ...]:
-        return tuple(
-            attempt
-            for attempt in self.proof_attempts
-            if _matches_atom_entry(attempt, atom=atom, result=result, reason=reason)
-        )
+    def tree_for(self, atom: GroundAtom) -> "DialecticalNode | None":
+        return self.trees.get(atom)
 
-    def classifications_for(
-        self,
-        atom: GroundAtom,
-        *,
-        result: str | None = None,
-        reason: str | None = None,
-    ) -> tuple[ClassificationTrace, ...]:
-        return tuple(
-            classification
-            for classification in self.classifications
-            if _matches_atom_entry(
-                classification,
-                atom=atom,
-                result=result,
-                reason=reason,
-            )
-        )
+    def marking_for(self, atom: GroundAtom) -> Literal["U", "D"] | None:
+        return self.markings.get(atom)
+
+    def arguments_for_conclusion(self, atom: GroundAtom) -> tuple["Argument", ...]:
+        return tuple(argument for argument in self.arguments if argument.conclusion == atom)
 
 
 def _matches_rule_fire(
@@ -198,21 +160,5 @@ def _matches_rule_fire(
     if head_predicate is not None and fire.head_predicate != head_predicate:
         return False
     if derived_count_at_least is not None and fire.derived_count < derived_count_at_least:
-        return False
-    return True
-
-
-def _matches_atom_entry(
-    entry: ProofAttemptTrace | ClassificationTrace,
-    *,
-    atom: GroundAtom,
-    result: str | None,
-    reason: str | None,
-) -> bool:
-    if entry.atom != atom:
-        return False
-    if result is not None and entry.result != result:
-        return False
-    if reason is not None and entry.reason != reason:
         return False
     return True

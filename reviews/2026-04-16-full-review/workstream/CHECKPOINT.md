@@ -81,3 +81,19 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pyright src/gunray/__init__.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check`: `All checks passed!`
 - Inline import command from the task file was not run because the repo Python tooling rule forbids `python -c`; the import path is covered by `tests/test_public_api.py`.
+
+## P2-T2 summary
+
+- Red commit: `d6c44bb` rewrote the defeasible trace tests to pin argument-centric fields and absence of old flat rule-fire fields.
+- Green change: removed `ProofAttemptTrace`, `ClassificationTrace`, their factories, and `DefeasibleTrace` flat-list accessors.
+- Green change: `DefeasibleTrace` now carries `arguments`, `trees`, and `markings`, with `arguments_for_conclusion()`, `tree_for()`, and `marking_for()` helpers.
+- Green change: `DefeasibleEvaluator` retains dialectical trees and U/D markings while computing warrant.
+- Green change: package exports and README trace prose were updated for the new trace contract.
+- Propstore check: exact grep for `trace.proof_attempts`, `trace.classifications`, `proof_attempts_for`, `classifications_for`, `ProofAttemptTrace`, and `ClassificationTrace` found no code consumers. No propstore code migration was needed.
+- Propstore baseline: `uv run pytest -q` failed before any propstore edits with `9 failed, 2550 passed, 1 warning in 523.76s`; all failures were `NameError("name 'RenderPolicy' is not defined")` in CLI/world render-policy tests. No propstore files were changed.
+- `uv run pytest tests/test_trace.py -v`: `10 passed`
+- `uv run pytest tests -q`: `153 passed, 292 skipped, 3 deselected in 144.25s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: first full rerun hit a HMMER timeout artifact; focused HMMER rerun passed `2 passed, 293 deselected in 267.63s`; second full rerun passed `282 passed, 10 skipped, 3 deselected in 355.61s`
+- `uv run pyright src`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check`: `All checks passed!`
+- README trace verification: temporary script run with `uv run python tools/readme_trace_example.py` exercised `find_rule_fires()`, `arguments_for_conclusion()`, `tree_for()`, and `marking_for()` successfully; script was removed before commit.

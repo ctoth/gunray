@@ -30,8 +30,7 @@ Strict-only theories route around the argument pipeline via
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
@@ -39,16 +38,15 @@ from .schema import DefeasibleModel, FactTuple, ModelFacts, Policy
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
 from .schema import Program as SchemaProgram
 from .trace import (
-    ClassificationTrace,
     DatalogTrace,
     DefeasibleTrace,
-    ProofAttemptTrace,
     TraceConfig,
 )
 from .types import GroundAtom
 
 if TYPE_CHECKING:  # pragma: no cover - import-time only
     from .arguments import Argument
+    from .dialectic import DialecticalNode
 
 
 class DefeasibleEvaluator:
@@ -110,7 +108,7 @@ def _evaluate_via_argument_pipeline(
         SuperiorityPreference,
     )
 
-    arguments = build_arguments(theory)
+    arguments = tuple(sorted(build_arguments(theory), key=_argument_sort_key))
     # Composed preference: Garcia & Simari 2004 §4.1 notes that the
     # rule priority criterion (explicit ``superiority`` pairs) and
     # generalized specificity (Lemma 2.4) are modular alternatives.
@@ -136,12 +134,19 @@ def _evaluate_via_argument_pipeline(
         return any(rule.kind == "defeater" for rule in arg.rules)
 
     warranted: set[GroundAtom] = set()
+    trees: dict[GroundAtom, "DialecticalNode"] = {}
+    markings: dict[GroundAtom, Literal["U", "D"]] = {}
     for arg in arguments:
         if _is_defeater_argument(arg):
             continue
         if arg.conclusion in warranted:
             continue
-        if mark(build_tree(arg, criterion, theory)) == "U":
+        tree = build_tree(arg, criterion, theory)
+        label = mark(tree)
+        if arg.conclusion not in trees or label == "U":
+            trees[arg.conclusion] = tree
+            markings[arg.conclusion] = label
+        if label == "U":
             warranted.add(arg.conclusion)
 
     defeater_probed: set[GroundAtom] = {
@@ -167,9 +172,6 @@ def _evaluate_via_argument_pipeline(
     not_defeasibly_atoms: set[GroundAtom] = set()
     undecided_atoms: set[GroundAtom] = set()
 
-    classifications: list[ClassificationTrace] = []
-    proof_attempts: list[ProofAttemptTrace] = []
-
     for atom in conclusions:
         # UNKNOWN gate: literals whose predicate isn't in the
         # language are omitted from every section per Garcia 04
@@ -191,51 +193,14 @@ def _evaluate_via_argument_pipeline(
             definitely_atoms.add(atom)
         if yes or strict:
             defeasibly_atoms.add(atom)
-            classifications.append(
-                ClassificationTrace(
-                    atom=atom,
-                    result="defeasibly" if not strict else "definitely",
-                    reason="strict_derivation" if strict else "warranted",
-                    supporter_rule_ids=_supporter_rule_ids(atom, arguments),
-                )
-            )
             continue
         if no or defeater_touches:
             not_defeasibly_atoms.add(atom)
-            classifications.append(
-                ClassificationTrace(
-                    atom=atom,
-                    result="not_defeasibly",
-                    reason=("complement_warranted" if no else "defeater_probed"),
-                    attacker_rule_ids=_supporter_rule_ids(complement(atom), arguments),
-                    opposing_atoms=(complement(atom),),
-                )
-            )
             continue
         # Neither yes, no, nor strict — but at least one argument
         # exists for ``atom`` (it is in ``conclusions``), so by Def 5.3
         # this is UNDECIDED.
         undecided_atoms.add(atom)
-        classifications.append(
-            ClassificationTrace(
-                atom=atom,
-                result="undecided",
-                reason="equal_strength_peer_conflict",
-                supporter_rule_ids=_supporter_rule_ids(atom, arguments),
-                attacker_rule_ids=_supporter_rule_ids(complement(atom), arguments),
-                opposing_atoms=(complement(atom),),
-            )
-        )
-        proof_attempts.append(
-            ProofAttemptTrace(
-                atom=atom,
-                result="blocked",
-                reason="equal_strength_peer_conflict",
-                supporter_rule_ids=_supporter_rule_ids(atom, arguments),
-                attacker_rule_ids=_supporter_rule_ids(complement(atom), arguments),
-                opposing_atoms=(complement(atom),),
-            )
-        )
 
     sections = {
         "definitely": _atoms_to_section(definitely_atoms),
@@ -250,28 +215,25 @@ def _evaluate_via_argument_pipeline(
     trace = DefeasibleTrace(config=trace_config)
     trace.definitely = tuple(sorted(definitely_atoms, key=_atom_sort_key))
     trace.supported = tuple(sorted(definitely_atoms | defeasibly_atoms, key=_atom_sort_key))
-    trace.classifications = classifications
-    trace.proof_attempts = proof_attempts
+    trace.arguments = arguments
+    trace.trees = {
+        atom: tree
+        for atom, tree in sorted(trees.items(), key=lambda item: _atom_sort_key(item[0]))
+    }
+    trace.markings = {
+        atom: label
+        for atom, label in sorted(markings.items(), key=lambda item: _atom_sort_key(item[0]))
+    }
     return model, trace
 
 
-def _supporter_rule_ids(
-    atom: GroundAtom,
-    arguments: Iterable["Argument"],
-) -> tuple[str, ...]:
-    """Collect sorted rule-ids of every argument whose conclusion is ``atom``.
-
-    Used to populate ``ClassificationTrace.supporter_rule_ids`` /
-    ``attacker_rule_ids`` so re-landed trace tests can introspect why
-    a literal landed in ``undecided`` / ``not_defeasibly``.
-    """
-    ids: set[str] = set()
-    for arg in arguments:
-        if arg.conclusion != atom:
-            continue
-        for rule in arg.rules:
-            ids.add(rule.rule_id)
-    return tuple(sorted(ids))
+def _argument_sort_key(
+    arg: "Argument",
+) -> tuple[tuple[str, FactTuple], tuple[tuple[str, str], ...]]:
+    return (
+        _atom_sort_key(arg.conclusion),
+        tuple(sorted((rule.kind, rule.rule_id) for rule in arg.rules)),
+    )
 
 
 def _strip_negation(predicate: str) -> str:
