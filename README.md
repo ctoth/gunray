@@ -240,6 +240,121 @@ means the predicate is not in the language of the theory.
 or test failure messages. It is how the defeasible evaluator's
 internals become legible when a case disagrees with your intuition.
 
+## Showcase
+
+Here are some things Gunray does that aren't immediately obvious from
+the Tweety example.
+
+**Nixon diamond — `UNDECIDED` is a first-class answer.**
+Two equi-specific defeasible rules pull opposite ways; `GeneralizedSpecificity`
+prefers neither, so the dialectical tree leaves the query unresolved
+(Garcia & Simari 2004 Def 5.3). From [`examples/nixon_diamond.py`](examples/nixon_diamond.py):
+
+```python
+theory = DefeasibleTheory(
+    facts={"republican": {("nixon",)}, "quaker": {("nixon",)}},
+    strict_rules=[],
+    defeasible_rules=[
+        Rule(id="r1", head="~pacifist(X)", body=["republican(X)"]),
+        Rule(id="r2", head="pacifist(X)", body=["quaker(X)"]),
+    ],
+    defeaters=[],
+    superiority=[],
+    conflicts=[],
+)
+
+pacifist_nixon = GroundAtom(predicate="pacifist", arguments=("nixon",))
+criterion = GeneralizedSpecificity(theory)
+result = answer(theory, pacifist_nixon, criterion)
+
+assert result is Answer.UNDECIDED, f"expected UNDECIDED, got {result!r}"
+```
+
+**Innocent until proven guilty — presumptions as empty-body defeasible rules.**
+`presumptions=[...]` takes `Rule(head="innocent", body=[])` — written
+`innocent -< true` in the DeLP surface syntax (Garcia & Simari 2004 §6.2 p. 32).
+Evidence arguments then out-specify the presumption; a blocking defeater
+models a coerced confession. From [`examples/innocent_until_proven_guilty.py`](examples/innocent_until_proven_guilty.py):
+
+```python
+        presumptions=[
+            # García & Simari 2004 §6.2 p. 32 — presumption as
+            # empty-body defeasible rule, written ``h -< true`` in
+            # the DeLP surface syntax.
+            Rule(id="p1", head="innocent", body=[]),
+        ],
+        # Explicit priority: the evidence rule overrides the
+        # coercion-based defeater. Without this pair, df1 is
+        # equi-specific with d1 (disjoint antecedents) and would
+        # *block* d1 too. Garcia & Simari 2004 §4.1 — user
+        # superiority composed ahead of specificity.
+        superiority=[("d1", "df1")],
+```
+
+**Break-glass RBAC — a three-level cascade with zero superiority pairs.**
+The strict role hierarchy `incident_commander → terminated → team_member`
+makes each defeasible access rule strictly entail the body of the less
+specific one, so `GeneralizedSpecificity` orders `d3 > d2 > d1` on its own.
+From [`examples/access_control_break_glass.py`](examples/access_control_break_glass.py):
+
+```python
+        defeasible_rules=[
+            # Default: team members have access.
+            Rule(id="d1", head="access(X)", body=["team_member(X)"]),
+            # Override: terminated users are denied (more specific —
+            # terminated(X) strictly implies team_member(X) via s2).
+            Rule(id="d2", head="~access(X)", body=["terminated(X)"]),
+            # Break-glass: a declared incident commander regains
+            # access (most specific — incident_commander(X) strictly
+            # implies terminated(X) via s1 and team_member(X) via s1+s2).
+            Rule(id="d3", head="access(X)", body=["incident_commander(X)"]),
+        ],
+```
+
+`assert answer(theory, _access("bob"), criterion) is Answer.NO` — bob
+is terminated, so `d2` properly defeats `d1`.
+
+**GDPR lawful basis — explicit `superiority` overrides specificity.**
+Two independent defeasible paths reach `lawful_basis`; a filed withdrawal
+beats the consent rule via a user-supplied priority pair
+(Garcia & Simari 2004 §4.1 p. 17). From [`examples/gdpr_lawful_basis.py`](examples/gdpr_lawful_basis.py):
+
+```python
+            # Contractual necessity is an independent lawful basis
+            # (GDPR Art. 6(1)(b)).
+            Rule(
+                id="d3",
+                head="lawful_basis(X)",
+                body=["contractual_necessity(X)"],
+            ),
+        ],
+        defeaters=[],
+        # Explicit priority: a filed withdrawal beats the consent
+        # rule. Without this pair d0 and d2 are equi-specific
+        # (disjoint antecedents) and would merely block each other,
+        # leaving consent ambiguous. The ``superiority=[...]``
+        # parameter is exactly the point of this example.
+        superiority=[("d2", "d0")],
+```
+
+Dialectical trees are renderable to Mermaid via `render_tree_mermaid`.
+The break-glass cascade for carol (`access(carol)` warranted despite
+the deny rule on terminated users) — `examples/mermaid/rbac_break_glass.mmd`:
+
+```mermaid
+flowchart TD
+    n0["access(carol) [d1] U"]
+    n1["~access(carol) [d2] D"]
+    n2["access(carol) [d3] U"]
+    n1 --> n2
+    n0 --> n1
+```
+
+See [`examples/`](examples/) for the full catalogue — domain-depth
+scripts (clinical, perception, data fusion, config precedence) and
+engine-breadth scripts (Datalog, KLM closure, SAFE vs NEMO) live
+alongside these four.
+
 ## Running the tests
 
 Local unit suite:
