@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from conftest import ground_atom_strategy, strict_context_strategy
 from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
+from gunray import DefeasibleEvaluator, DefeasibleTheory, Policy, Rule
 from gunray.disagreement import complement, disagrees, strict_closure
 from gunray.types import GroundAtom, GroundDefeasibleRule
 
@@ -33,6 +35,70 @@ def test_disagrees_via_strict_rule() -> None:
     )
     context = (strict_bird_from_penguin,)
     assert disagrees(penguin_opus, not_bird_opus, context) is True
+
+
+def test_disagrees_includes_facts_in_pi() -> None:
+    """Garcia & Simari 2004 Def 3.3 uses all of Pi, including facts."""
+
+    p_a = GroundAtom(predicate="p", arguments=("a",))
+    q_a = GroundAtom(predicate="q", arguments=("a",))
+    r_a = GroundAtom(predicate="r", arguments=("a",))
+    not_p_a = GroundAtom(predicate="~p", arguments=("a",))
+    strict_not_p_from_q_and_r = GroundDefeasibleRule(
+        rule_id="s1",
+        kind="strict",
+        head=not_p_a,
+        body=(q_a, r_a),
+    )
+
+    assert disagrees(
+        p_a,
+        q_a,
+        (strict_not_p_from_q_and_r,),
+        facts=frozenset({r_a}),
+    )
+
+
+@given(
+    a=ground_atom_strategy(),
+    b=ground_atom_strategy(),
+    k=strict_context_strategy(),
+    facts=st.frozensets(ground_atom_strategy(), max_size=4),
+)
+@settings(max_examples=500, deadline=None)
+def test_hypothesis_disagrees_is_monotonic_in_facts(
+    a: GroundAtom,
+    b: GroundAtom,
+    k: tuple[GroundDefeasibleRule, ...],
+    facts: frozenset[GroundAtom],
+) -> None:
+    """Adding strict facts cannot remove a disagreement."""
+
+    if disagrees(a, b, k):
+        assert disagrees(a, b, k, facts=facts)
+
+
+def test_defeasible_evaluator_disagreement_uses_pi_facts_end_to_end() -> None:
+    """A fact needed by a strict contradiction must participate in attacks."""
+
+    theory = DefeasibleTheory(
+        facts={"r": {("a",)}},
+        strict_rules=[
+            Rule(id="s1", head="~p(X)", body=["q(X)", "r(X)"]),
+        ],
+        defeasible_rules=[
+            Rule(id="d1", head="p(X)", body=["r(X)"]),
+            Rule(id="d2", head="q(X)", body=["r(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+    model = DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+
+    assert ("a",) not in model.sections.get("defeasibly", {}).get("p", set())
+    assert ("a",) not in model.sections.get("defeasibly", {}).get("q", set())
 
 
 @given(a=ground_atom_strategy(), b=ground_atom_strategy(), k=strict_context_strategy())
