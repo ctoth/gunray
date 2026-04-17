@@ -154,7 +154,7 @@ def _evaluate_via_argument_pipeline(
             continue
         if arg.conclusion in warranted:
             continue
-        tree = build_tree(arg, criterion, theory)
+        tree = build_tree(arg, criterion, theory, universe=arguments)
         label = mark(tree)
         if arg.conclusion not in trees or label == "U":
             trees[arg.conclusion] = tree

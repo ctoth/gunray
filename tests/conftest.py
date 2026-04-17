@@ -11,20 +11,13 @@ from gunray.types import GroundAtom, GroundDefeasibleRule
 
 # Conformance scalability-out-of-scope cases.
 #
-# ``spindle_racket_query_long_chain`` has 20 defeasible rules in a
-# linear chain. B1.3's naive ``build_arguments`` performs
-# ``2^|Delta|`` subset enumeration with a per-head minimality filter.
-# ``2^20 = 1,048,576`` subsets times the per-candidate
-# ``_disagreeing_subarguments`` pass (which itself re-runs
-# ``build_arguments``) hits the per-case ``pytest-timeout`` of 120s
-# hard. The two ``*souffle_hmmer_CPtrLoad`` cases are the other
-# known wall-clock outliers in this repo: the local timeout analysis
-# and prior targeted runs measured them in the ~100s/case range, so
-# they are correctness-stable but too close to the CI timeout ceiling
-# to treat as default-corpus health checks.
+# The two ``*souffle_hmmer_CPtrLoad`` cases are known wall-clock
+# outliers in this repo: the local timeout analysis and prior targeted
+# runs measured them in the ~100s/case range, so they are
+# correctness-stable but too close to the CI timeout ceiling to treat
+# as default-corpus health checks.
 _CONFORMANCE_DESELECTED = frozenset(
     {
-        "defeasible/basic/spindle_racket_query_integration::spindle_racket_query_long_chain",
         "defeasible/strict_only/strict_only_recursion_souffle_example_hmmer"
         "::strict_only_souffle_hmmer_CPtrLoad",
         "recursion/souffle_example_hmmer::souffle_hmmer_CPtrLoad",

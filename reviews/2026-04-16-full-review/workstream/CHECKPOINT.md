@@ -178,3 +178,17 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q --timeout=240`: `283 passed, 9 skipped, 3 deselected in 297.31s`
 - `uv run pyright src/gunray/closure.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check src/gunray/closure.py`: `All checks passed!`
+
+## P4-T2 summary
+
+- Red commit: `d642725` added `tests/test_dialectic_perf.py`; on pre-fix code it timed out under the 30s marker while stuck in a repeated `build_arguments(theory)` call from `build_tree()`.
+- Green change: `build_tree()` now accepts an optional precomputed `universe`; `_expand()`, `_defeat_kind()`, and `_disagreeing_subarguments()` consume that universe instead of rebuilding arguments per candidate.
+- Green change: `DefeasibleEvaluator` and `_is_warranted()` pass their already-built argument universe into `build_tree()`.
+- Green change: removed `spindle_racket_query_long_chain` from `_CONFORMANCE_DESELECTED`; only the two HMMER `CPtrLoad` outliers remain deselected.
+- `uv run pytest tests/test_dialectic_perf.py -v`: `1 passed in 20.04s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q -k "spindle_racket_query_long_chain"`: `1 passed, 294 deselected in 64.37s`
+- `uv run pytest tests/test_dialectic.py tests/test_dialectic_perf.py tests/test_defeasible_evaluator.py -v`: `23 passed in 27.97s`
+- `uv run pytest tests -q`: `171 passed, 293 skipped, 2 deselected in 110.25s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q --timeout=240`: `284 passed, 9 skipped, 2 deselected in 322.03s`
+- `uv run pyright src/gunray/dialectic.py src/gunray/defeasible.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check src/gunray/dialectic.py src/gunray/defeasible.py tests/test_dialectic_perf.py tests/conftest.py`: `All checks passed!`

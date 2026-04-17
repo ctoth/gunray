@@ -101,13 +101,17 @@ def counter_argues(attacker: Argument, target: Argument, theory: DefeasibleTheor
     The old atom-level blocking check never descended into
     sub-arguments; descending is the whole point of this refactor.
     """
-    for _sub in _disagreeing_subarguments(attacker, target, theory):
+    universe = build_arguments(theory)
+    for _sub in _disagreeing_subarguments(attacker, target, theory, universe):
         return True
     return False
 
 
 def _disagreeing_subarguments(
-    attacker: Argument, target: Argument, theory: DefeasibleTheory
+    attacker: Argument,
+    target: Argument,
+    theory: DefeasibleTheory,
+    universe: tuple[Argument, ...] | frozenset[Argument],
 ) -> list[Argument]:
     """Return every sub-argument ``⟨A, h⟩`` of ``target`` whose
     conclusion disagrees with ``attacker.conclusion``.
@@ -121,7 +125,7 @@ def _disagreeing_subarguments(
     strict_rules = _theory_strict_rules(theory)
     facts = _theory_pi_facts(theory)
     hits: list[Argument] = []
-    for sub in build_arguments(theory):
+    for sub in universe:
         if not is_subargument(sub, target):
             continue
         if disagrees(attacker.conclusion, sub.conclusion, strict_rules, facts=facts):
@@ -144,7 +148,8 @@ def proper_defeater(
     Under ``TrivialPreference`` nothing is strictly preferred so
     nothing is proper.
     """
-    for sub in _disagreeing_subarguments(attacker, target, theory):
+    universe = build_arguments(theory)
+    for sub in _disagreeing_subarguments(attacker, target, theory, universe):
         if criterion.prefers(attacker, sub):
             return True
     return False
@@ -163,7 +168,8 @@ def blocking_defeater(
     prefers neither direction (neither ``a1 > ⟨A, h⟩`` nor
     ``⟨A, h⟩ > a1``).
     """
-    for sub in _disagreeing_subarguments(attacker, target, theory):
+    universe = build_arguments(theory)
+    for sub in _disagreeing_subarguments(attacker, target, theory, universe):
         if not criterion.prefers(attacker, sub) and not criterion.prefers(sub, attacker):
             return True
     return False
@@ -217,6 +223,7 @@ def _defeat_kind(
     target: Argument,
     criterion: PreferenceCriterion,
     theory: DefeasibleTheory,
+    universe: tuple[Argument, ...] | frozenset[Argument],
 ) -> str | None:
     """Return ``"proper"``, ``"blocking"``, or ``None``.
 
@@ -226,7 +233,7 @@ def _defeat_kind(
     some disagreeing sub-argument is preference-neutral vs.
     ``attacker``; otherwise ``None``.
     """
-    subs = _disagreeing_subarguments(attacker, target, theory)
+    subs = _disagreeing_subarguments(attacker, target, theory, universe)
     proper_hit = False
     blocking_hit = False
     for sub in subs:
@@ -245,6 +252,8 @@ def build_tree(
     root: Argument,
     criterion: PreferenceCriterion,
     theory: DefeasibleTheory,
+    *,
+    universe: tuple[Argument, ...] | frozenset[Argument] | None = None,
 ) -> DialecticalNode:
     """Garcia & Simari 2004 Def 5.1 + Def 4.7 acceptable argumentation line.
 
@@ -267,15 +276,15 @@ def build_tree(
     guaranteed: ``build_arguments`` returns a finite frozenset and
     cond 3 forbids re-entry along a line.
     """
-    universe = build_arguments(theory)
-    return _expand(root, [root], [None], universe, criterion, theory)
+    argument_universe = universe if universe is not None else build_arguments(theory)
+    return _expand(root, [root], [None], argument_universe, criterion, theory)
 
 
 def _expand(
     current: Argument,
     line: list[Argument],
     edge_kinds: list[str | None],
-    universe: "frozenset[Argument]",
+    universe: tuple[Argument, ...] | frozenset[Argument],
     criterion: PreferenceCriterion,
     theory: DefeasibleTheory,
 ) -> DialecticalNode:
@@ -291,7 +300,7 @@ def _expand(
     parent_edge_kind = edge_kinds[-1]
 
     for candidate in universe:
-        kind = _defeat_kind(candidate, current, criterion, theory)
+        kind = _defeat_kind(candidate, current, criterion, theory, universe)
         if kind is None:
             continue
 
@@ -491,7 +500,7 @@ def _is_warranted(
             continue
         if any(rule.kind == "defeater" for rule in arg.rules):
             continue
-        tree = build_tree(arg, criterion, theory)
+        tree = build_tree(arg, criterion, theory, universe=arguments)
         if mark(tree) == "U":
             return True
     return False
