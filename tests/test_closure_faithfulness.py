@@ -103,6 +103,38 @@ def test_morris_closure_corpus_matches_ranked_world_reference() -> None:
             assert actual.sections == expected.sections
 
 
+def test_relevant_entailment_matches_reference_with_negative_strict_body() -> None:
+    """Relevant closure must treat ``~b`` in strict bodies as absence of ``b``."""
+
+    raw_theory: RawTheory = (
+        frozenset(),
+        (("a", ("c", "~b")),),
+        (("a", ("b",)), ("c", ()), ("~a", ())),
+    )
+    gunray_theory, suite_theory = _build_theories(raw_theory)
+    import datalog_conformance.references.closure as suite_closure
+
+    gunray_ranked = gunray_closure._ranked_defaults(gunray_theory)
+    suite_ranked_defaults = suite_closure._ranked_defaults(suite_theory)
+
+    actual = gunray_closure._formula_entails(
+        gunray_ranked,
+        gunray_theory,
+        gunray_closure.Formula(kind="true"),
+        gunray_closure._literal_formula("a"),
+        Policy.RELEVANT_CLOSURE,
+    )
+    expected = suite_closure._formula_entails(
+        suite_ranked_defaults,
+        suite_theory,
+        suite_closure.Formula(kind="true"),
+        suite_closure._literal_formula("a"),
+        SuitePolicy.RELEVANT_CLOSURE,
+    )
+
+    assert actual is expected
+
+
 @settings(max_examples=40, deadline=None)
 @given(
     raw_theory=_raw_theory_strategy(),
