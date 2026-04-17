@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import datalog_conformance
 import pytest
 import yaml
 from datalog_conformance.plugin import _load_multi_case_file
@@ -64,14 +65,7 @@ def test_defeasible_evaluator_default_mode_is_safe() -> None:
 
 
 def test_conformance_adapter_routes_nemo_fixtures_to_nemo_mode() -> None:
-    suite_root = (
-        Path(__file__).resolve().parents[2]
-        / "datalog-conformance-suite"
-        / "src"
-        / "datalog_conformance"
-        / "_tests"
-    )
-    nemo_file = suite_root / "negation" / "nemo_negation.yaml"
+    nemo_file = _conformance_fixture_file("negation", "nemo_negation.yaml")
     raw = yaml.safe_load(nemo_file.read_text(encoding="utf-8"))
     case = next(
         item
@@ -90,3 +84,22 @@ def test_translate_rule_rejects_unknown_suite_fields() -> None:
 
     with pytest.raises(ValueError, match="Unsupported conformance Rule attributes: source"):
         _translate_rule(suite_rule)
+
+
+def _conformance_fixture_file(*parts: str) -> Path:
+    roots: list[Path] = []
+    if datalog_conformance.__file__ is not None:
+        roots.append(Path(datalog_conformance.__file__).resolve().parent / "_tests")
+    roots.append(
+        Path(__file__).resolve().parents[2]
+        / "datalog-conformance-suite"
+        / "src"
+        / "datalog_conformance"
+        / "_tests"
+    )
+    for root in roots:
+        candidate = root.joinpath(*parts)
+        if candidate.exists():
+            return candidate
+    locations = ", ".join(str(root.joinpath(*parts)) for root in roots)
+    raise FileNotFoundError(f"Conformance fixture not found at any of: {locations}")
