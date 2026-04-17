@@ -55,3 +55,49 @@ def test_defeasible_theory_rejects_ghost_superiority_references() -> None:
         )
 
     assert "ghost" in str(exc.value)
+
+
+def test_defeasible_theory_accepts_presumptions_field() -> None:
+    """Garcia & Simari 2004 §6.2 p. 32: presumption = defeasible rule with empty body."""
+    theory = DefeasibleTheory(
+        facts={},
+        strict_rules=[],
+        defeasible_rules=[],
+        defeaters=[],
+        presumptions=[Rule(id="p1", head="innocent(X)", body=[])],
+        superiority=[],
+        conflicts=[],
+    )
+
+    assert len(theory.presumptions) == 1
+    assert theory.presumptions[0].id == "p1"
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        theory.presumptions = []
+
+
+def test_defeasible_theory_rejects_presumption_with_non_empty_body() -> None:
+    with pytest.raises(ValueError, match="p1.*empty body"):
+        DefeasibleTheory(
+            facts={},
+            strict_rules=[],
+            defeasible_rules=[],
+            defeaters=[],
+            presumptions=[Rule(id="p1", head="innocent(X)", body=["person(X)"])],
+            superiority=[],
+            conflicts=[],
+        )
+
+
+def test_defeasible_theory_allows_superiority_against_presumption_id() -> None:
+    theory = DefeasibleTheory(
+        facts={},
+        strict_rules=[],
+        defeasible_rules=[Rule(id="d1", head="~innocent(X)", body=["has_conviction(X)"])],
+        defeaters=[],
+        presumptions=[Rule(id="p1", head="innocent(X)", body=[])],
+        superiority=[("d1", "p1")],
+        conflicts=[],
+    )
+
+    assert ("d1", "p1") in theory.superiority

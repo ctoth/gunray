@@ -15,10 +15,12 @@ from gunray.parser import (
     parse_atom_text,
     parse_constraint_text,
     parse_defeasible_rule,
+    parse_defeasible_theory,
     parse_rule_text,
     parse_value_term,
     split_top_level,
 )
+from gunray.schema import DefeasibleTheory as SchemaDefeasibleTheory
 from gunray.schema import Rule as SchemaRule
 from gunray.types import Comparison, Constant, Variable, Wildcard
 
@@ -183,6 +185,25 @@ def test_parse_defeasible_rule_parses_head_and_body_atoms() -> None:
         parse_atom_text("bird(X)"),
         parse_atom_text('tag(X, "forest,bird")'),
     )
+
+
+def test_parse_defeasible_theory_routes_presumptions_as_defeasible() -> None:
+    """Garcia & Simari 2004 §6.2 p. 32: presumptions plumb through as defeasible rules."""
+    theory = SchemaDefeasibleTheory(
+        facts={},
+        strict_rules=[],
+        defeasible_rules=[],
+        defeaters=[],
+        presumptions=[SchemaRule(id="p1", head="innocent(X)", body=[])],
+        superiority=[],
+        conflicts=[],
+    )
+
+    _facts, rules, _conflicts = parse_defeasible_theory(theory)
+
+    matches = [r for r in rules if r.rule_id == "p1"]
+    assert len(matches) == 1
+    assert matches[0].kind == "defeasible"
 
 
 def test_parse_constraint_text_recognizes_all_supported_operators() -> None:

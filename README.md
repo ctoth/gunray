@@ -49,6 +49,10 @@ The defeasible pipeline is Garcia & Simari's 2004 DeLP, run verbatim:
   `YES` / `NO` / `UNDECIDED` / `UNKNOWN` — projected into the
   `definitely` / `defeasibly` / `not_defeasibly` / `undecided` sections
   of `DefeasibleModel`.
+- **Presumptions** (García & Simari 2004 §6.2 p. 32) are defeasible
+  rules with empty body, written `h -< true`; the `presumptions` slot
+  on `DefeasibleTheory` carries them and they flow through the
+  argument pipeline as ordinary defeasible rules.
 
 Strict-only theories (no defeasible rules, defeaters, or superiority)
 take a shortcut around the argument pipeline and run through the

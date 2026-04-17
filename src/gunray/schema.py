@@ -104,19 +104,37 @@ class Rule:
 
 @dataclass(frozen=True, slots=True)
 class DefeasibleTheory:
-    """Defeasible Datalog theory."""
+    """Defeasible Datalog theory.
+
+    ``presumptions`` carries defeasible rules with empty body written
+    ``h -< true`` in DeLP surface syntax. Garcia & Simari 2004 §6.2
+    p. 32 defines a presumption as a defeasible rule whose body is
+    empty; presumptions are a special case of defeasible rules and
+    flow through the argument pipeline with ``kind="defeasible"``.
+    Every ``Rule`` in ``presumptions`` must have an empty ``body``;
+    ``__post_init__`` raises ``ValueError`` otherwise.
+    """
 
     facts: PredicateFacts = field(default_factory=_predicate_facts_factory)
     strict_rules: list[Rule] = field(default_factory=_rule_list_factory)
     defeasible_rules: list[Rule] = field(default_factory=_rule_list_factory)
     defeaters: list[Rule] = field(default_factory=_rule_list_factory)
+    presumptions: list[Rule] = field(default_factory=_rule_list_factory)
     superiority: list[tuple[str, str]] = field(default_factory=_pair_list_factory)
     conflicts: list[tuple[str, str]] = field(default_factory=_pair_list_factory)
 
     def __post_init__(self) -> None:
+        for rule in self.presumptions:
+            if rule.body:
+                raise ValueError(
+                    f"DefeasibleTheory.presumptions rule {rule.id!r} must have "
+                    "empty body (Garcia & Simari 2004 §6.2 p. 32)"
+                )
+
         known_ids = {rule.id for rule in self.strict_rules}
         known_ids.update(rule.id for rule in self.defeasible_rules)
         known_ids.update(rule.id for rule in self.defeaters)
+        known_ids.update(rule.id for rule in self.presumptions)
 
         for left, right in self.superiority:
             for rule_id, side in ((left, "left"), (right, "right")):

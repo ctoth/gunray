@@ -4,7 +4,11 @@ import pytest
 from conftest import small_theory_strategy
 from hypothesis import assume, given, settings
 
-from gunray.defeasible import DefeasibleEvaluator
+# Test code reaches into the private _is_strict_only_theory helper to
+# verify internal routing. Project CLAUDE.md bans cross-module private
+# imports between peer src modules, but tests/ is not a peer module of
+# src/gunray/ — test code is explicitly allowed to check internals.
+from gunray.defeasible import DefeasibleEvaluator, _is_strict_only_theory
 from gunray.errors import ContradictoryStrictTheoryError
 from gunray.schema import DefeasibleTheory, Policy, Rule
 
@@ -22,6 +26,26 @@ def test_strict_only_theory_with_contradictory_pi_raises() -> None:
 
     with pytest.raises(ContradictoryStrictTheoryError):
         DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+
+
+def test_presumption_only_theory_does_not_take_strict_only_fast_path() -> None:
+    """A theory with only presumptions is defeasible — must not route to Datalog.
+
+    Garcia & Simari 2004 §6.2 p. 32: presumptions are defeasible rules
+    with empty body. Routing them through the strict-only fast path
+    would drop their defeasibility.
+    """
+    theory = DefeasibleTheory(
+        facts={},
+        strict_rules=[],
+        defeasible_rules=[],
+        defeaters=[],
+        presumptions=[Rule(id="p1", head="foo", body=[])],
+        superiority=[],
+        conflicts=[],
+    )
+
+    assert _is_strict_only_theory(theory) is False
 
 
 def test_strict_only_theory_respects_conflicts_field() -> None:

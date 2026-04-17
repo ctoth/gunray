@@ -78,6 +78,12 @@ def parse_defeasible_theory(
         rules.append(parse_defeasible_rule(item, kind="defeasible"))
     for item in theory.defeaters:
         rules.append(parse_defeasible_rule(item, kind="defeater"))
+    # Garcia & Simari 2004 §6.2 p. 32: a presumption is a defeasible
+    # rule with empty body. Plumb presumptions through as defeasible
+    # rules so the existing argument pipeline (_internal.py body_rules
+    # bucket) handles them uniformly.
+    for item in theory.presumptions:
+        rules.append(parse_defeasible_rule(item, kind="defeasible"))
 
     conflicts = _collect_conflicts(theory)
     return facts, rules, conflicts

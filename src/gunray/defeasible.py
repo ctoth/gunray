@@ -257,7 +257,12 @@ def _strip_negation(predicate: str) -> str:
 
 
 def _is_strict_only_theory(theory: SchemaDefeasibleTheory) -> bool:
-    return not theory.defeasible_rules and not theory.defeaters and not theory.superiority
+    return (
+        not theory.defeasible_rules
+        and not theory.defeaters
+        and not theory.presumptions
+        and not theory.superiority
+    )
 
 
 def _evaluate_strict_only_theory_with_trace(
