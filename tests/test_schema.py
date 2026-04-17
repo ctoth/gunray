@@ -9,7 +9,7 @@ def test_rule_is_frozen() -> None:
     rule = Rule(id="r1", head="p(X)", body=["q(X)"])
 
     with pytest.raises(dataclasses.FrozenInstanceError):
-        rule.head = "flies(X)"
+        rule.head = "flies(X)"  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_defeasible_theory_is_frozen() -> None:
@@ -23,14 +23,14 @@ def test_defeasible_theory_is_frozen() -> None:
     )
 
     with pytest.raises(dataclasses.FrozenInstanceError):
-        theory.facts = {}
+        theory.facts = {}  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_program_is_frozen() -> None:
     program = Program(facts={"p": {("a",)}}, rules=[])
 
     with pytest.raises(dataclasses.FrozenInstanceError):
-        program.facts = {}
+        program.facts = {}  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_rule_rejects_empty_id() -> None:
@@ -73,7 +73,7 @@ def test_defeasible_theory_accepts_presumptions_field() -> None:
     assert theory.presumptions[0].id == "p1"
 
     with pytest.raises(dataclasses.FrozenInstanceError):
-        theory.presumptions = []
+        theory.presumptions = []  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def test_defeasible_theory_rejects_presumption_with_non_empty_body() -> None:
