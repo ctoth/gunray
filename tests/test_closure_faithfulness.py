@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TypeAlias, cast
 
+import datalog_conformance
 import yaml
 from datalog_conformance.references import PropositionalClosureEvaluator
 from datalog_conformance.schema import (
@@ -23,17 +24,6 @@ from hypothesis import strategies as st
 import gunray.closure as gunray_closure
 from gunray import DefeasibleTheory, Policy, Rule
 from gunray.closure import ClosureEvaluator
-
-_MORRIS_CLOSURE_FILE = (
-    Path(__file__).resolve().parents[2]
-    / "datalog-conformance-suite"
-    / "src"
-    / "datalog_conformance"
-    / "_tests"
-    / "defeasible"
-    / "closure"
-    / "morris_core_examples.yaml"
-)
 
 _ATOMS = ("a", "b", "c")
 RawTheory: TypeAlias = tuple[
@@ -84,7 +74,7 @@ def test_morris_closure_corpus_matches_ranked_world_reference() -> None:
     through ``page-017.png``).
     """
 
-    raw = yaml.safe_load(_MORRIS_CLOSURE_FILE.read_text(encoding="utf-8"))
+    raw = yaml.safe_load(_morris_closure_file().read_text(encoding="utf-8"))
     assert isinstance(raw, dict)
     data = cast(dict[object, object], raw)
     entries = cast(list[object], data["tests"])
@@ -207,6 +197,26 @@ def _build_theories(raw_theory: RawTheory) -> tuple[DefeasibleTheory, SuiteTheor
     return _to_gunray_theory_from_raw(
         facts, strict_rules, defeasible_rules
     ), _to_suite_theory_from_raw(facts, strict_rules, defeasible_rules)
+
+
+def _morris_closure_file() -> Path:
+    suffix = Path("defeasible") / "closure" / "morris_core_examples.yaml"
+    roots: list[Path] = []
+    if datalog_conformance.__file__ is not None:
+        roots.append(Path(datalog_conformance.__file__).resolve().parent / "_tests")
+    roots.append(
+        Path(__file__).resolve().parents[2]
+        / "datalog-conformance-suite"
+        / "src"
+        / "datalog_conformance"
+        / "_tests"
+    )
+    for root in roots:
+        candidate = root / suffix
+        if candidate.exists():
+            return candidate
+    locations = ", ".join(str(root / suffix) for root in roots)
+    raise FileNotFoundError(f"Morris closure fixture not found at any of: {locations}")
 
 
 def _atoms_for_raw_theory(raw_theory: RawTheory) -> tuple[str, ...]:

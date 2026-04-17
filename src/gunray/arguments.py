@@ -20,7 +20,7 @@ Block 2+ concern.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import combinations
+from itertools import product
 
 from ._internal import _force_strict_for_closure, _ground_theory
 from .disagreement import complement, strict_closure
@@ -116,62 +116,89 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
             continue
         arguments.add(Argument(rules=frozenset({rule}), conclusion=rule.head))
 
-    # Condition (2) needs to be checkable per subset. Compute it using
-    # the ground strict rules + the ground rules in the subset (treating
-    # defeasible rules like strict rules for the purpose of closure).
-    minimal_for_conclusion: dict[GroundAtom, list[frozenset[GroundDefeasibleRule]]] = {}
-
-    rule_universe = list(grounded_defeasible_rules)
-    for size in range(0, len(rule_universe) + 1):
-        for subset in combinations(rule_universe, size):
-            rule_set = frozenset(subset)
-            # Closure under Pi + A treats both strict and defeasible
-            # rules in A as propagating heads — this is the "defeasible
-            # derivation from Pi union A" of Def 3.1 condition (1).
-            combined_rules = grounded_strict_rules + tuple(
-                _force_strict_for_closure(r) for r in subset
-            )
-            closure = strict_closure(fact_atoms, combined_rules)
-
-            # Condition (2): non-contradiction.
-            if _has_contradiction(closure):
+    # Bottom-up minimal argument construction. The first implementation
+    # enumerated every subset of the grounded defeasible rule base; a
+    # 20-rule chain therefore forced 2**20 closure checks before it could
+    # discover the obvious single chain of arguments. Def 3.1 only needs
+    # minimal rule sets that actually derive each rule body, so we build
+    # those directly and prune supersets per conclusion as soon as a
+    # smaller derivation is known.
+    supports_for_conclusion: dict[GroundAtom, set[frozenset[GroundDefeasibleRule]]] = {
+        atom: {frozenset()} for atom in pi_closure
+    }
+    minimal_for_conclusion: dict[GroundAtom, set[frozenset[GroundDefeasibleRule]]] = {}
+    changed = True
+    while changed:
+        changed = False
+        for rule in grounded_defeasible_rules:
+            body_rule_sets = tuple(supports_for_conclusion.get(atom) for atom in rule.body)
+            if any(rule_sets is None for rule_sets in body_rule_sets):
                 continue
-
-            # Condition (1): collect heads defeasibly derivable that
-            # actually required `rule_set`. For size 0 we already
-            # handled strict-only conclusions above.
-            if not rule_set:
-                continue
-
-            for rule in subset:
-                head = rule.head
-                if head not in closure:
+            for supports in product(*(rule_sets or {frozenset()} for rule_sets in body_rule_sets)):
+                rule_set = frozenset({rule}).union(*supports)
+                if _has_redundant_nonempty_subset(
+                    rule_set,
+                    rule.head,
+                    fact_atoms,
+                    grounded_strict_rules,
+                ):
                     continue
-
-                # Minimality (condition 3): reject if any proper
-                # subset also produces this head under a
-                # non-contradictory Pi union A'.
-                prior = minimal_for_conclusion.get(head, [])
-                if any(existing < rule_set for existing in prior):
+                combined_rules = grounded_strict_rules + tuple(
+                    _force_strict_for_closure(r) for r in rule_set
+                )
+                if _has_contradiction(strict_closure(fact_atoms, combined_rules)):
                     continue
-
-                # This rule_set derives `head` minimally so far. Drop
-                # any previously stored supersets; add rule_set.
-                survivors = [existing for existing in prior if not (rule_set < existing)]
-                survivors.append(rule_set)
-                minimal_for_conclusion[head] = survivors
-
-    # Emit defeasible-rule arguments. ``rule_set`` is drawn from
-    # defeasible-kind rules only, so no filtering by kind is needed
-    # here — defeater-kind arguments are emitted above in the
-    # Nute/Antoniou pass.
-    for head, minimal_sets in minimal_for_conclusion.items():
-        for rule_set in minimal_sets:
-            if not any(r.head == head for r in rule_set):
-                continue
-            arguments.add(Argument(rules=rule_set, conclusion=head))
+                if _add_minimal_argument(
+                    arguments,
+                    minimal_for_conclusion,
+                    supports_for_conclusion,
+                    rule.head,
+                    rule_set,
+                ):
+                    changed = True
 
     return frozenset(arguments)
+
+
+def _add_minimal_argument(
+    arguments: set[Argument],
+    minimal_for_conclusion: dict[GroundAtom, set[frozenset[GroundDefeasibleRule]]],
+    supports_for_conclusion: dict[GroundAtom, set[frozenset[GroundDefeasibleRule]]],
+    conclusion: GroundAtom,
+    rule_set: frozenset[GroundDefeasibleRule],
+) -> bool:
+    existing_sets = minimal_for_conclusion.setdefault(conclusion, set())
+    if any(existing <= rule_set for existing in existing_sets):
+        return False
+
+    supersets = {existing for existing in existing_sets if rule_set < existing}
+    for existing in supersets:
+        existing_sets.remove(existing)
+        supports_for_conclusion[conclusion].remove(existing)
+        arguments.discard(Argument(rules=existing, conclusion=conclusion))
+
+    existing_sets.add(rule_set)
+    supports_for_conclusion.setdefault(conclusion, set()).add(rule_set)
+    arguments.add(Argument(rules=rule_set, conclusion=conclusion))
+    return True
+
+
+def _has_redundant_nonempty_subset(
+    rule_set: frozenset[GroundDefeasibleRule],
+    conclusion: GroundAtom,
+    fact_atoms: frozenset[GroundAtom],
+    grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
+) -> bool:
+    for rule in rule_set:
+        reduced = rule_set - {rule}
+        if not reduced:
+            continue
+        combined_rules = grounded_strict_rules + tuple(
+            _force_strict_for_closure(candidate) for candidate in reduced
+        )
+        if conclusion in strict_closure(fact_atoms, combined_rules):
+            return True
+    return False
 
 
 def _has_contradiction(closure: frozenset[GroundAtom]) -> bool:
