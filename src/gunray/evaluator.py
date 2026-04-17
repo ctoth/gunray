@@ -32,6 +32,8 @@ from .stratify import stratify
 from .trace import DatalogTrace, IterationTrace, RuleFireTrace, StratumTrace, TraceConfig
 from .types import Rule
 
+_CompiledRuleCacheKey = tuple[Rule, tuple[int, ...]]
+
 
 class SemiNaiveEvaluator:
     """Evaluate stratified Datalog programs under standard least-model semantics."""
@@ -91,6 +93,7 @@ def _evaluate_stratum(
         predicate: IndexedRelation(model.get(predicate, IndexedRelation()).as_set())
         for predicate in stratum_predicates
     }
+    compiled_rule_cache: dict[_CompiledRuleCacheKey, CompiledSimpleRule | None] = {}
     first_iteration = True
     iteration_number = 0
     while first_iteration or any(delta_relation for delta_relation in delta.values()):
@@ -128,6 +131,7 @@ def _evaluate_stratum(
                     preferred_first_index=delta_position,
                     iteration_trace=iteration_trace,
                     trace_config=actual_trace_config,
+                    compiled_rule_cache=compiled_rule_cache,
                 )
             if recursive_positions or not first_iteration:
                 continue
@@ -139,6 +143,7 @@ def _evaluate_stratum(
                 preferred_first_index=None,
                 iteration_trace=iteration_trace,
                 trace_config=actual_trace_config,
+                compiled_rule_cache=compiled_rule_cache,
             )
         if not any(delta_relation for delta_relation in next_delta.values()):
             return
@@ -183,6 +188,7 @@ def apply_rule_with_overrides(
     preferred_first_index: int | None,
     iteration_trace: IterationTrace | None,
     trace_config: TraceConfig | None = None,
+    compiled_rule_cache: dict[_CompiledRuleCacheKey, CompiledSimpleRule | None] | None = None,
 ) -> int:
     actual_trace_config = trace_config or TraceConfig()
     ordered_atoms = _order_positive_body(
@@ -192,7 +198,14 @@ def apply_rule_with_overrides(
         preferred_first_index=preferred_first_index,
     )
     if not rule.negative_body and not rule.constraints:
-        compiled_rule = compile_simple_rule(rule.heads[0], ordered_atoms)
+        cache_key = (rule, tuple(source_index for source_index, _atom in ordered_atoms))
+        if compiled_rule_cache is None:
+            compiled_rule = compile_simple_rule(rule.heads[0], ordered_atoms)
+        else:
+            compiled_rule = compiled_rule_cache.get(cache_key)
+            if cache_key not in compiled_rule_cache:
+                compiled_rule = compile_simple_rule(rule.heads[0], ordered_atoms)
+                compiled_rule_cache[cache_key] = compiled_rule
         if compiled_rule is not None:
             derived_count, captured_rows = _apply_compiled_rule(
                 compiled_rule,

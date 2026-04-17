@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import gunray.evaluator as evaluator
 from gunray._internal import (
     _iter_generic_positive_body_matches,
     _order_positive_body,
 )
 from gunray.compiled import compile_simple_matcher, iter_compiled_bindings
-from gunray.evaluator import _apply_rule, apply_rule_with_overrides
+from gunray.evaluator import SemiNaiveEvaluator, _apply_rule, apply_rule_with_overrides
 from gunray.relation import IndexedRelation
+from gunray.schema import Program
 from gunray.types import AddExpression, Atom, Constant, Rule, Variable, Wildcard
 
 
@@ -187,3 +189,26 @@ def test_order_positive_body_does_not_materialize_costing_indexes() -> None:
 
     assert model["left"]._indexes == {}
     assert model["right"]._indexes == {}
+
+
+def test_simple_rules_are_compiled_once_per_ordered_plan(monkeypatch) -> None:
+    program = Program(
+        facts={"edge": {("a", "b"), ("b", "c"), ("c", "d"), ("d", "e")}},
+        rules=[
+            "path(X,Y) :- edge(X,Y).",
+            "path(X,Z) :- path(X,Y), edge(Y,Z).",
+        ],
+    )
+    calls = 0
+    original = evaluator.compile_simple_rule
+
+    def counted(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(evaluator, "compile_simple_rule", counted)
+
+    SemiNaiveEvaluator().evaluate(program)
+
+    assert calls == 2

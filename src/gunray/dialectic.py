@@ -86,7 +86,13 @@ def _theory_pi_facts(theory: DefeasibleTheory) -> frozenset[GroundAtom]:
     return _fact_atoms(facts)
 
 
-def counter_argues(attacker: Argument, target: Argument, theory: DefeasibleTheory) -> bool:
+def counter_argues(
+    attacker: Argument,
+    target: Argument,
+    theory: DefeasibleTheory,
+    *,
+    universe: tuple[Argument, ...] | frozenset[Argument] | None = None,
+) -> bool:
     """Garcia & Simari 2004 Definition 3.4.
 
     ``⟨A₁, h₁⟩`` counter-argues ``⟨A₂, h₂⟩`` at literal ``h`` iff
@@ -99,8 +105,10 @@ def counter_argues(attacker: Argument, target: Argument, theory: DefeasibleTheor
     The old atom-level blocking check never descended into
     sub-arguments; descending is the whole point of this refactor.
     """
-    universe = build_arguments(theory)
-    for _sub in _disagreeing_subarguments(attacker, target, theory, universe):
+    universe = universe if universe is not None else build_arguments(theory)
+    strict_rules = _theory_strict_rules(theory)
+    facts = _theory_pi_facts(theory)
+    for _sub in _disagreeing_subarguments(attacker, target, universe, strict_rules, facts):
         return True
     return False
 
@@ -108,8 +116,9 @@ def counter_argues(attacker: Argument, target: Argument, theory: DefeasibleTheor
 def _disagreeing_subarguments(
     attacker: Argument,
     target: Argument,
-    theory: DefeasibleTheory,
     universe: tuple[Argument, ...] | frozenset[Argument],
+    strict_rules: tuple[GroundDefeasibleRule, ...],
+    facts: frozenset[GroundAtom],
 ) -> list[Argument]:
     """Return every sub-argument ``⟨A, h⟩`` of ``target`` whose
     conclusion disagrees with ``attacker.conclusion``.
@@ -120,8 +129,6 @@ def _disagreeing_subarguments(
     4.2 condition on the preference between the attacker and *that*
     sub-argument, not the root of ``target``.
     """
-    strict_rules = _theory_strict_rules(theory)
-    facts = _theory_pi_facts(theory)
     hits: list[Argument] = []
     for sub in universe:
         if not is_subargument(sub, target):
@@ -136,6 +143,8 @@ def proper_defeater(
     target: Argument,
     criterion: PreferenceCriterion,
     theory: DefeasibleTheory,
+    *,
+    universe: tuple[Argument, ...] | frozenset[Argument] | None = None,
 ) -> bool:
     """Garcia & Simari 2004 Definition 4.1.
 
@@ -146,8 +155,10 @@ def proper_defeater(
     Under ``TrivialPreference`` nothing is strictly preferred so
     nothing is proper.
     """
-    universe = build_arguments(theory)
-    for sub in _disagreeing_subarguments(attacker, target, theory, universe):
+    universe = universe if universe is not None else build_arguments(theory)
+    strict_rules = _theory_strict_rules(theory)
+    facts = _theory_pi_facts(theory)
+    for sub in _disagreeing_subarguments(attacker, target, universe, strict_rules, facts):
         if criterion.prefers(attacker, sub):
             return True
     return False
@@ -158,6 +169,8 @@ def blocking_defeater(
     target: Argument,
     criterion: PreferenceCriterion,
     theory: DefeasibleTheory,
+    *,
+    universe: tuple[Argument, ...] | frozenset[Argument] | None = None,
 ) -> bool:
     """Garcia & Simari 2004 Definition 4.2.
 
@@ -166,8 +179,10 @@ def blocking_defeater(
     prefers neither direction (neither ``a1 > ⟨A, h⟩`` nor
     ``⟨A, h⟩ > a1``).
     """
-    universe = build_arguments(theory)
-    for sub in _disagreeing_subarguments(attacker, target, theory, universe):
+    universe = universe if universe is not None else build_arguments(theory)
+    strict_rules = _theory_strict_rules(theory)
+    facts = _theory_pi_facts(theory)
+    for sub in _disagreeing_subarguments(attacker, target, universe, strict_rules, facts):
         if not criterion.prefers(attacker, sub) and not criterion.prefers(sub, attacker):
             return True
     return False
@@ -202,17 +217,30 @@ def _concordant(
     closure pass, matching the Def 3.1 condition (2) treatment in
     ``build_arguments``.
     """
-    facts, _defeasible, _ = parse_defeasible_theory(theory)
-    seeds = _fact_atoms(facts)
+    facts = _theory_pi_facts(theory)
     strict_rules = _theory_strict_rules(theory)
+    rules = frozenset(rule for rule_set in rule_sets for rule in rule_set)
+    return _concordant_rules(rules, strict_rules, facts, {})
+
+
+def _concordant_rules(
+    rules: frozenset[GroundDefeasibleRule],
+    strict_rules: tuple[GroundDefeasibleRule, ...],
+    facts: frozenset[GroundAtom],
+    cache: dict[frozenset[GroundDefeasibleRule], bool],
+) -> bool:
+    cached = cache.get(rules)
+    if cached is not None:
+        return cached
     combined: list[GroundDefeasibleRule] = list(strict_rules)
-    for rule_set in rule_sets:
-        for rule in rule_set:
-            combined.append(_force_strict_for_closure(rule))
-    closure = strict_closure(frozenset(), tuple(combined), facts=seeds)
+    for rule in rules:
+        combined.append(_force_strict_for_closure(rule))
+    closure = strict_closure(frozenset(), tuple(combined), facts=facts)
     for atom in closure:
         if complement(atom) in closure:
+            cache[rules] = False
             return False
+    cache[rules] = True
     return True
 
 
@@ -220,8 +248,9 @@ def _defeat_kind(
     attacker: Argument,
     target: Argument,
     criterion: PreferenceCriterion,
-    theory: DefeasibleTheory,
     universe: tuple[Argument, ...] | frozenset[Argument],
+    strict_rules: tuple[GroundDefeasibleRule, ...],
+    facts: frozenset[GroundAtom],
 ) -> str | None:
     """Return ``"proper"``, ``"blocking"``, or ``None``.
 
@@ -231,7 +260,7 @@ def _defeat_kind(
     some disagreeing sub-argument is preference-neutral vs.
     ``attacker``; otherwise ``None``.
     """
-    subs = _disagreeing_subarguments(attacker, target, theory, universe)
+    subs = _disagreeing_subarguments(attacker, target, universe, strict_rules, facts)
     proper_hit = False
     blocking_hit = False
     for sub in subs:
@@ -275,7 +304,21 @@ def build_tree(
     cond 3 forbids re-entry along a line.
     """
     argument_universe = universe if universe is not None else build_arguments(theory)
-    return _expand(root, [root], [None], argument_universe, criterion, theory)
+    strict_rules = _theory_strict_rules(theory)
+    facts = _theory_pi_facts(theory)
+    concordance_cache: dict[frozenset[GroundDefeasibleRule], bool] = {}
+    return _expand(
+        root,
+        [root],
+        [None],
+        argument_universe,
+        criterion,
+        strict_rules,
+        facts,
+        root.rules,
+        frozenset(),
+        concordance_cache,
+    )
 
 
 def _expand(
@@ -284,7 +327,11 @@ def _expand(
     edge_kinds: list[str | None],
     universe: tuple[Argument, ...] | frozenset[Argument],
     criterion: PreferenceCriterion,
-    theory: DefeasibleTheory,
+    strict_rules: tuple[GroundDefeasibleRule, ...],
+    facts: frozenset[GroundAtom],
+    supporting_rules: frozenset[GroundDefeasibleRule],
+    interfering_rules: frozenset[GroundDefeasibleRule],
+    concordance_cache: dict[frozenset[GroundDefeasibleRule], bool],
 ) -> DialecticalNode:
     """Recursive expansion of a single dialectical-tree node.
 
@@ -298,7 +345,7 @@ def _expand(
     parent_edge_kind = edge_kinds[-1]
 
     for candidate in universe:
-        kind = _defeat_kind(candidate, current, criterion, theory, universe)
+        kind = _defeat_kind(candidate, current, criterion, universe, strict_rules, facts)
         if kind is None:
             continue
 
@@ -319,21 +366,44 @@ def _expand(
         # positions) must each remain concordant with `candidate`
         # added to its appropriate set.
         new_index = len(line)  # position of `candidate` if admitted
-        supporting = [line[i].rules for i in range(len(line)) if i % 2 == 0]
-        interfering = [line[i].rules for i in range(len(line)) if i % 2 == 1]
         if new_index % 2 == 0:
-            supporting.append(candidate.rules)
+            next_supporting_rules = supporting_rules | candidate.rules
+            next_interfering_rules = interfering_rules
+            if not _concordant_rules(
+                next_supporting_rules,
+                strict_rules,
+                facts,
+                concordance_cache,
+            ):
+                continue
         else:
-            interfering.append(candidate.rules)
-        if not _concordant(supporting, theory):
-            continue
-        if not _concordant(interfering, theory):
-            continue
+            next_supporting_rules = supporting_rules
+            next_interfering_rules = interfering_rules | candidate.rules
+            if not _concordant_rules(
+                next_interfering_rules,
+                strict_rules,
+                facts,
+                concordance_cache,
+            ):
+                continue
 
         # All Def 4.7 conditions satisfied — recurse.
         new_line = line + [candidate]
         new_edges = edge_kinds + [kind]
-        children_nodes.append(_expand(candidate, new_line, new_edges, universe, criterion, theory))
+        children_nodes.append(
+            _expand(
+                candidate,
+                new_line,
+                new_edges,
+                universe,
+                criterion,
+                strict_rules,
+                facts,
+                next_supporting_rules,
+                next_interfering_rules,
+                concordance_cache,
+            )
+        )
 
     return DialecticalNode(argument=current, children=tuple(children_nodes))
 
@@ -409,14 +479,35 @@ def render_tree(node: DialecticalNode) -> str:
     always produces byte-identical output. Children are sorted via
     ``defeasible._atom_sort_key`` on their conclusion, with the
     sorted rule-id tuple as a tiebreaker for distinct arguments
-    sharing a conclusion. ``mark`` is recomputed by calling the pure
-    ``mark(node)`` recursively — repeated recursion is deliberate
-    (Block 1 is correctness-first).
+    sharing a conclusion.
     """
-    return "\n".join(_render_lines(node))
+    marks = _mark_table(node)
+    return "\n".join(_render_lines(node, marks))
 
 
-def _render_lines(node: DialecticalNode) -> list[str]:
+def _mark_table(node: DialecticalNode) -> dict[DialecticalNode, Literal["U", "D"]]:
+    marks: dict[DialecticalNode, Literal["U", "D"]] = {}
+
+    def visit(current: DialecticalNode) -> Literal["U", "D"]:
+        cached = marks.get(current)
+        if cached is not None:
+            return cached
+        if not current.children:
+            value: Literal["U", "D"] = "U"
+        else:
+            child_marks = tuple(visit(child) for child in current.children)
+            value = "D" if "U" in child_marks else "U"
+        marks[current] = value
+        return value
+
+    visit(node)
+    return marks
+
+
+def _render_lines(
+    node: DialecticalNode,
+    marks: dict[DialecticalNode, Literal["U", "D"]],
+) -> list[str]:
     """Return the rendered lines for ``node`` and its descendants.
 
     The header line is rendered without any prefix; caller-supplied
@@ -425,21 +516,25 @@ def _render_lines(node: DialecticalNode) -> list[str]:
     """
     head = (
         f"{_format_atom(node.argument.conclusion)}  "
-        f"{_format_rule_ids(node.argument)}  ({mark(node)})"
+        f"{_format_rule_ids(node.argument)}  ({marks[node]})"
     )
     lines = [head]
     children = _sorted_children(node)
     for index, child in enumerate(children):
         is_last = index == len(children) - 1
-        lines.extend(_render_child_lines(child, is_last))
+        lines.extend(_render_child_lines(child, is_last, marks))
     return lines
 
 
-def _render_child_lines(child: DialecticalNode, is_last: bool) -> list[str]:
+def _render_child_lines(
+    child: DialecticalNode,
+    is_last: bool,
+    marks: dict[DialecticalNode, Literal["U", "D"]],
+) -> list[str]:
     """Render ``child``'s subtree with tree-drawing prefixes."""
     branch = "└─ " if is_last else "├─ "
     continuation = "   " if is_last else "│  "
-    child_lines = _render_lines(child)
+    child_lines = _render_lines(child, marks)
     rendered = [branch + child_lines[0]]
     for line in child_lines[1:]:
         rendered.append(continuation + line)
