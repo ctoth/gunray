@@ -45,3 +45,13 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `282 passed, 10 skipped, 3 deselected in 308.54s`
 - `uv run pyright src/gunray/defeasible.py src/gunray/errors.py src/gunray/arguments.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check src/gunray/defeasible.py src/gunray/errors.py src/gunray/arguments.py tests/conftest.py tests/test_conformance.py tests/test_strict_only_pi_contradiction.py`: `All checks passed!`
+
+## P1-T2 summary
+
+- Red commit: `d7da22e` reproduced GeneralizedSpecificity preferring a defeasible argument over a strict empty-rules argument.
+- Green change: `GeneralizedSpecificity.prefers()` now treats any empty-rules argument as incomparable under specificity.
+- `uv run pytest tests/test_specificity.py -v`: `12 passed`
+- `uv run pytest tests -q`: `146 passed, 292 skipped, 3 deselected in 89.18s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `282 passed, 10 skipped, 3 deselected in 314.27s`
+- `uv run pyright src/gunray/preference.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check src/gunray/preference.py tests/test_specificity.py`: `All checks passed!`

@@ -106,6 +106,11 @@ class GeneralizedSpecificity:
 
         if left == right:
             return False
+        # Simari & Loui 1992 Lemma 2.4 compares non-empty defeasible
+        # rule sets T. Empty-rule arguments are strict consequences of
+        # K_N/Pi, so specificity does not make either side dominate.
+        if not left.rules or not right.rules:
+            return False
 
         left_ant = _antecedents_of(left)
         right_ant = _antecedents_of(right)
@@ -134,8 +139,8 @@ class GeneralizedSpecificity:
         """
 
         if not covered_antecedents:
-            # Vacuous coverage: empty antecedent set is trivially
-            # entailed.
+            # Vacuous coverage is valid only after the empty-rule
+            # incomparability guard in ``prefers``.
             return True
 
         shadowed = tuple(_force_strict_for_closure(rule) for rule in covered_argument.rules)
