@@ -643,7 +643,7 @@ def _branch_satisfiable(
     branch: frozenset[str],
     rules: list[Rule],
 ) -> bool:
-    return _is_consistent(_branch_closure(branch, rules))
+    return _is_formula_possible([], rules, _conjunction_formula(sorted(branch)))
 
 
 def _branch_closure(
