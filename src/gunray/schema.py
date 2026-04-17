@@ -69,7 +69,7 @@ class NegationSemantics(str, Enum):
     NEMO = "nemo"
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class Program:
     """Core Datalog program."""
 
@@ -77,7 +77,7 @@ class Program:
     rules: list[str] = field(default_factory=_string_list_factory)
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class Rule:
     """Shared rule structure for strict, defeasible, and defeater rules."""
 
@@ -85,8 +85,14 @@ class Rule:
     head: str
     body: list[str] = field(default_factory=_string_list_factory)
 
+    def __post_init__(self) -> None:
+        if not self.id:
+            raise ValueError("Rule.id must be non-empty")
+        if not self.head:
+            raise ValueError(f"Rule.head must be non-empty (rule id={self.id!r})")
 
-@dataclass(slots=True)
+
+@dataclass(frozen=True, slots=True)
 class DefeasibleTheory:
     """Defeasible Datalog theory."""
 
@@ -97,15 +103,28 @@ class DefeasibleTheory:
     superiority: list[tuple[str, str]] = field(default_factory=_pair_list_factory)
     conflicts: list[tuple[str, str]] = field(default_factory=_pair_list_factory)
 
+    def __post_init__(self) -> None:
+        known_ids = {rule.id for rule in self.strict_rules}
+        known_ids.update(rule.id for rule in self.defeasible_rules)
+        known_ids.update(rule.id for rule in self.defeaters)
 
-@dataclass(slots=True)
+        for left, right in self.superiority:
+            for rule_id, side in ((left, "left"), (right, "right")):
+                if rule_id not in known_ids:
+                    raise ValueError(
+                        f"DefeasibleTheory.superiority {side} id {rule_id!r} "
+                        "is not defined in strict/defeasible/defeaters rules"
+                    )
+
+
+@dataclass(frozen=True, slots=True)
 class Model:
     """Standard Datalog model returned by evaluators."""
 
     facts: ModelFacts
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class DefeasibleModel:
     """Defeasible model returned by evaluators."""
 

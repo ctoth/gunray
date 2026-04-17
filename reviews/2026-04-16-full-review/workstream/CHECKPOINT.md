@@ -135,3 +135,16 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `283 passed, 9 skipped, 3 deselected in 359.62s`
 - `uv run pyright src/gunray/semantics.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check src/gunray/semantics.py tests/test_semantics.py`: `All checks passed!`
+
+## P3-T3 summary
+
+- Red commit: `fc3aadb` pinned frozen field assignment on `Rule`, `Program`, and `DefeasibleTheory`, plus empty `Rule` id/head rejection and ghost superiority reference rejection.
+- Green change: `Rule`, `Program`, `DefeasibleTheory`, `Model`, and `DefeasibleModel` now use `frozen=True, slots=True`.
+- Green change: `Rule.__post_init__()` rejects empty ids and heads.
+- Green change: `DefeasibleTheory.__post_init__()` validates each superiority pair against strict, defeasible, and defeater rule ids.
+- Audit: literal searches for `.facts =`, `.rules =`, `.strict_rules =`, `.defeasible_rules =`, `.defeaters =`, and `.superiority =` in `src`/`tests` found no schema field mutation outside the new frozen-assignment tests; other `.rules =` hits were assertion/docstring text.
+- `uv run pytest tests/test_schema.py -v`: `6 passed`
+- `uv run pytest tests -q`: `169 passed, 292 skipped, 3 deselected in 106.99s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q`: `283 passed, 9 skipped, 3 deselected in 296.60s`
+- `uv run pyright src/gunray/schema.py`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check src/gunray/schema.py tests/test_schema.py`: `All checks passed!`
