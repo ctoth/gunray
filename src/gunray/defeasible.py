@@ -231,8 +231,7 @@ def _evaluate_via_argument_pipeline(
     trace.supported = tuple(sorted(definitely_atoms | defeasibly_atoms, key=_atom_sort_key))
     trace.arguments = arguments
     trace.trees = {
-        atom: tree
-        for atom, tree in sorted(trees.items(), key=lambda item: _atom_sort_key(item[0]))
+        atom: tree for atom, tree in sorted(trees.items(), key=lambda item: _atom_sort_key(item[0]))
     }
     trace.markings = {
         atom: label
@@ -308,6 +307,7 @@ def _raise_if_strict_pi_contradictory(
                 f"Pi derives conflicting atoms {left}{row!r} and {right}{row!r}"
             )
 
+
 def _atoms_to_section(atoms: set[GroundAtom]) -> dict[str, set[FactTuple]]:
     section: dict[str, set[FactTuple]] = {}
     for atom in atoms:
@@ -321,4 +321,3 @@ def _section_to_atoms(section: ModelFacts) -> set[GroundAtom]:
         for predicate, rows in section.items()
         for arguments in rows
     }
-

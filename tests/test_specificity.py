@@ -232,14 +232,11 @@ def test_generalized_specificity_does_not_prefer_defeasible_over_strict_empty_ru
     )
     criterion = GeneralizedSpecificity(theory)
     args = list(build_arguments(theory))
-    strict_arg = next(
-        arg for arg in args if not arg.rules and arg.conclusion.predicate == "h"
-    )
+    strict_arg = next(arg for arg in args if not arg.rules and arg.conclusion.predicate == "h")
     defeasible_arg = next(
         arg
         for arg in args
-        if any(rule.rule_id == "d1" for rule in arg.rules)
-        and arg.conclusion.predicate == "h"
+        if any(rule.rule_id == "d1" for rule in arg.rules) and arg.conclusion.predicate == "h"
     )
 
     assert not criterion.prefers(defeasible_arg, strict_arg)

@@ -86,9 +86,7 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
     # Pi = strict facts, closed under ground strict rules.
     pi_closure = strict_closure(fact_atoms, grounded_strict_rules)
     if _has_contradiction(pi_closure):
-        raise ContradictoryStrictTheoryError(
-            "Pi is contradictory under strict rules and facts"
-        )
+        raise ContradictoryStrictTheoryError("Pi is contradictory under strict rules and facts")
 
     arguments: set[Argument] = set()
 
@@ -181,4 +179,3 @@ def _has_contradiction(closure: frozenset[GroundAtom]) -> bool:
         if complement(atom) in closure:
             return True
     return False
-

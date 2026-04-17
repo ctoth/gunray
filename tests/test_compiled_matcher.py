@@ -5,7 +5,7 @@ from gunray._internal import (
     _order_positive_body,
 )
 from gunray.compiled import compile_simple_matcher, iter_compiled_bindings
-from gunray.evaluator import _apply_rule, _apply_rule_with_overrides
+from gunray.evaluator import _apply_rule, apply_rule_with_overrides
 from gunray.relation import IndexedRelation
 from gunray.types import AddExpression, Atom, Constant, Rule, Variable, Wildcard
 
@@ -105,7 +105,7 @@ def test_compiled_rule_application_matches_generic_delta() -> None:
     )
 
     compiled_delta = {"path": IndexedRelation()}
-    _apply_rule_with_overrides(
+    apply_rule_with_overrides(
         rule,
         model,
         compiled_delta,

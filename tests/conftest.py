@@ -231,12 +231,8 @@ def small_theory_strategy(draw: st.DrawFn) -> DefeasibleTheory:
             body=[_atom_text(body_predicate, "X", body_negated)],
         )
 
-    strict_rules = [
-        _gen_rule("s", i, allow_negated_head=False) for i in range(strict_count)
-    ]
-    defeasible_rules = [
-        _gen_rule("d", i, allow_negated_head=True) for i in range(defeasible_count)
-    ]
+    strict_rules = [_gen_rule("s", i, allow_negated_head=False) for i in range(strict_count)]
+    defeasible_rules = [_gen_rule("d", i, allow_negated_head=True) for i in range(defeasible_count)]
 
     return DefeasibleTheory(
         facts={pred: set(rows) for pred, rows in facts.items()},

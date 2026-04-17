@@ -75,9 +75,7 @@ def _raise_on_unknown_suite_rule_attributes(rule: SuiteRuleLike) -> None:
     attrs = cast(RuleAttributeMap, raw_attrs)
     unknown_attrs = sorted(set(attrs) - _SUPPORTED_RULE_ATTRIBUTES)
     if unknown_attrs:
-        raise ValueError(
-            "Unsupported conformance Rule attributes: " + ", ".join(unknown_attrs)
-        )
+        raise ValueError("Unsupported conformance Rule attributes: " + ", ".join(unknown_attrs))
 
 
 def _translate_program(program: Any) -> Program:

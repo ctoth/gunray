@@ -130,9 +130,7 @@ def _positive_closure_for_grounding(
 ) -> RelationModel:
     """Saturate facts positively to discover candidate grounding bindings."""
 
-    model: RelationModel = {
-        predicate: IndexedRelation(rows) for predicate, rows in facts.items()
-    }
+    model: RelationModel = {predicate: IndexedRelation(rows) for predicate, rows in facts.items()}
     while True:
         changed = False
         for rule in rules:
@@ -647,7 +645,7 @@ def _apply_rule_with_overrides(
     preferred_first_index: int | None,
     iteration_trace: IterationTrace | None,
 ) -> int:
-    from .evaluator import _apply_rule_with_overrides as apply_rule_with_overrides
+    from .evaluator import apply_rule_with_overrides
 
     return apply_rule_with_overrides(
         rule,

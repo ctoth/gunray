@@ -134,9 +134,7 @@ class DefeasibleTrace:
     strict_trace: DatalogTrace | None = None
     arguments: tuple["Argument", ...] = ()
     trees: dict[GroundAtom, "DialecticalNode"] = field(default_factory=_tree_dict_factory)
-    markings: dict[GroundAtom, Literal["U", "D"]] = field(
-        default_factory=_marking_dict_factory
-    )
+    markings: dict[GroundAtom, Literal["U", "D"]] = field(default_factory=_marking_dict_factory)
 
     def tree_for(self, atom: GroundAtom) -> "DialecticalNode | None":
         return self.trees.get(atom)

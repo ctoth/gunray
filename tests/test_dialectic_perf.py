@@ -9,8 +9,7 @@ def _linear_chain_theory(n: int) -> DefeasibleTheory:
     """Build a defeasible chain with one opposing defeater for the tail."""
 
     defeasible_rules = [
-        Rule(id=f"d{i}", head=f"p{i}(X)", body=[f"p{i - 1}(X)"])
-        for i in range(1, n + 1)
+        Rule(id=f"d{i}", head=f"p{i}(X)", body=[f"p{i - 1}(X)"]) for i in range(1, n + 1)
     ]
     defeaters = [Rule(id="def1", head=f"~p{n}(X)", body=["p0(X)"])]
     return DefeasibleTheory(

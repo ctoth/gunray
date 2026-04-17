@@ -58,6 +58,5 @@ def test_hypothesis_strict_only_never_definitely_contradicts(
         complement_predicate = predicate[1:] if predicate.startswith("~") else f"~{predicate}"
         complement_rows = definitely.get(complement_predicate, set())
         assert not rows & complement_rows, (
-            f"Pi contradiction leaked into definitely: {predicate} vs "
-            f"{complement_predicate}"
+            f"Pi contradiction leaked into definitely: {predicate} vs {complement_predicate}"
         )

@@ -120,7 +120,7 @@ def _evaluate_stratum(
                 for earlier_position in recursive_positions[:delta_offset]:
                     earlier_atom = rule.positive_body[earlier_position]
                     overrides[earlier_position] = previous_only[earlier_atom.predicate]
-                _apply_rule_with_overrides(
+                apply_rule_with_overrides(
                     rule,
                     model,
                     next_delta,
@@ -131,7 +131,7 @@ def _evaluate_stratum(
                 )
             if recursive_positions or not first_iteration:
                 continue
-            _apply_rule_with_overrides(
+            apply_rule_with_overrides(
                 rule,
                 model,
                 next_delta,
@@ -175,7 +175,7 @@ def _apply_rule(
     return derived_count, tuple(captured_rows)
 
 
-def _apply_rule_with_overrides(
+def apply_rule_with_overrides(
     rule: Rule,
     model: dict[str, IndexedRelation],
     delta: dict[str, IndexedRelation],
