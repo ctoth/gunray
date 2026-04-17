@@ -1,9 +1,10 @@
 # Gunray
 
-Gunray is a defeasible logic engine — one that can make sense of rules
-that contradict each other. Tell it *birds fly*, tell it *penguins
-don't fly*, hand it a bird that happens to also be a penguin, and it
-does the right thing:
+*(named for Donald Nute, by way of Nute Gunray)*
+
+A defeasible logic engine in pure Python. Tell it rules that contradict
+each other and it works out which conclusions survive — and, if you ask,
+exactly why. Zero runtime dependencies, MIT, Python 3.11+.
 
 ```python
 from gunray import DefeasibleTheory, GunrayEvaluator, Policy, Rule
@@ -21,93 +22,70 @@ model = GunrayEvaluator().evaluate(theory, Policy.BLOCKING)
 # model.sections["defeasibly"] contains flies(tweety) and ~flies(opus).
 ```
 
-`~flies(X) :- penguin(X)` is a *defeasible* rule, not a strict one.
-It's weaker than anything classical logic would let you write — but
-strong enough to win against `flies(X) :- bird(X)` on the penguin case
-without contradicting the strict fact that penguins are still birds.
-Gunray's job is to work out which defeasible conclusions survive, which
-get blocked by opposing evidence, and — if you ask — exactly why.
+`~flies(X) :- penguin(X)` is a *defeasible* rule, not a strict one. It's
+weaker than anything classical logic would let you write — but strong
+enough to win against `flies(X) :- bird(X)` on the penguin case without
+contradicting the strict fact that penguins are still birds.
 
-## What Gunray implements
+## `UNDECIDED` is a first-class answer
 
-The defeasible pipeline is Garcia & Simari's 2004 DeLP, run verbatim:
+Sometimes the evidence genuinely does not resolve. Nixon was a Quaker
+*and* a Republican; one defeasible rule says Quakers are pacifists,
+another says Republicans aren't. Neither argument out-specifies the
+other — so Gunray returns `Answer.UNDECIDED` rather than inventing a
+winner.
 
-- **Arguments** `⟨A, h⟩` — derivation, non-contradiction, minimality
-  (Def 3.1). Enumerated by `gunray.arguments.build_arguments`.
-- **Dialectical trees** (Def 5.1) built with the Def 4.7
-  acceptable-argumentation-line conditions — concordance of supporting
-  and interfering sets, sub-argument exclusion, block-on-block ban —
-  enforced *during* construction rather than post-hoc.
-- **Preference** is
-  `CompositePreference(SuperiorityPreference, GeneralizedSpecificity)`:
-  explicit user-supplied priority pairs (Garcia 04 §4.1) first, with
-  generalized specificity (Simari 92 Lemma 2.4) as the fallback,
-  composed under first-criterion-to-fire semantics so the composite is
-  still a strict partial order.
-- **Marking** is Procedure 5.1, post-order U/D.
-- **Answers** are the four-valued `answer` of Def 5.3 —
-  `YES` / `NO` / `UNDECIDED` / `UNKNOWN` — projected into the
-  `definitely` / `defeasibly` / `not_defeasibly` / `undecided` sections
-  of `DefeasibleModel`.
-- **Presumptions** (García & Simari 2004 §6.2 p. 32) are defeasible
-  rules with empty body, written `h -< true`; the `presumptions` slot
-  on `DefeasibleTheory` carries them and they flow through the
-  argument pipeline as ordinary defeasible rules.
-- **Explanations** (García & Simari 2004 §6 p. 29) — `gunray.explain`
-  walks a marked dialectical tree and returns a prose transcript
-  naming the supporting argument, each defeater considered, and the
-  preference reason that decided every edge.
+```python
+from gunray import (
+    Answer, DefeasibleTheory, GeneralizedSpecificity, Rule, answer,
+)
+from gunray.types import GroundAtom
 
-Strict-only theories (no defeasible rules, defeaters, or superiority)
-take a shortcut around the argument pipeline and run through the
-semi-naive Datalog engine — but *only after* Π consistency is checked.
-If the strict closure derives any `h, ~h` pair (or a pair listed in
-`conflicts`), `GunrayEvaluator` raises
-`ContradictoryStrictTheoryError` rather than returning an inconsistent
-model.
+theory = DefeasibleTheory(
+    facts={"republican": {("nixon",)}, "quaker": {("nixon",)}},
+    defeasible_rules=[
+        Rule(id="r1", head="~pacifist(X)", body=["republican(X)"]),
+        Rule(id="r2", head="pacifist(X)",  body=["quaker(X)"]),
+    ],
+)
 
-The legacy closure engine in `closure.py` — rational, lexicographic,
-and relevant closure plus KLM `Or` — still covers the zero-arity
-propositional fragment the conformance suite exercises. It's a
-separate path for the cases it was built for.
+pacifist_nixon = GroundAtom(predicate="pacifist", arguments=("nixon",))
+criterion      = GeneralizedSpecificity(theory)
 
-## What Gunray does *not* implement
+assert answer(theory, pacifist_nixon, criterion) is Answer.UNDECIDED
+```
 
-Scope is honest. The conformance suite at
-[`ctoth/datalog-conformance-suite`](https://github.com/ctoth/datalog-conformance-suite)
-contains fixtures Gunray explicitly does not support:
-
-- **Antoniou 2007 ambiguity propagation.** Garcia 04's dialectical tree
-  is blocking; the propagating reading comes from Antoniou's DR-Prolog
-  meta-program and has no seam in this pipeline. `Policy.PROPAGATING`
-  was deprecated — see `notes/policy_propagating_fate.md`.
-- **Spindle implicit-`not_defeasibly` projection** for zero-arity
-  head literals.
-- **Spindle partial-dominance superiority**, which relaxes Garcia 04
-  §4.1's all-rules-dominate requirement.
-
-These fixtures are marked out-of-contract in the test harness, not
-silently counted as passes.
+`Answer` has four values: `YES` (the literal is warranted),
+`NO` (its complement is warranted), `UNDECIDED` (arguments exist on
+both sides and neither wins), `UNKNOWN` (the predicate is not in the
+language of the theory). This is García & Simari 2004 Def 5.3.
 
 ## Install
 
-Python 3.11+ and [`uv`](https://docs.astral.sh/uv/). The base runtime
-has zero dependencies:
-
-```powershell
-uv sync
+```bash
+pip install git+https://github.com/ctoth/gunray.git
+# or
+uv add git+https://github.com/ctoth/gunray.git
 ```
 
-For development, tests, and the conformance suite:
+For development:
 
-```powershell
+```bash
+git clone https://github.com/ctoth/gunray.git
+cd gunray
 uv sync --extra dev
 ```
 
-## One dispatcher, two engines
+## Three evaluators, one dispatcher
 
-`GunrayEvaluator.evaluate` dispatches on the input type, so the same
-object handles plain Datalog:
+`GunrayEvaluator.evaluate` dispatches on the input type.
+
+- **`DefeasibleTheory`** → the DeLP pipeline: arguments, dialectical
+  trees, Procedure 5.1 marking, four-valued answers. The main event.
+- **`Program`** → stratified Datalog with Apt-Blair-Walker safety and a
+  choice of negation semantics (see below).
+- **Propositional defaults** → KLM rational / lexicographic / relevant
+  closure via `gunray.closure.ClosureEvaluator`.
 
 ```python
 from gunray import GunrayEvaluator, Program
@@ -122,383 +100,113 @@ model = GunrayEvaluator().evaluate(Program(
 # model.facts["path"] == {("a", "b"), ("b", "c"), ("a", "c")}
 ```
 
-If you'd rather skip the dispatcher, `SemiNaiveEvaluator` and
-`DefeasibleEvaluator` are exported from `gunray` directly. The closure
-engine is reachable as `gunray.closure.ClosureEvaluator`.
+`DefeasibleEvaluator`, `SemiNaiveEvaluator`, and `ClosureEvaluator` are
+exported directly if you'd rather skip the dispatcher.
 
-### Input types are frozen and validated
+## Explanations — why did the engine decide that?
 
-`Rule`, `DefeasibleTheory`, `Program`, `Model`, and `DefeasibleModel`
-are all `frozen=True, slots=True`. Construction is not a free action —
-it validates. `Rule(id="", head="...")` raises; a
-`DefeasibleTheory.superiority` pair naming a rule id that doesn't exist
-in `strict_rules`, `defeasible_rules`, or `defeaters` raises.
-Schema violations never become silent evaluator mysteries.
-
-## Negation semantics: `SAFE` vs `NEMO`
-
-Rules with variables in negated body literals have two competing
-readings in the literature. Gunray ships both:
-
-```python
-from gunray import GunrayEvaluator, NegationSemantics, Program
-
-model = GunrayEvaluator().evaluate(
-    program,
-    negation_semantics=NegationSemantics.NEMO,
-)
-```
-
-- `NegationSemantics.SAFE` — the default. Apt-Blair-Walker 1988
-  stratified-Datalog safety: every variable in a negated body literal
-  must be bound by a positive body literal. Unsafe programs raise
-  `SafetyViolationError`.
-- `NegationSemantics.NEMO` — the Nemo 2024 reading (Ivliev, Gerlach,
-  Meusel, Steinberg, and Kroetzsch, KR 2024,
-  [doi:10.24963/kr.2024/70](https://doi.org/10.24963/kr.2024/70)):
-  variables in negated literals are interpreted existentially over the
-  active Herbrand universe. Used by the conformance suite for the
-  Nemo-style fixtures.
-
-Choose deliberately. The two semantics disagree on meaningful cases.
-
-## Traces: why did the engine decide that?
-
-Defeasible reasoning is exactly the kind of thing where *what* was
-concluded is less useful than *why*. Both engines return a structured
-trace alongside the model:
-
-```python
-from gunray import GunrayEvaluator, TraceConfig
-
-model, trace = GunrayEvaluator().evaluate_with_trace(
-    theory, trace_config=TraceConfig(capture_derived_rows=True),
-)
-
-# Defeasible traces carry the full argument pipeline output.
-for argument in trace.arguments:
-    ...
-
-# For any atom in the model, the dialectical tree retained for it:
-tree    = trace.tree_for(flies_tweety)
-marking = trace.marking_for(flies_tweety)  # "U" or "D"
-args    = trace.arguments_for_conclusion(flies_tweety)
-```
-
-For plain Datalog programs, the trace is a stratum-by-stratum
-rule-fire log with `find_rule_fires` helpers. For theories with no
-defeasible content, you get the strict Datalog trace in its place.
-
-## Query a single literal
-
-When you want one literal classified rather than the whole model, go
-straight to the four-valued `answer` and, if you want to see the shape
-of the dialectical tree behind the verdict, `render_tree`:
+What was concluded is usually less interesting than why. For any
+conclusion, Gunray gives you the dialectical tree, a marking, and a
+prose transcript of the argument-and-defeater chain. Using the Tweety
+theory from the opening example:
 
 ```python
 from gunray import (
-    Answer, DefeasibleTheory, Policy, Rule,
-    GunrayEvaluator, GeneralizedSpecificity,
-    answer, build_arguments, build_tree, mark, render_tree,
+    GeneralizedSpecificity, build_arguments, build_tree,
+    explain, mark, render_tree,
 )
 from gunray.types import GroundAtom
 
-theory = DefeasibleTheory(
-    facts={"bird": {("tweety",), ("opus",)}, "penguin": {("opus",)}},
-    strict_rules=[Rule(id="r0", head="bird(X)", body=["penguin(X)"])],
-    defeasible_rules=[
-        Rule(id="r1", head="flies(X)",  body=["bird(X)"]),
-        Rule(id="r2", head="~flies(X)", body=["penguin(X)"]),
-    ],
-)
-
-model = GunrayEvaluator().evaluate(theory, Policy.BLOCKING)
-assert ("tweety",) in model.sections["defeasibly"]["flies"]
-assert ("opus",)   in model.sections["defeasibly"]["~flies"]
-
-criterion    = GeneralizedSpecificity(theory)
-flies_tweety = GroundAtom(predicate="flies", arguments=("tweety",))
-flies_opus   = GroundAtom(predicate="flies", arguments=("opus",))
-
-assert answer(theory, flies_tweety, criterion) is Answer.YES
-assert answer(theory, flies_opus,   criterion) is Answer.NO
+flies_opus = GroundAtom(predicate="flies", arguments=("opus",))
+criterion  = GeneralizedSpecificity(theory)
 
 for arg in build_arguments(theory):
-    if arg.conclusion == flies_tweety:
+    if arg.conclusion == flies_opus and arg.rules:
         tree = build_tree(arg, criterion, theory)
-        print(render_tree(tree))
-        assert mark(tree) == "U"  # warranted
+        print(render_tree(tree))          # Unicode tree diagram
+        print(mark(tree))                 # "U" (warranted) or "D" (defeated)
+        print(explain(tree, criterion))   # prose transcript
         break
 ```
 
-`Answer.YES` means the literal is warranted (tree marks `U`),
-`Answer.NO` means the complement is warranted, `Answer.UNDECIDED`
-means arguments exist on both sides and neither wins, `Answer.UNKNOWN`
-means the predicate is not in the language of the theory.
-
-`render_tree` returns a Unicode string suitable for pasting into logs
-or test failure messages. It is how the defeasible evaluator's
-internals become legible when a case disagrees with your intuition.
-
-## Showcase
-
-Here are some things Gunray does that aren't immediately obvious from
-the Tweety example.
-
-**Nixon diamond — `UNDECIDED` is a first-class answer.**
-Two equi-specific defeasible rules pull opposite ways; `GeneralizedSpecificity`
-prefers neither, so the dialectical tree leaves the query unresolved
-(Garcia & Simari 2004 Def 5.3). From [`examples/nixon_diamond.py`](examples/nixon_diamond.py):
-
-```python
-theory = DefeasibleTheory(
-    facts={"republican": {("nixon",)}, "quaker": {("nixon",)}},
-    strict_rules=[],
-    defeasible_rules=[
-        Rule(id="r1", head="~pacifist(X)", body=["republican(X)"]),
-        Rule(id="r2", head="pacifist(X)", body=["quaker(X)"]),
-    ],
-    defeaters=[],
-    superiority=[],
-    conflicts=[],
-)
-
-pacifist_nixon = GroundAtom(predicate="pacifist", arguments=("nixon",))
-criterion = GeneralizedSpecificity(theory)
-result = answer(theory, pacifist_nixon, criterion)
-
-assert result is Answer.UNDECIDED, f"expected UNDECIDED, got {result!r}"
+```
+flies(opus)  [r1]  (D)
+└─ ~flies(opus)  [r2]  (U)
+D
+flies(opus) is NO.
+An argument supports flies(opus) from {bird(opus)} via r1.
+It is defeated by an argument for ~flies(opus) from {penguin(opus)} via r2, which is strictly more specific.
 ```
 
-**Innocent until proven guilty — presumptions as empty-body defeasible rules.**
-`presumptions=[...]` takes `Rule(head="innocent", body=[])` — written
-`innocent -< true` in the DeLP surface syntax (Garcia & Simari 2004 §6.2 p. 32).
-Evidence arguments then out-specify the presumption; a blocking defeater
-models a coerced confession. From [`examples/innocent_until_proven_guilty.py`](examples/innocent_until_proven_guilty.py):
-
-```python
-        presumptions=[
-            # García & Simari 2004 §6.2 p. 32 — presumption as
-            # empty-body defeasible rule, written ``h -< true`` in
-            # the DeLP surface syntax.
-            Rule(id="p1", head="innocent", body=[]),
-        ],
-        # Explicit priority: the evidence rule overrides the
-        # coercion-based defeater. Without this pair, df1 is
-        # equi-specific with d1 (disjoint antecedents) and would
-        # *block* d1 too. Garcia & Simari 2004 §4.1 — user
-        # superiority composed ahead of specificity.
-        superiority=[("d1", "df1")],
-```
-
-**Peer-review conflict of interest — disqualifiers on incomparable axes.**
-Three disqualifiers (recent co-authorship, same institution, doctoral
-advisor) disagree with a default eligibility rule on *independent* fact
-axes. A defeater (`df1`) waives only the institution axis, via
-specificity, when the reviewer is at a large institution in a separate
-department — and `superiority=[("d4", "df1")]` keeps that waiver from
-rescuing advisor-COI. No scalar priority captures this: the same
-waiver that restores Carol's eligibility is overruled for Dave because
-it is an advisor relation, not an affiliation, at issue. From
-[`examples/reviewer_assignment.py`](examples/reviewer_assignment.py):
-
-```python
-        defeasible_rules=[
-            Rule(id="d1", head="eligible(X,Y)", body=["bid(X,Y)"]),
-            Rule(id="d2", head="~eligible(X,Y)", body=["recent_coauthor(X,Y)"]),
-            Rule(id="d3", head="~eligible(X,Y)", body=["co_worker(X,Y)"]),
-            Rule(id="d4", head="~eligible(X,Y)", body=["advisor_of(X,Y)"]),
-        ],
-        defeaters=[
-            # Undercutting waiver scoped to the institution axis only.
-            # Body strictly supersets d3's body, so specificity lifts
-            # df1 above d3 — but the superiority pair below keeps it
-            # below d4 (advisor COI).
-            Rule(
-                id="df1",
-                head="eligible(X,Y)",
-                body=[
-                    "co_worker(X,Y)",
-                    "large_institution(X,Y)",
-                    "different_department(X,Y)",
-                ],
-            ),
-        ],
-        superiority=[("d2", "d1"), ("d3", "d1"), ("d4", "d1"), ("d4", "df1")],
-```
-
-`answer(theory, eligible("carol", "author_c"), criterion) is Answer.YES`
-— the waiver defeats the institution COI. `answer(theory,
-eligible("dave", "author_d"), criterion) is Answer.NO` — the same
-waiver can't rescue a PhD-advisor relation.
-
-**Financial authorization — `UNDECIDED` when policy is deliberately silent.**
-Break-glass waives an audit hold but cannot trump the self-dealing bar;
-four-eyes is not ranked against break-glass at all, and when emergency
-meets a high-value sole-approver transaction the engine returns
-`Answer.UNDECIDED` rather than inventing a precedence. Garcia & Simari
-2004 Def 5.3 p. 28. From
-[`examples/access_control_break_glass.py`](examples/access_control_break_glass.py):
-
-```python
-        defeasible_rules=[
-            Rule(id="d1", head="can_authorize(X,T)", body=["officer(X)", "within_limit(X,T)"]),
-            Rule(id="d2", head="~can_authorize(X,T)", body=["is_beneficiary(X,T)"]),
-            Rule(id="d3", head="~can_authorize(X,T)", body=["under_audit(T)", "officer(X)"]),
-            Rule(id="d4", head="can_authorize(X,T)", body=["emergency(T)", "officer(X)"]),
-            Rule(id="d5", head="~can_authorize(X,T)", body=["high_value(T)", "sole_approver(X,T)"]),
-        ],
-        # (d4, d5) is deliberately missing — policy does not declare
-        # whether emergency can waive four-eyes, and the four-valued
-        # answer reflects that honestly.
-        superiority=[("d2", "d1"), ("d3", "d1"), ("d5", "d1"), ("d4", "d3"), ("d2", "d4")],
-```
-
-`assert answer(theory, can_authorize("frank", "t_f"), criterion) is Answer.UNDECIDED`
-— emergency and four-eyes mutually block.
-
-**GDPR lawful basis — explicit `superiority` overrides specificity.**
-Two independent defeasible paths reach `lawful_basis`; a filed withdrawal
-beats the consent rule via a user-supplied priority pair
-(Garcia & Simari 2004 §4.1 p. 17). From [`examples/gdpr_lawful_basis.py`](examples/gdpr_lawful_basis.py):
-
-```python
-            # Contractual necessity is an independent lawful basis
-            # (GDPR Art. 6(1)(b)).
-            Rule(
-                id="d3",
-                head="lawful_basis(X)",
-                body=["contractual_necessity(X)"],
-            ),
-        ],
-        defeaters=[],
-        # Explicit priority: a filed withdrawal beats the consent
-        # rule. Without this pair d0 and d2 are equi-specific
-        # (disjoint antecedents) and would merely block each other,
-        # leaving consent ambiguous. The ``superiority=[...]``
-        # parameter is exactly the point of this example.
-        superiority=[("d2", "d0")],
-```
-
-Dialectical trees are renderable to Mermaid via `render_tree_mermaid`.
-The emergency-vs-four-eyes stalemate for frank
-(`can_authorize(frank, t_f)` `UNDECIDED`) — `examples/mermaid/break_glass_vs_four_eyes.mmd`:
+Trees also render to Mermaid via `render_tree_mermaid`. Here is the
+peer-review conflict-of-interest case from
+[`examples/reviewer_assignment.py`](examples/reviewer_assignment.py) —
+a disqualification waiver (`df1`) is specific enough to lift
+institutional COI (`d3`), but an explicit superiority pair keeps
+advisor COI (`d4`) above the waiver:
 
 ```mermaid
 flowchart TD
-    n0["can_authorize(frank, t_f) [d4] D"]
-    n1["~can_authorize(frank, t_f) [d5] U"]
+    n0["eligible(dave, author_d) [d1] D"]
+    n1["~eligible(dave, author_d) [d3] U"]
+    n2["eligible(dave, author_d) [df1] D"]
+    n3["~eligible(dave, author_d) [d4] U"]
+    n4["~eligible(dave, author_d) [d4] U"]
+    n2 --> n3
+    n1 --> n2
     n0 --> n1
+    n0 --> n4
 ```
 
-See [`examples/`](examples/) for the full catalogue — domain-depth
-scripts (clinical, perception, data fusion, config precedence) and
-engine-breadth scripts (Datalog, KLM closure, SAFE vs NEMO) live
-alongside these four.
+The `[d1] D` / `[d3] U` markings are the Procedure 5.1 verdicts at each
+node. The tree is how a contested conclusion becomes legible when the
+answer disagrees with your intuition.
 
-## Running the tests
+For the full `evaluate_with_trace` API — stratum-by-stratum rule-fire
+logs for Datalog, `tree_for` / `marking_for` /
+`arguments_for_conclusion` lookups for defeasible theories — see
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-Local unit suite:
+## `SAFE` vs `NEMO` — negation semantics
 
-```powershell
+Rules with variables in negated body literals have two competing
+readings in the literature. Gunray ships both.
+
+- `NegationSemantics.SAFE` (default) — Apt, Blair & Walker 1988
+  stratified-Datalog safety. Every variable in a negated body literal
+  must be bound by a positive body literal. Unsafe programs raise
+  `SafetyViolationError`.
+- `NegationSemantics.NEMO` — Ivliev et al. 2024 (KR 2024,
+  [doi:10.24963/kr.2024/70](https://doi.org/10.24963/kr.2024/70)):
+  variables in negated literals are interpreted existentially over the
+  active Herbrand universe. Used by the conformance suite's Nemo
+  fixtures.
+
+Same theory, different answers. See
+[`examples/safe_vs_nemo.py`](examples/safe_vs_nemo.py).
+
+## Tests
+
+```bash
 uv run pytest tests -q
-```
-
-Supported conformance corpus:
-
-```powershell
 uv run pytest tests/test_conformance.py \
   --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q
-```
-
-The harness skips documented out-of-contract fixtures (see the "What
-Gunray does not implement" section above) rather than silently counting
-them as passes.
-
-To pick apart a single defeasible case by hand:
-
-```powershell
-uv run python scripts/show_defeasible_case.py --help
-```
-
-Static analysis (pyright strict, ruff, format check) must stay clean:
-
-```powershell
 uv run pyright
 uv run ruff check
 uv run ruff format --check
 ```
 
-## Where things live
+The conformance suite is
+[`ctoth/datalog-conformance-suite`](https://github.com/ctoth/datalog-conformance-suite).
+A handful of fixtures are explicitly out-of-contract and marked skip —
+see [`ARCHITECTURE.md`](ARCHITECTURE.md#out-of-contract) for the list
+and the reasons.
 
-Top-level surface under `src/gunray/`:
+## More
 
-- [`adapter.py`](src/gunray/adapter.py) — `GunrayEvaluator`, the
-  dispatcher over `Program` / `DefeasibleTheory` / closure policies.
-- [`defeasible.py`](src/gunray/defeasible.py) — the Garcia/Simari
-  argument-and-tree pipeline.
-- [`evaluator.py`](src/gunray/evaluator.py) — semi-naive Datalog
-  engine with stratified negation.
-- [`closure.py`](src/gunray/closure.py) — KLM rational / lexicographic
-  / relevant closure plus the `Or` rule for the propositional
-  fragment.
-- [`conformance_adapter.py`](src/gunray/conformance_adapter.py) —
-  optional bridge into `datalog-conformance-suite`.
-
-Argument pipeline internals:
-
-- [`arguments.py`](src/gunray/arguments.py) — `Argument`,
-  `build_arguments`, sub-argument tests.
-- [`dialectic.py`](src/gunray/dialectic.py) — counter-argument,
-  defeater classification, tree construction, marking, render.
-- [`answer.py`](src/gunray/answer.py) — four-valued `Answer` (Def 5.3).
-- [`disagreement.py`](src/gunray/disagreement.py) — `complement`,
-  `disagrees`, `strict_closure`.
-- [`preference.py`](src/gunray/preference.py) — `TrivialPreference`,
-  `GeneralizedSpecificity`, `SuperiorityPreference`,
-  `CompositePreference`.
-
-Supporting infrastructure:
-
-- [`schema.py`](src/gunray/schema.py) — `Rule`, `DefeasibleTheory`,
-  `Program`, `Model`, `DefeasibleModel`, `Policy`,
-  `NegationSemantics`.
-- [`trace.py`](src/gunray/trace.py) — `TraceConfig`, `DatalogTrace`,
-  `DefeasibleTrace`.
-- [`types.py`](src/gunray/types.py) — frozen value types
-  (`GroundAtom`, variables, terms).
-- [`errors.py`](src/gunray/errors.py) — `GunrayError` hierarchy
-  with conformance-compatible codes.
-- [`parser.py`](src/gunray/parser.py) — DeLP surface-syntax parser.
-- [`stratify.py`](src/gunray/stratify.py) — Apt-Blair-Walker
-  stratification via Tarjan + Kahn.
-- [`relation.py`](src/gunray/relation.py) — indexed relations for the
-  semi-naive engine.
-- [`compiled.py`](src/gunray/compiled.py) — compiled matcher fast
-  path, cross-checked against the generic matcher in tests.
-- [`semantics.py`](src/gunray/semantics.py) — equality, ordering, and
-  arithmetic routed through one place.
-- [`_internal.py`](src/gunray/_internal.py) — shared cross-module
-  helpers (intentionally named; no private-attribute imports across
-  module boundaries).
-
-## Citations
-
-The engine is anchored in a small, deliberate paper set under
-[`papers/`](papers/):
-
-- **Garcia & Simari 2004**, *Defeasible Logic Programming* — the
-  DeLP pipeline this engine implements.
-- **Simari & Loui 1992**, *A Mathematical Treatment of Defeasible
-  Reasoning* — generalized specificity.
-- **Morris, Ross & Meyer 2020**, *Defeasible Disjunctive Datalog* —
-  rational closure construction.
-- **Antoniou 2007**, *Defeasible Reasoning on the Semantic Web* —
-  ambiguity-propagating reference (not implemented; explicitly
-  out-of-contract).
-- **Ivliev et al. 2024**, *Nemo: Your Friendly and Versatile Rule
-  Reasoning Toolkit* (KR 2024) — Nemo-style negation semantics.
-
-Citations in source point to definition numbers and page references,
-not just paper titles; grep for `Def 3.1`, `Def 4.7`, `Procedure 5.1`,
-`Lemma 2.4`.
+- [`examples/`](examples/) — the full catalogue. Showcase cases, domain
+  depth (clinical, GDPR, data fusion, access control), engine breadth
+  (Datalog, KLM closure, SAFE vs NEMO), and Mermaid visuals.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — module layout, DeLP pipeline
+  internals, preference composition, strict-only fast path, pitfalls.
+- [`CITATIONS.md`](CITATIONS.md) — the paper trail.
