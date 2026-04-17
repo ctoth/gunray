@@ -192,3 +192,16 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q --timeout=240`: `284 passed, 9 skipped, 2 deselected in 322.03s`
 - `uv run pyright src/gunray/dialectic.py src/gunray/defeasible.py`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check src/gunray/dialectic.py src/gunray/defeasible.py tests/test_dialectic_perf.py tests/conftest.py`: `All checks passed!`
+
+## P4-T3 summary
+
+- Green change: added `src/gunray/_internal.py` as the package-internal seam for shared grounding, matcher, validation, sort-key, and strict-rule text helpers.
+- Green change: moved `_ground_theory`, `_force_strict_for_closure`, `_match_positive_body`, and their helper clusters out of sibling modules into `_internal`.
+- Green change: moved adjacent cross-module private seams used by scripts/tests (`_normalize_rules`, `_validate_program`, `_constraints_hold`, `_negative_body_holds`, `_atom_sort_key`, `_strict_rule_to_program_text`, and matcher iteration/order helpers) into `_internal` so source/script imports no longer reach into `arguments.py`, `evaluator.py`, or `defeasible.py` for underscore-prefixed helpers.
+- Type cleanup after Q's correction: `_internal.py` now uses local aliases such as `Binding`, `RelationModel`, `RelationOverrides`, `ArityMap`, `FactModel`, and `RuleText` instead of leaving the extracted seam as raw `dict[...]` / `str` soup.
+- Grep verification: `git grep -nE 'from gunray\.[A-Za-z_]+ import _' -- src/gunray scripts; git grep -nE 'from \.(arguments|evaluator|defeasible) import _' -- src/gunray` returned no hits.
+- `uv run pytest tests/test_compiled_matcher.py tests/test_evaluator_review_v2.py tests/test_build_arguments.py tests/test_specificity.py tests/test_dialectic.py -q`: `49 passed`
+- `uv run pytest tests -q`: `171 passed, 293 skipped, 2 deselected in 114.32s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q --timeout=240`: `284 passed, 9 skipped, 2 deselected in 297.75s`
+- `uv run pyright src`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check`: `All checks passed!`

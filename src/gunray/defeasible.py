@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
+from ._internal import _atom_sort_key, _strict_rule_to_program_text
 from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
 from .schema import DefeasibleModel, FactTuple, ModelFacts, NegationSemantics, Policy
@@ -307,13 +308,6 @@ def _raise_if_strict_pi_contradictory(
                 f"Pi derives conflicting atoms {left}{row!r} and {right}{row!r}"
             )
 
-
-def _strict_rule_to_program_text(head: str, body: list[str]) -> str:
-    if not body:
-        return f"{head}."
-    return f"{head} :- {', '.join(body)}."
-
-
 def _atoms_to_section(atoms: set[GroundAtom]) -> dict[str, set[FactTuple]]:
     section: dict[str, set[FactTuple]] = {}
     for atom in atoms:
@@ -328,6 +322,3 @@ def _section_to_atoms(section: ModelFacts) -> set[GroundAtom]:
         for arguments in rows
     }
 
-
-def _atom_sort_key(atom: GroundAtom) -> tuple[str, FactTuple]:
-    return atom.predicate, atom.arguments

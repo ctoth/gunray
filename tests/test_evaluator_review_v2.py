@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from gunray import NegationSemantics, Program, SemiNaiveEvaluator
-from gunray.evaluator import _unify
+from gunray._internal import _unify
 from gunray.types import Atom, Variable
 
 

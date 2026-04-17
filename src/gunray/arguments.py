@@ -19,24 +19,14 @@ Block 2+ concern.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
-from itertools import combinations, product
+from itertools import combinations
 
+from ._internal import _force_strict_for_closure, _ground_theory
 from .disagreement import complement, strict_closure
 from .errors import ContradictoryStrictTheoryError
-from .evaluator import _match_positive_body
-from .parser import ground_atom, parse_defeasible_theory
-from .relation import IndexedRelation
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
-from .types import (
-    DefeasibleRule,
-    GroundAtom,
-    GroundDefeasibleRule,
-    Scalar,
-    Variable,
-    variables_in_term,
-)
+from .types import GroundAtom, GroundDefeasibleRule
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,71 +55,6 @@ def is_subargument(a: Argument, b: Argument) -> bool:
     """
 
     return a.rules <= b.rules
-
-
-@dataclass(frozen=True, slots=True)
-class _GroundedTheory:
-    """Internal bundle of grounded fact atoms and per-kind ground rule tuples.
-
-    Produced by ``_ground_theory`` and consumed by ``build_arguments``
-    and ``preference.GeneralizedSpecificity``. Factored out so the
-    specificity criterion can reuse the same grounding pipeline
-    ``build_arguments`` uses (the "same ``_force_strict_for_closure``
-    pattern" referenced by the B2.2 dispatch).
-    """
-
-    fact_atoms: frozenset[GroundAtom]
-    grounded_strict_rules: tuple[GroundDefeasibleRule, ...]
-    grounded_defeasible_rules: tuple[GroundDefeasibleRule, ...]
-    grounded_defeater_rules: tuple[GroundDefeasibleRule, ...]
-
-
-def _ground_theory(theory: SchemaDefeasibleTheory) -> _GroundedTheory:
-    """Parse, ground, and bucket every rule of ``theory`` by kind.
-
-    Shared entrypoint for ``build_arguments`` and
-    ``preference.GeneralizedSpecificity``. The grounding machinery
-    (positive closure for binding discovery + ``_ground_rule_instances``
-    per rule) is the same either way; only the caller's use of the
-    result differs.
-    """
-
-    facts, defeasible_rules, _conflicts = parse_defeasible_theory(theory)
-    strict_rules = tuple(r for r in defeasible_rules if r.kind == "strict")
-    body_rules = tuple(r for r in defeasible_rules if r.kind == "defeasible")
-    defeater_rules = tuple(r for r in defeasible_rules if r.kind == "defeater")
-
-    # Build the positive model so that grounding can bind body variables
-    # to concrete constants. This mirrors the deleted `_positive_closure`
-    # helper (scout report Section 4.6): start from the fact model and
-    # saturate under strict+defeasible+defeater rules positively. This
-    # is only used to *discover candidate bindings* for grounding; it
-    # does not influence which atoms are derivable under Pi alone.
-    positive_model = _positive_closure_for_grounding(
-        facts,
-        defeasible_rules,
-    )
-
-    grounded_strict_rules: tuple[GroundDefeasibleRule, ...] = tuple(
-        instance
-        for rule in strict_rules
-        for instance in _ground_rule_instances(rule, positive_model)
-    )
-    grounded_defeasible_rules: tuple[GroundDefeasibleRule, ...] = tuple(
-        instance for rule in body_rules for instance in _ground_rule_instances(rule, positive_model)
-    )
-    grounded_defeater_rules: tuple[GroundDefeasibleRule, ...] = tuple(
-        instance
-        for rule in defeater_rules
-        for instance in _ground_rule_instances(rule, positive_model)
-    )
-
-    return _GroundedTheory(
-        fact_atoms=_fact_atoms(facts),
-        grounded_strict_rules=grounded_strict_rules,
-        grounded_defeasible_rules=grounded_defeasible_rules,
-        grounded_defeater_rules=grounded_defeater_rules,
-    )
 
 
 def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
@@ -251,151 +176,9 @@ def build_arguments(theory: SchemaDefeasibleTheory) -> frozenset[Argument]:
     return frozenset(arguments)
 
 
-def _force_strict_for_closure(rule: GroundDefeasibleRule) -> GroundDefeasibleRule:
-    """Return a rule with ``kind="strict"`` so ``strict_closure`` propagates it.
-
-    ``strict_closure`` filters on ``kind == "strict"``. For Def 3.1
-    condition (1) we want rules in ``A`` to also propagate, so we wrap
-    each defeasible rule as a strict-kind shadow with the same head
-    and body.
-    """
-
-    return GroundDefeasibleRule(
-        rule_id=rule.rule_id,
-        kind="strict",
-        head=rule.head,
-        body=rule.body,
-    )
-
-
 def _has_contradiction(closure: frozenset[GroundAtom]) -> bool:
     for atom in closure:
         if complement(atom) in closure:
             return True
     return False
 
-
-def _fact_atoms(
-    facts: Mapping[str, set[tuple[Scalar, ...]]],
-) -> frozenset[GroundAtom]:
-    return frozenset(
-        GroundAtom(predicate=predicate, arguments=tuple(row))
-        for predicate, rows in facts.items()
-        for row in rows
-    )
-
-
-def _positive_closure_for_grounding(
-    facts: Mapping[str, set[tuple[Scalar, ...]]],
-    rules: list[DefeasibleRule],
-) -> dict[str, IndexedRelation]:
-    """Recreation of the deleted ``_positive_closure`` helper.
-
-    Scout report Section 4.6: saturate the fact model under every
-    rule's positive body (ignoring strong-negation interaction). This
-    is used only to discover candidate variable bindings — final
-    non-contradiction checking happens via ``strict_closure`` later.
-    """
-
-    model: dict[str, IndexedRelation] = {
-        predicate: IndexedRelation(rows) for predicate, rows in facts.items()
-    }
-    while True:
-        changed = False
-        for rule in rules:
-            bindings = _match_positive_body(rule.body, model)
-            for binding in bindings:
-                grounded = ground_atom(rule.head, binding)
-                bucket = model.setdefault(grounded.predicate, IndexedRelation())
-                if bucket.add(grounded.arguments):
-                    changed = True
-        if not changed:
-            return model
-
-
-def _rule_variable_names(rule: DefeasibleRule) -> list[str]:
-    names: set[str] = set()
-    for term in rule.head.terms:
-        names |= variables_in_term(term)
-    for atom in rule.body:
-        for term in atom.terms:
-            names |= variables_in_term(term)
-    return sorted(names)
-
-
-def _ground_rule_instances(
-    rule: DefeasibleRule,
-    model: dict[str, IndexedRelation],
-) -> tuple[GroundDefeasibleRule, ...]:
-    """Return all ground instances of ``rule`` under ``model``.
-
-    A rule with no variables grounds to a single instance. Otherwise
-    we enumerate bindings produced by ``_match_positive_body`` over
-    the rule body. If the body is empty (a variable-free rule is
-    handled above), this falls back to the head variables times the
-    constant universe.
-    """
-
-    variables = _rule_variable_names(rule)
-    if not variables:
-        head = ground_atom(rule.head, {})
-        body = tuple(ground_atom(atom, {}) for atom in rule.body)
-        return (
-            GroundDefeasibleRule(
-                rule_id=rule.rule_id,
-                kind=rule.kind,
-                head=head,
-                body=body,
-            ),
-        )
-
-    if rule.body:
-        bindings = _match_positive_body(rule.body, model)
-    else:
-        bindings = _head_only_bindings(rule, model)
-
-    # Deduplicate ground instances.
-    seen: dict[tuple[str, tuple[object, ...]], GroundDefeasibleRule] = {}
-    for binding in bindings:
-        try:
-            head = ground_atom(rule.head, binding)
-        except KeyError:
-            continue
-        try:
-            body = tuple(ground_atom(atom, binding) for atom in rule.body)
-        except KeyError:
-            continue
-        key = (rule.rule_id, head.arguments)
-        seen[key] = GroundDefeasibleRule(
-            rule_id=rule.rule_id,
-            kind=rule.kind,
-            head=head,
-            body=body,
-        )
-    return tuple(seen.values())
-
-
-def _head_only_bindings(
-    rule: DefeasibleRule,
-    model: dict[str, IndexedRelation],
-) -> list[dict[str, object]]:
-    """Enumerate head-only variable bindings over the constant universe.
-
-    Used when a rule has variables in the head but an empty positive
-    body (rare in Block 1 tests). The constant universe is taken from
-    the positive model.
-    """
-
-    constants = sorted(
-        {value for relation in model.values() for row in relation for value in row},
-        key=repr,
-    )
-    variables = [term.name for term in rule.head.terms if isinstance(term, Variable)]
-    if not variables:
-        return [{}]
-    if not constants:
-        return []
-    return [
-        {name: value for name, value in zip(variables, values, strict=True)}
-        for values in product(constants, repeat=len(variables))
-    ]

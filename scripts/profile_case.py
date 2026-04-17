@@ -10,12 +10,12 @@ from datalog_conformance.plugin import _load_multi_case_file, get_tests_dir
 from datalog_conformance.schema import Program as SchemaProgram
 from datalog_conformance.schema import TestCase
 
-from gunray.defeasible import _strict_rule_to_program_text
-from gunray.evaluator import (
+from gunray._internal import (
     _constraints_hold,
     _match_positive_body,
     _negative_body_holds,
     _normalize_rules,
+    _strict_rule_to_program_text,
     _validate_program,
 )
 from gunray.parser import ground_atom, parse_program

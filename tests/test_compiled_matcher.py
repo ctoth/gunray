@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from gunray.compiled import compile_simple_matcher, iter_compiled_bindings
-from gunray.evaluator import (
-    _apply_rule,
-    _apply_rule_with_overrides,
+from gunray._internal import (
     _iter_generic_positive_body_matches,
     _order_positive_body,
 )
+from gunray.compiled import compile_simple_matcher, iter_compiled_bindings
+from gunray.evaluator import _apply_rule, _apply_rule_with_overrides
 from gunray.relation import IndexedRelation
 from gunray.types import AddExpression, Atom, Constant, Rule, Variable, Wildcard
 

@@ -39,15 +39,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from ._internal import _atom_sort_key, _fact_atoms, _force_strict_for_closure
 from .answer import Answer
 from .arguments import (
     Argument,
-    _fact_atoms,
-    _force_strict_for_closure,
     build_arguments,
     is_subargument,
 )
-from .defeasible import _atom_sort_key
 from .disagreement import complement, disagrees, strict_closure
 from .parser import parse_defeasible_theory
 from .preference import PreferenceCriterion
@@ -68,7 +66,7 @@ def _theory_strict_rules(
     # rules via the same positive-closure pass. Instead of duplicating
     # that logic we import the helpers lazily from `arguments` — this
     # keeps the dialectic module small.
-    from .arguments import _ground_rule_instances, _positive_closure_for_grounding
+    from ._internal import _ground_rule_instances, _positive_closure_for_grounding
 
     _facts, defeasible_rules, _conflicts = parse_defeasible_theory(theory)
     strict_source = tuple(r for r in defeasible_rules if r.kind == "strict")

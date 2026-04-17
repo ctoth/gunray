@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from .arguments import Argument, _force_strict_for_closure, _ground_theory
+from ._internal import _force_strict_for_closure, _ground_theory
+from .arguments import Argument
 from .disagreement import strict_closure
 from .schema import DefeasibleTheory
 from .types import GroundAtom, GroundDefeasibleRule
