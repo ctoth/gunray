@@ -205,3 +205,40 @@ Baseline did not match `README.md` / workstream expected state for static analys
 - `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q --timeout=240`: `284 passed, 9 skipped, 2 deselected in 297.75s`
 - `uv run pyright src`: `0 errors, 0 warnings, 0 informations`
 - `uv run ruff check`: `All checks passed!`
+
+## P4-T4 summary
+
+- Citations added: `SemiNaiveEvaluator` now cites Abiteboul/Hull/Vianu,
+  Bancilhon, and Ullman; `stratify.py` cites Apt/Blair/Walker and
+  Chandra/Harel; `ClosureEvaluator.satisfies_klm_property()` cites KLM
+  and the Morris 2020 local page image for the Or postulate; `parser.py`
+  cites Garcia & Simari 2004 Sec. 2 for DeLP facts/strict/defeasible rule
+  categories and strong negation; `NegationSemantics.NEMO` cites Ivliev,
+  Gerlach, Meusel, Steinberg, and Kroetzsch 2024 KR paper.
+- Hygiene: `_variables_in_atom` is live through `_internal._validate_program`;
+  `conformance_adapter._translate_rule()` now raises `ValueError` on
+  unsupported public suite rule fields instead of silently dropping them;
+  parser predicate, wildcard, and term identifiers now reject malformed
+  tokens while preserving conformance namespace-prefixed predicates such as
+  `b:flies`.
+- Deferred: none.
+- `uv run pytest tests/test_parser_properties.py tests/test_negation_semantics.py -q`: `26 passed in 2.63s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q -k "spindle_racket_import_prefixed" --timeout=240`: `1 passed, 294 deselected in 51.61s`
+- `uv run pytest tests/test_compiled_matcher.py -q`: `7 passed in 0.03s`
+- `uv run pytest tests/test_conformance.py --datalog-evaluator=gunray.conformance_adapter.GunrayConformanceEvaluator -q --timeout=240`: `284 passed, 9 skipped, 2 deselected in 283.78s`
+- `uv run pytest tests -q`: `176 passed, 293 skipped, 2 deselected in 114.57s`
+- `uv run pyright src`: `0 errors, 0 warnings, 0 informations`
+- `uv run ruff check`: `All checks passed!`
+- `uv run ruff format --check`: `54 files already formatted`
+- Hypothesis `@given` count across `tests/`: `50`
+- Private-boundary audit: `git grep -nE 'from gunray\.[A-Za-z_]+ import _' -- src/gunray scripts` and `git grep -nE 'from \.(arguments|evaluator|defeasible) import _' -- src/gunray` returned no hits.
+
+## Workstream complete
+
+Baseline -> post:
+- Unit: 139 -> 176
+- Conformance passed: 282 -> 284
+- Conformance deselected: 3 -> 2
+- Closure LOC: 821 -> 555
+- Gunray HEAD: f1e7c3c (source/test commit before final checkpoint-only commit)
+- Propstore HEAD: 379d183
