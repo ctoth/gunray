@@ -8,7 +8,7 @@ old `2^n` world enumeration path while keeping the existing Formula/test API.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from itertools import combinations
 from typing import TypeVar
@@ -207,7 +207,7 @@ def _fact_literals(theory: DefeasibleTheory) -> set[str]:
     return {predicate for predicate, rows in theory.facts.items() if rows}
 
 
-def _strict_closure(facts: set[str], strict_rules: list[Rule]) -> set[str]:
+def _strict_closure(facts: set[str], strict_rules: Sequence[Rule]) -> set[str]:
     closure = set(facts)
     changed = True
     while changed:
@@ -402,16 +402,16 @@ def _rule_rank(ranked: RankedDefaults, target: Rule) -> int:
 
 
 def _is_exceptional(
-    strict_rules: list[Rule],
-    defaults: list[Rule],
+    strict_rules: Sequence[Rule],
+    defaults: Sequence[Rule],
     antecedent: Formula,
 ) -> bool:
     return not _is_formula_possible(strict_rules, defaults, antecedent)
 
 
 def _is_formula_possible(
-    strict_rules: list[Rule],
-    defaults: list[Rule],
+    strict_rules: Sequence[Rule],
+    defaults: Sequence[Rule],
     antecedent: Formula,
 ) -> bool:
     rules = [*strict_rules, *defaults]
@@ -420,8 +420,8 @@ def _is_formula_possible(
 
 
 def _classically_entails(
-    strict_rules: list[Rule],
-    defaults: list[Rule],
+    strict_rules: Sequence[Rule],
+    defaults: Sequence[Rule],
     antecedent: Formula,
     consequent: Formula,
 ) -> bool:

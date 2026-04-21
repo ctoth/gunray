@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from itertools import product
 from typing import TypeAlias, overload
@@ -49,7 +49,7 @@ GroundRuleKey: TypeAlias = tuple[str, tuple[object, ...]]
 FactRows: TypeAlias = set[tuple[Scalar, ...]]
 FactModel: TypeAlias = Mapping[str, FactRows]
 LiteralText: TypeAlias = str
-RuleBodyText: TypeAlias = list[LiteralText]
+RuleBodyText: TypeAlias = Sequence[LiteralText]
 RuleText: TypeAlias = str
 
 

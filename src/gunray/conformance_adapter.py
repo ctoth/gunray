@@ -64,7 +64,7 @@ def _copy_facts(raw_facts: dict[str, Any]) -> dict[str, list[tuple[Any, ...]]]:
 
 def _translate_rule(rule: SuiteRuleLike) -> Rule:
     _raise_on_unknown_suite_rule_attributes(rule)
-    return Rule(id=rule.id, head=rule.head, body=list(rule.body))
+    return Rule(id=rule.id, head=rule.head, body=tuple(rule.body))
 
 
 def _raise_on_unknown_suite_rule_attributes(rule: SuiteRuleLike) -> None:
@@ -88,11 +88,11 @@ def _translate_program(program: Any) -> Program:
 def _translate_theory(theory: Any) -> DefeasibleTheory:
     return DefeasibleTheory(
         facts=_copy_facts(theory.facts),
-        strict_rules=[_translate_rule(rule) for rule in theory.strict_rules],
-        defeasible_rules=[_translate_rule(rule) for rule in theory.defeasible_rules],
-        defeaters=[_translate_rule(rule) for rule in theory.defeaters],
-        superiority=list(theory.superiority),
-        conflicts=list(theory.conflicts),
+        strict_rules=tuple(_translate_rule(rule) for rule in theory.strict_rules),
+        defeasible_rules=tuple(_translate_rule(rule) for rule in theory.defeasible_rules),
+        defeaters=tuple(_translate_rule(rule) for rule in theory.defeaters),
+        superiority=tuple(theory.superiority),
+        conflicts=tuple(theory.conflicts),
     )
 
 

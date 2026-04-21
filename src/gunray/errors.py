@@ -43,3 +43,9 @@ class ContradictoryStrictTheoryError(GunrayError):
     """Raised when Pi (strict rules plus facts) is contradictory."""
 
     code = "contradictory_strict_theory"
+
+
+class DuplicateRuleId(GunrayError):
+    """Raised when a defeasible theory repeats a rule id across sections."""
+
+    code = "duplicate_rule_id"

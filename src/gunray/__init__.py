@@ -18,6 +18,7 @@ from .dialectic import (
     render_tree_mermaid,
 )
 from .disagreement import complement, disagrees, strict_closure
+from .errors import DuplicateRuleId
 from .evaluator import SemiNaiveEvaluator
 from .preference import (
     CompositePreference,
@@ -52,6 +53,7 @@ __all__ = [
     "DefeasibleTheory",
     "DefeasibleTrace",
     "DialecticalNode",
+    "DuplicateRuleId",
     "EnumerationExceeded",
     "GeneralizedSpecificity",
     "GroundDefeasibleRule",

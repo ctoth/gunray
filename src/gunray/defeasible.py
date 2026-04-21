@@ -30,6 +30,7 @@ Strict-only theories route around the argument pipeline via
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 from ._internal import _atom_sort_key, _strict_rule_to_program_text
@@ -291,7 +292,7 @@ def _evaluate_strict_only_theory_with_trace(
 
 def _raise_if_strict_pi_contradictory(
     facts: ModelFacts,
-    conflicts: list[tuple[str, str]],
+    conflicts: Sequence[tuple[str, str]],
 ) -> None:
     for predicate, rows in facts.items():
         if predicate.startswith("~"):

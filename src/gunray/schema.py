@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TypeAlias
 
+from gunray.errors import DuplicateRuleId
+
 Scalar: TypeAlias = str | int | float | bool
 FactTuple: TypeAlias = tuple[Scalar, ...]
 PredicateFacts: TypeAlias = Mapping[str, Iterable[FactTuple]]
@@ -30,12 +32,12 @@ def _string_list_factory() -> list[str]:
     return []
 
 
-def _rule_list_factory() -> list["Rule"]:
-    return []
+def _rule_tuple_factory() -> tuple["Rule", ...]:
+    return ()
 
 
-def _pair_list_factory() -> list[tuple[str, str]]:
-    return []
+def _pair_tuple_factory() -> tuple[tuple[str, str], ...]:
+    return ()
 
 
 class Policy(str, Enum):
@@ -93,9 +95,10 @@ class Rule:
 
     id: str
     head: str
-    body: list[str] = field(default_factory=_string_list_factory)
+    body: tuple[str, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "body", tuple(self.body))
         if not self.id:
             raise ValueError("Rule.id must be non-empty")
         if not self.head:
@@ -116,14 +119,24 @@ class DefeasibleTheory:
     """
 
     facts: PredicateFacts = field(default_factory=_predicate_facts_factory)
-    strict_rules: list[Rule] = field(default_factory=_rule_list_factory)
-    defeasible_rules: list[Rule] = field(default_factory=_rule_list_factory)
-    defeaters: list[Rule] = field(default_factory=_rule_list_factory)
-    presumptions: list[Rule] = field(default_factory=_rule_list_factory)
-    superiority: list[tuple[str, str]] = field(default_factory=_pair_list_factory)
-    conflicts: list[tuple[str, str]] = field(default_factory=_pair_list_factory)
+    strict_rules: tuple[Rule, ...] = field(default_factory=_rule_tuple_factory)
+    defeasible_rules: tuple[Rule, ...] = field(default_factory=_rule_tuple_factory)
+    defeaters: tuple[Rule, ...] = field(default_factory=_rule_tuple_factory)
+    presumptions: tuple[Rule, ...] = field(default_factory=_rule_tuple_factory)
+    superiority: tuple[tuple[str, str], ...] = field(default_factory=_pair_tuple_factory)
+    conflicts: tuple[tuple[str, str], ...] = field(default_factory=_pair_tuple_factory)
 
     def __post_init__(self) -> None:
+        for field_name in (
+            "strict_rules",
+            "defeasible_rules",
+            "defeaters",
+            "presumptions",
+            "superiority",
+            "conflicts",
+        ):
+            object.__setattr__(self, field_name, tuple(getattr(self, field_name)))
+
         for rule in self.presumptions:
             if rule.body:
                 raise ValueError(
@@ -131,10 +144,22 @@ class DefeasibleTheory:
                     "empty body (Garcia & Simari 2004 §6.2 p. 32)"
                 )
 
-        known_ids = {rule.id for rule in self.strict_rules}
-        known_ids.update(rule.id for rule in self.defeasible_rules)
-        known_ids.update(rule.id for rule in self.defeaters)
-        known_ids.update(rule.id for rule in self.presumptions)
+        known_ids: set[str] = set()
+        seen_sections: dict[str, str] = {}
+        for section_name, rules in (
+            ("strict_rules", self.strict_rules),
+            ("defeasible_rules", self.defeasible_rules),
+            ("defeaters", self.defeaters),
+            ("presumptions", self.presumptions),
+        ):
+            for rule in rules:
+                if rule.id in seen_sections:
+                    raise DuplicateRuleId(
+                        f"duplicate rule id {rule.id!r} in "
+                        f"{seen_sections[rule.id]} and {section_name}"
+                    )
+                seen_sections[rule.id] = section_name
+                known_ids.add(rule.id)
 
         for left, right in self.superiority:
             for rule_id, side in ((left, "left"), (right, "right")):
