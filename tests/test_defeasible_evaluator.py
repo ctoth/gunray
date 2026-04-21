@@ -22,11 +22,15 @@ from __future__ import annotations
 
 from gunray import (
     DefeasibleEvaluator,
+    DefeasibleModel,
+    DefeasibleTrace,
     DefeasibleTheory,
     GunrayEvaluator,
     Policy,
     Rule,
+    TraceConfig,
 )
+import gunray.defeasible as defeasible_module
 
 
 def _tweety_theory() -> DefeasibleTheory:
@@ -215,3 +219,37 @@ def test_strict_complement_projects_opposite_literal_to_not_defeasibly() -> None
 
     assert ("tweety",) in model.sections["definitely"]["~flies"]
     assert ("tweety",) in model.sections["not_defeasibly"]["flies"]
+
+
+def test_direct_defeasible_evaluator_routes_closure_policy_to_closure_evaluator(
+    monkeypatch,
+) -> None:
+    """Closure policies belong to the closure evaluator, even on direct calls."""
+
+    theory = DefeasibleTheory(defeasible_rules=(Rule(id="d1", head="b", body=("a",)),))
+    calls: list[tuple[DefeasibleTheory, Policy, TraceConfig | None]] = []
+
+    class StubClosureEvaluator:
+        def evaluate_with_trace(
+            self,
+            routed_theory: DefeasibleTheory,
+            routed_policy: Policy,
+            trace_config: TraceConfig | None = None,
+        ) -> tuple[DefeasibleModel, DefeasibleTrace]:
+            calls.append((routed_theory, routed_policy, trace_config))
+            return (
+                DefeasibleModel(sections={"defeasibly": {"sentinel": {()}}}),
+                DefeasibleTrace(config=trace_config or TraceConfig()),
+            )
+
+    monkeypatch.setattr(
+        defeasible_module,
+        "ClosureEvaluator",
+        StubClosureEvaluator,
+        raising=False,
+    )
+
+    model = DefeasibleEvaluator().evaluate(theory, Policy.RATIONAL_CLOSURE)
+
+    assert model.sections == {"defeasibly": {"sentinel": {()}}}
+    assert calls == [(theory, Policy.RATIONAL_CLOSURE, None)]
