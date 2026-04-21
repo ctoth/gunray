@@ -34,6 +34,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 from ._internal import _atom_sort_key, _strict_rule_to_program_text
+from .closure import ClosureEvaluator
 from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
 from .schema import DefeasibleModel, FactTuple, ModelFacts, NegationSemantics, Policy
@@ -49,6 +50,13 @@ from .types import GroundAtom
 if TYPE_CHECKING:  # pragma: no cover - import-time only
     from .arguments import Argument
     from .dialectic import DialecticalNode
+
+
+_CLOSURE_POLICIES = {
+    Policy.RATIONAL_CLOSURE,
+    Policy.LEXICOGRAPHIC_CLOSURE,
+    Policy.RELEVANT_CLOSURE,
+}
 
 
 class DefeasibleEvaluator:
@@ -76,13 +84,16 @@ class DefeasibleEvaluator:
         *,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]:
-        # Post-Block-2, Policy.BLOCKING is the only supported value —
-        # argument preference is resolved by GeneralizedSpecificity
-        # (Simari 92 Lemma 2.4) regardless of the policy value. The
-        # parameter is preserved for public-API stability; see
-        # notes/policy_propagating_fate.md for the PROPAGATING
-        # deprecation decision.
-        del policy
+        if policy in _CLOSURE_POLICIES:
+            return ClosureEvaluator().evaluate_with_trace(
+                theory,
+                policy,
+                trace_config,
+            )
+
+        # Post-Block-2, Policy.BLOCKING is the only dialectical-tree
+        # policy. Argument preference is resolved by
+        # GeneralizedSpecificity (Simari 92 Lemma 2.4).
         actual_trace_config = trace_config or TraceConfig()
         if _is_strict_only_theory(theory):
             model, strict_trace = _evaluate_strict_only_theory_with_trace(
