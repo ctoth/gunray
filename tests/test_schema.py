@@ -12,6 +12,14 @@ def test_rule_is_frozen() -> None:
         rule.head = "flies(X)"  # pyright: ignore[reportAttributeAccessIssue]
 
 
+def test_rule_body_is_immutable_and_hashable() -> None:
+    rule = Rule(id="r1", head="p(X)", body=["q(X)"])
+
+    with pytest.raises(AttributeError):
+        rule.body.append("r(X)")  # pyright: ignore[reportAttributeAccessIssue]
+    assert hash(rule)
+
+
 def test_defeasible_theory_is_frozen() -> None:
     theory = DefeasibleTheory(
         facts={"p": {("a",)}},
@@ -55,6 +63,21 @@ def test_defeasible_theory_rejects_ghost_superiority_references() -> None:
         )
 
     assert "ghost" in str(exc.value)
+
+
+def test_defeasible_theory_rejects_duplicate_rule_ids_across_kinds() -> None:
+    from gunray.errors import DuplicateRuleId
+
+    with pytest.raises(DuplicateRuleId, match="r1"):
+        DefeasibleTheory(
+            facts={},
+            strict_rules=[Rule(id="r1", head="p(X)", body=[])],
+            defeasible_rules=[Rule(id="r1", head="q(X)", body=[])],
+            defeaters=[],
+            presumptions=[],
+            superiority=[],
+            conflicts=[],
+        )
 
 
 def test_defeasible_theory_accepts_presumptions_field() -> None:
