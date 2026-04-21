@@ -22,9 +22,7 @@ class GunrayEvaluator:
         if self._bridge is None:
             from .conformance_adapter import GunrayConformanceEvaluator
 
-            bridge = GunrayConformanceEvaluator()
-            bridge._core = self  # reuse this evaluator's engines
-            self._bridge = bridge
+            self._bridge = GunrayConformanceEvaluator(core=self)
         return self._bridge
 
     def evaluate(

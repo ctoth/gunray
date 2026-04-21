@@ -186,8 +186,8 @@ def _negation_semantics_for_suite_item(item: Any) -> NegationSemantics:
 class GunrayConformanceEvaluator:
     """Bridge evaluator for datalog-conformance-suite runner inputs."""
 
-    def __init__(self) -> None:
-        self._core = GunrayEvaluator()
+    def __init__(self, *, core: GunrayEvaluator | None = None) -> None:
+        self._core = core or GunrayEvaluator()
 
     def evaluate(
         self,
