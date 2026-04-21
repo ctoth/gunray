@@ -19,6 +19,14 @@ def test_preference_subclasses_exported() -> None:
     assert "SuperiorityPreference" in gunray.__all__
 
 
+def test_ground_defeasible_rule_is_public() -> None:
+    """Consumer integrations should not have to import from gunray.types."""
+
+    from gunray import GroundDefeasibleRule  # noqa: F401
+
+    assert "GroundDefeasibleRule" in gunray.__all__
+
+
 def test_public_all_is_complete_and_sorted() -> None:
     """Every name in ``__all__`` exists, and the list stays sorted."""
 
