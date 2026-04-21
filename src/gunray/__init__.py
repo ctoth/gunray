@@ -40,6 +40,7 @@ from .trace import (
     DefeasibleTrace,
     TraceConfig,
 )
+from .types import GroundDefeasibleRule
 
 __all__ = [
     "Answer",
@@ -53,6 +54,7 @@ __all__ = [
     "DialecticalNode",
     "EnumerationExceeded",
     "GeneralizedSpecificity",
+    "GroundDefeasibleRule",
     "GunrayEvaluator",
     "Model",
     "NegationSemantics",
