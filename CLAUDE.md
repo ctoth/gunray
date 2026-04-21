@@ -87,6 +87,15 @@ per call; don't add a third.
 - **Cross-module private imports.** Shared helpers live in
   [`_internal.py`](src/gunray/_internal.py), not in peer modules'
   private-underscore names. No `from gunray.evaluator import _helper`.
+- **Rule identity is theory-wide.** Rule IDs must be unique across strict
+  and defeasible sections, and rule bodies are immutable tuples. Do not
+  reintroduce list-backed rule bodies or per-section duplicate IDs.
+- **Closure policies route through `ClosureEvaluator`.** `GunrayEvaluator`
+  should dispatch closure-policy inputs to the closure engine, not delete
+  the policy or fall through to defeasible evaluation.
+- **Public conformance bridge only.** Adapter code must use public
+  constructor surfaces. Do not reach into private `_core` attributes to
+  satisfy tests or conformance harnesses.
 
 ## Style and tooling
 
