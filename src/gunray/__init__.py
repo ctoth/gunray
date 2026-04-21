@@ -1,6 +1,7 @@
 """Public package surface for Gunray."""
 
 from .adapter import GunrayEvaluator
+from .anytime import EnumerationExceeded
 from .answer import Answer
 from .arguments import Argument, build_arguments, is_subargument
 from .defeasible import DefeasibleEvaluator
@@ -50,6 +51,7 @@ __all__ = [
     "DefeasibleTheory",
     "DefeasibleTrace",
     "DialecticalNode",
+    "EnumerationExceeded",
     "GeneralizedSpecificity",
     "GunrayEvaluator",
     "Model",

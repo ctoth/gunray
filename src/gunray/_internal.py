@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from itertools import product
-from typing import TypeAlias
+from typing import TypeAlias, overload
 
+from .anytime import EnumerationExceeded
 from .compiled import compile_simple_matcher, iter_compiled_bindings
 from .errors import ArityMismatchError, SafetyViolationError, UnboundVariableError
 from .parser import ground_atom, parse_defeasible_theory
@@ -40,6 +41,7 @@ from .types import (
 
 Binding: TypeAlias = dict[str, object]
 Bindings: TypeAlias = list[Binding]
+BindingEnumeration: TypeAlias = Bindings | EnumerationExceeded
 RelationModel: TypeAlias = dict[str, IndexedRelation]
 RelationOverrides: TypeAlias = dict[int, IndexedRelation]
 ArityMap: TypeAlias = dict[str, int]
@@ -198,11 +200,46 @@ def _ground_rule_instances(
     return tuple(seen.values())
 
 
+@overload
 def _head_only_bindings(
     rule: DefeasibleRule,
     model: RelationModel,
-) -> Bindings:
-    """Enumerate head-only variable bindings over the constant universe."""
+) -> Bindings: ...
+
+
+@overload
+def _head_only_bindings(
+    rule: DefeasibleRule,
+    model: RelationModel,
+    *,
+    max_candidates: None,
+) -> Bindings: ...
+
+
+@overload
+def _head_only_bindings(
+    rule: DefeasibleRule,
+    model: RelationModel,
+    *,
+    max_candidates: int,
+) -> BindingEnumeration: ...
+
+
+def _head_only_bindings(
+    rule: DefeasibleRule,
+    model: RelationModel,
+    *,
+    max_candidates: int | None = None,
+) -> BindingEnumeration:
+    """Enumerate head-only bindings with an anytime candidate ceiling.
+
+    Zilberstein 1996 treats resource-bounded enumeration as an anytime
+    computation: once the caller-supplied bound is exceeded, return the
+    exact amount completed and mark the unenumerated remainder vacuous.
+    """
+
+    if max_candidates is not None and max_candidates < 0:
+        raise ValueError("max_candidates must be non-negative")
 
     constants = sorted(
         {value for relation in model.values() for row in relation for value in row},
@@ -213,10 +250,16 @@ def _head_only_bindings(
         return [{}]
     if not constants:
         return []
-    return [
-        {name: value for name, value in zip(variables, values, strict=True)}
-        for values in product(constants, repeat=len(variables))
-    ]
+
+    bindings: Bindings = []
+    for values in product(constants, repeat=len(variables)):
+        if max_candidates is not None and len(bindings) >= max_candidates:
+            return EnumerationExceeded(
+                partial_count=len(bindings),
+                max_candidates=max_candidates,
+            )
+        bindings.append({name: value for name, value in zip(variables, values, strict=True)})
+    return bindings
 
 
 def _normalize_rules(rules: list[Rule]) -> list[Rule]:
