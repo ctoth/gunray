@@ -1,8 +1,8 @@
 """Public package surface for Gunray."""
 
 from .adapter import GunrayEvaluator
-from .anytime import EnumerationExceeded
 from .answer import Answer
+from .anytime import EnumerationExceeded
 from .arguments import Argument, build_arguments, is_subargument
 from .defeasible import DefeasibleEvaluator
 from .dialectic import (

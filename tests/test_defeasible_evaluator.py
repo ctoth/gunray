@@ -20,17 +20,17 @@ Atoms whose predicate is not in the theory's language at all
 
 from __future__ import annotations
 
+import gunray.defeasible as defeasible_module
 from gunray import (
     DefeasibleEvaluator,
     DefeasibleModel,
-    DefeasibleTrace,
     DefeasibleTheory,
+    DefeasibleTrace,
     GunrayEvaluator,
     Policy,
     Rule,
     TraceConfig,
 )
-import gunray.defeasible as defeasible_module
 
 
 def _tweety_theory() -> DefeasibleTheory:
