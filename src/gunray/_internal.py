@@ -63,6 +63,14 @@ class _GroundedTheory:
     grounded_defeater_rules: tuple[GroundDefeasibleRule, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class _GroundRuleInstance:
+    """Ground rule plus the binding that produced it."""
+
+    rule: GroundDefeasibleRule
+    substitution: tuple[tuple[str, object], ...]
+
+
 def _ground_theory(theory: SchemaDefeasibleTheory) -> _GroundedTheory:
     """Parse, ground, and bucket every rule of ``theory`` by kind."""
 
@@ -162,16 +170,28 @@ def _ground_rule_instances(
 ) -> tuple[GroundDefeasibleRule, ...]:
     """Return all ground instances of ``rule`` under ``model``."""
 
+    return tuple(instance.rule for instance in _ground_rule_instances_with_substitutions(rule, model))
+
+
+def _ground_rule_instances_with_substitutions(
+    rule: DefeasibleRule,
+    model: RelationModel,
+) -> tuple[_GroundRuleInstance, ...]:
+    """Return all ground instances of ``rule`` with their grounding substitutions."""
+
     variables = _rule_variable_names(rule)
     if not variables:
         head = ground_atom(rule.head, {})
         body = tuple(ground_atom(atom, {}) for atom in rule.body)
         return (
-            GroundDefeasibleRule(
-                rule_id=rule.rule_id,
-                kind=rule.kind,
-                head=head,
-                body=body,
+            _GroundRuleInstance(
+                rule=GroundDefeasibleRule(
+                    rule_id=rule.rule_id,
+                    kind=rule.kind,
+                    head=head,
+                    body=body,
+                ),
+                substitution=(),
             ),
         )
 
@@ -180,7 +200,7 @@ def _ground_rule_instances(
     else:
         bindings = _head_only_bindings(rule, model)
 
-    seen: dict[GroundRuleKey, GroundDefeasibleRule] = {}
+    seen: dict[GroundRuleKey, _GroundRuleInstance] = {}
     for binding in bindings:
         try:
             head = ground_atom(rule.head, binding)
@@ -191,11 +211,14 @@ def _ground_rule_instances(
         except KeyError:
             continue
         key = (rule.rule_id, head.arguments)
-        seen[key] = GroundDefeasibleRule(
-            rule_id=rule.rule_id,
-            kind=rule.kind,
-            head=head,
-            body=body,
+        seen[key] = _GroundRuleInstance(
+            rule=GroundDefeasibleRule(
+                rule_id=rule.rule_id,
+                kind=rule.kind,
+                head=head,
+                body=body,
+            ),
+            substitution=tuple(sorted(binding.items())),
         )
     return tuple(seen.values())
 
