@@ -128,6 +128,17 @@ def test_defeasible_trace_captures_trees_and_markings() -> None:
     assert isinstance(rendered, str) and rendered.strip()
 
 
+def test_defeasible_trace_can_query_by_predicate_and_row() -> None:
+    _, trace = DefeasibleEvaluator().evaluate_with_trace(
+        _classic_tweety_theory(),
+        Policy.BLOCKING,
+    )
+
+    assert trace.tree_for_parts("flies", ("tweety",)) is not None
+    assert trace.marking_for_parts("flies", ("tweety",)) in ("U", "D")
+    assert trace.arguments_for_conclusion_parts("flies", ("tweety",))
+
+
 def test_deleted_fields_absent() -> None:
     """Post-restructure: the flat rule-fire trace fields are gone."""
 
