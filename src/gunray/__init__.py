@@ -20,7 +20,13 @@ from .dialectic import (
 from .disagreement import complement, disagrees, strict_closure
 from .errors import DuplicateRuleId
 from .evaluator import SemiNaiveEvaluator
-from .grounding import GroundRuleInstance, GroundingInspection, inspect_grounding
+from .grounding import (
+    GroundRuleInstance,
+    GroundRuleResolution,
+    GroundingInspection,
+    GroundingSimplification,
+    inspect_grounding,
+)
 from .parser import parse_atom_text
 from .preference import (
     CompositePreference,
@@ -67,7 +73,9 @@ __all__ = [
     "GroundAtom",
     "GroundDefeasibleRule",
     "GroundRuleInstance",
+    "GroundRuleResolution",
     "GroundingInspection",
+    "GroundingSimplification",
     "GunrayEvaluator",
     "Model",
     "NegationSemantics",

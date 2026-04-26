@@ -29,6 +29,33 @@ class GroundRuleInstance:
 
 
 @dataclass(frozen=True, slots=True)
+class GroundRuleResolution:
+    """A strict ground rule resolved into the definite fact base."""
+
+    rule: GroundRuleInstance
+    produced_fact: GroundAtom
+
+
+@dataclass(frozen=True, slots=True)
+class GroundingSimplification:
+    """Conservative Diller-style strict/fact grounding simplification report."""
+
+    definite_fact_atoms: tuple[GroundAtom, ...]
+    resolved_strict_rules: tuple[GroundRuleResolution, ...]
+    strict_rules_for_argumentation: tuple[GroundRuleInstance, ...]
+    defeasible_rules_for_argumentation: tuple[GroundRuleInstance, ...]
+    defeater_rules_for_argumentation: tuple[GroundRuleInstance, ...]
+
+    @property
+    def ground_rules_for_argumentation(self) -> tuple[GroundRuleInstance, ...]:
+        return (
+            self.strict_rules_for_argumentation
+            + self.defeasible_rules_for_argumentation
+            + self.defeater_rules_for_argumentation
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class GroundingInspection:
     """Ground facts and rule instances grouped by Gunray rule kind."""
 
@@ -36,6 +63,7 @@ class GroundingInspection:
     strict_rules: tuple[GroundRuleInstance, ...]
     defeasible_rules: tuple[GroundRuleInstance, ...]
     defeater_rules: tuple[GroundRuleInstance, ...]
+    simplification: GroundingSimplification
 
     @property
     def all_rule_instances(self) -> tuple[GroundRuleInstance, ...]:
@@ -75,11 +103,21 @@ def inspect_grounding(theory: SchemaDefeasibleTheory) -> GroundingInspection:
                 )
             )
 
+    strict_instances = tuple(sorted(strict_rules, key=_instance_sort_key))
+    defeasible_instances = tuple(sorted(defeasible_rules, key=_instance_sort_key))
+    defeater_instances = tuple(sorted(defeater_rules, key=_instance_sort_key))
+
     return GroundingInspection(
         fact_atoms=fact_atoms,
-        strict_rules=tuple(sorted(strict_rules, key=_instance_sort_key)),
-        defeasible_rules=tuple(sorted(defeasible_rules, key=_instance_sort_key)),
-        defeater_rules=tuple(sorted(defeater_rules, key=_instance_sort_key)),
+        strict_rules=strict_instances,
+        defeasible_rules=defeasible_instances,
+        defeater_rules=defeater_instances,
+        simplification=_simplify_strict_fact_grounding(
+            fact_atoms,
+            strict_instances,
+            defeasible_instances,
+            defeater_instances,
+        ),
     )
 
 
@@ -110,3 +148,48 @@ def _instance_sort_key(
     instance: GroundRuleInstance,
 ) -> tuple[str, GroundRuleKind, tuple[str, tuple[Scalar, ...]], GroundingSubstitution]:
     return instance.rule_id, instance.kind, _atom_sort_key(instance.head), instance.substitution
+
+
+def _simplify_strict_fact_grounding(
+    fact_atoms: tuple[GroundAtom, ...],
+    strict_rules: tuple[GroundRuleInstance, ...],
+    defeasible_rules: tuple[GroundRuleInstance, ...],
+    defeater_rules: tuple[GroundRuleInstance, ...],
+) -> GroundingSimplification:
+    """Resolve strict ground rules whose bodies are already definite facts.
+
+    Diller et al. 2025, page images 004-007, use ASPIC+-specific
+    Transformations 1-2 and Algorithm 2 to move strict/fact-only
+    conclusions into the fact base while preserving accepted
+    conclusions. Gunray only exposes the conservative DeLP-compatible
+    fragment here: no defeasible or defeater rule is removed, and any
+    strict rule whose body cannot be proven definite remains in the
+    argumentation grounding report.
+    """
+
+    known_facts: set[GroundAtom] = set(fact_atoms)
+    remaining = list(strict_rules)
+    resolved: list[GroundRuleResolution] = []
+
+    changed = True
+    while changed:
+        changed = False
+        next_remaining: list[GroundRuleInstance] = []
+        for rule in remaining:
+            if all(atom in known_facts for atom in rule.body):
+                known_facts.add(rule.head)
+                resolved.append(GroundRuleResolution(rule=rule, produced_fact=rule.head))
+                changed = True
+                continue
+            next_remaining.append(rule)
+        remaining = next_remaining
+
+    return GroundingSimplification(
+        definite_fact_atoms=tuple(sorted(known_facts, key=_atom_sort_key)),
+        resolved_strict_rules=tuple(
+            sorted(resolved, key=lambda item: _instance_sort_key(item.rule))
+        ),
+        strict_rules_for_argumentation=tuple(sorted(remaining, key=_instance_sort_key)),
+        defeasible_rules_for_argumentation=defeasible_rules,
+        defeater_rules_for_argumentation=defeater_rules,
+    )
