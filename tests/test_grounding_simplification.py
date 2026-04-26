@@ -58,7 +58,10 @@ def test_resolving_strict_fact_rules_preserves_checked_conclusions() -> None:
 
     evaluator = DefeasibleEvaluator()
 
-    assert evaluator.evaluate(original, Policy.BLOCKING).sections == evaluator.evaluate(
-        manually_simplified,
-        Policy.BLOCKING,
-    ).sections
+    assert (
+        evaluator.evaluate(original, Policy.BLOCKING).sections
+        == evaluator.evaluate(
+            manually_simplified,
+            Policy.BLOCKING,
+        ).sections
+    )
