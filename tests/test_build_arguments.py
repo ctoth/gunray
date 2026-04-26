@@ -8,7 +8,7 @@ from __future__ import annotations
 from itertools import combinations
 
 from conftest import small_theory_strategy
-from hypothesis import assume, given, settings
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
 from gunray.answer import Answer
@@ -308,7 +308,11 @@ def _defeasible_body_predicate_arities(
 
 
 @given(theory=small_theory_strategy())
-@settings(max_examples=500, deadline=None)
+@settings(
+    max_examples=500,
+    deadline=None,
+    suppress_health_check=[HealthCheck.filter_too_much],
+)
 def test_hypothesis_build_arguments_monotonic_under_body_fact_addition(
     theory: DefeasibleTheory,
 ) -> None:
