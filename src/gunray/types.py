@@ -1,4 +1,4 @@
-"""Internal immutable syntax and rule-model types for Gunray."""
+"""Immutable syntax and backend term types for Gunray evaluators."""
 
 from __future__ import annotations
 

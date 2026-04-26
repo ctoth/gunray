@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from typing import cast, overload
+
 from .closure import ClosureEvaluator
 from .defeasible import DefeasibleEvaluator
 from .evaluator import SemiNaiveEvaluator
-from .schema import DefeasibleTheory, NegationSemantics, Policy, Program
-from .trace import TraceConfig
+from .schema import DefeasibleModel, DefeasibleTheory, Model, NegationSemantics, Policy, Program
+from .trace import DatalogTrace, DefeasibleTrace, TraceConfig
 
 
 class GunrayEvaluator:
@@ -25,13 +27,31 @@ class GunrayEvaluator:
             self._bridge = GunrayConformanceEvaluator(core=self)
         return self._bridge
 
+    @overload
+    def evaluate(
+        self,
+        item: Program,
+        policy: Policy | None = None,
+        *,
+        negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+    ) -> Model: ...
+
+    @overload
+    def evaluate(
+        self,
+        item: DefeasibleTheory,
+        policy: Policy | None = None,
+        *,
+        negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+    ) -> DefeasibleModel: ...
+
     def evaluate(
         self,
         item: Program | DefeasibleTheory,
         policy: Policy | None = None,
         *,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
-    ) -> object:
+    ) -> Model | DefeasibleModel:
         if isinstance(item, Program):
             return self._datalog.evaluate(item, negation_semantics=negation_semantics)
         if isinstance(item, DefeasibleTheory):
@@ -47,7 +67,27 @@ class GunrayEvaluator:
                 actual_policy,
                 negation_semantics=negation_semantics,
             )
-        return self._suite_bridge().evaluate(item, policy)  # type: ignore[attr-defined]
+        return cast(Model | DefeasibleModel, self._suite_bridge().evaluate(item, policy))  # type: ignore[attr-defined]
+
+    @overload
+    def evaluate_with_trace(
+        self,
+        item: Program,
+        policy: Policy | None = None,
+        trace_config: TraceConfig | None = None,
+        *,
+        negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+    ) -> tuple[Model, DatalogTrace]: ...
+
+    @overload
+    def evaluate_with_trace(
+        self,
+        item: DefeasibleTheory,
+        policy: Policy | None = None,
+        trace_config: TraceConfig | None = None,
+        *,
+        negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+    ) -> tuple[DefeasibleModel, DefeasibleTrace]: ...
 
     def evaluate_with_trace(
         self,
@@ -56,7 +96,7 @@ class GunrayEvaluator:
         trace_config: TraceConfig | None = None,
         *,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
-    ) -> tuple[object, object]:
+    ) -> tuple[Model | DefeasibleModel, DatalogTrace | DefeasibleTrace]:
         if isinstance(item, Program):
             return self._datalog.evaluate_with_trace(
                 item,
@@ -77,7 +117,10 @@ class GunrayEvaluator:
                 trace_config,
                 negation_semantics=negation_semantics,
             )
-        return self._suite_bridge().evaluate_with_trace(item, policy, trace_config)  # type: ignore[attr-defined]
+        return cast(
+            tuple[Model | DefeasibleModel, DatalogTrace | DefeasibleTrace],
+            self._suite_bridge().evaluate_with_trace(item, policy, trace_config),  # type: ignore[attr-defined]
+        )
 
     def satisfies_klm_property(
         self,
