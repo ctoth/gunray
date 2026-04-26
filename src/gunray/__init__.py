@@ -21,10 +21,10 @@ from .disagreement import complement, disagrees, strict_closure
 from .errors import DuplicateRuleId
 from .evaluator import SemiNaiveEvaluator
 from .grounding import (
-    GroundRuleInstance,
-    GroundRuleResolution,
     GroundingInspection,
     GroundingSimplification,
+    GroundRuleInstance,
+    GroundRuleResolution,
     inspect_grounding,
 )
 from .parser import parse_atom_text

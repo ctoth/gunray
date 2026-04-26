@@ -170,7 +170,10 @@ def _ground_rule_instances(
 ) -> tuple[GroundDefeasibleRule, ...]:
     """Return all ground instances of ``rule`` under ``model``."""
 
-    return tuple(instance.rule for instance in _ground_rule_instances_with_substitutions(rule, model))
+    return tuple(
+        instance.rule
+        for instance in _ground_rule_instances_with_substitutions(rule, model)
+    )
 
 
 def _ground_rule_instances_with_substitutions(

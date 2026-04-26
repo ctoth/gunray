@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from gunray import DefeasibleEvaluator, DefeasibleTheory, GroundAtom, Policy, Rule, inspect_grounding
+from gunray import (
+    DefeasibleEvaluator,
+    DefeasibleTheory,
+    GroundAtom,
+    Policy,
+    Rule,
+    inspect_grounding,
+)
 
 
 def test_strict_fact_rules_are_reported_as_resolved_diller_s4() -> None:
