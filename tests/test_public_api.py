@@ -27,6 +27,27 @@ def test_ground_defeasible_rule_is_public() -> None:
     assert "GroundDefeasibleRule" in gunray.__all__
 
 
+def test_propstore_facing_symbols_are_public() -> None:
+    """Propstore-facing backend terms and parsers must not require private imports."""
+
+    propstore_boundary_symbols = {
+        "Constant": "current transitional grounding surface",
+        "DefeasibleSections": "WS6 projection-boundary candidate",
+        "FactTuple": "WS7 grounding-completion candidate",
+        "GroundAtom": "WS6 projection-boundary candidate",
+        "Scalar": "WS7 grounding-completion candidate",
+        "Variable": "current transitional grounding surface",
+        "parse_atom_text": "current transitional grounding surface",
+    }
+
+    missing = {
+        name: classification
+        for name, classification in propstore_boundary_symbols.items()
+        if name not in gunray.__all__
+    }
+    assert missing == {}
+
+
 def test_public_all_is_complete_and_sorted() -> None:
     """Every name in ``__all__`` exists, and the list stays sorted."""
 
