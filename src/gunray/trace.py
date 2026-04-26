@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
-from .types import GroundAtom
+from .types import GroundAtom, Scalar
 
 if TYPE_CHECKING:
     from .arguments import Argument
@@ -139,11 +139,32 @@ class DefeasibleTrace:
     def tree_for(self, atom: GroundAtom) -> "DialecticalNode | None":
         return self.trees.get(atom)
 
+    def tree_for_parts(
+        self,
+        predicate: str,
+        arguments: tuple[Scalar, ...] = (),
+    ) -> "DialecticalNode | None":
+        return self.tree_for(GroundAtom(predicate=predicate, arguments=arguments))
+
     def marking_for(self, atom: GroundAtom) -> Literal["U", "D"] | None:
         return self.markings.get(atom)
 
+    def marking_for_parts(
+        self,
+        predicate: str,
+        arguments: tuple[Scalar, ...] = (),
+    ) -> Literal["U", "D"] | None:
+        return self.marking_for(GroundAtom(predicate=predicate, arguments=arguments))
+
     def arguments_for_conclusion(self, atom: GroundAtom) -> tuple["Argument", ...]:
         return tuple(argument for argument in self.arguments if argument.conclusion == atom)
+
+    def arguments_for_conclusion_parts(
+        self,
+        predicate: str,
+        arguments: tuple[Scalar, ...] = (),
+    ) -> tuple["Argument", ...]:
+        return self.arguments_for_conclusion(GroundAtom(predicate=predicate, arguments=arguments))
 
 
 def _matches_rule_fire(
