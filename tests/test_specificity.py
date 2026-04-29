@@ -143,6 +143,27 @@ def _garcia_tina_theory() -> DefeasibleTheory:
     )
 
 
+def _garcia_presumption_theory() -> DefeasibleTheory:
+    """Garcia & Simari 2004 p. 128 Example 6.3 presumption comparison."""
+
+    return DefeasibleTheory(
+        facts={"f": {()}},
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="r_a_from_p_and_f", head="a", body=["p", "f"]),
+            Rule(id="r_not_a_from_f", head="~a", body=["f"]),
+            Rule(id="r_a_from_t", head="a", body=["t"]),
+        ],
+        defeaters=[],
+        presumptions=[
+            Rule(id="p_presumption", head="p", body=[]),
+            Rule(id="t_presumption", head="t", body=[]),
+        ],
+        superiority=[],
+        conflicts=[],
+    )
+
+
 def _find_argument(args: frozenset[Argument], rule_id: str) -> Argument:
     """Locate the argument whose rule set contains ``rule_id``."""
 
@@ -249,6 +270,23 @@ def test_garcia_example_35_reports_specificity_direction() -> None:
     assert scared_vs_chicken.left_prefers is True
     assert scared_vs_chicken.right_prefers is False
     assert scared_vs_chicken.citation == "Garcia & Simari 2004, p. 108"
+
+
+def test_garcia_example_63_presumption_specificity() -> None:
+    """Garcia & Simari 2004 p. 128 Ex. 6.3: fact roots beat pure presumptions."""
+
+    theory = _garcia_presumption_theory()
+    args = build_arguments(theory)
+    fact_not_a = _find_argument(args, "r_not_a_from_f")
+    presumption_a = _find_argument(args, "r_a_from_t")
+    mixed_a = _find_argument(args, "r_a_from_p_and_f")
+    criterion = GeneralizedSpecificity(theory)
+
+    fact_vs_presumption = criterion.compare(fact_not_a, presumption_a)
+    assert fact_vs_presumption.relation == "left"
+
+    fact_vs_mixed = criterion.compare(fact_not_a, mixed_a)
+    assert fact_vs_mixed.relation == "incomparable"
 
 
 def test_strict_only_arguments_incomparable() -> None:
