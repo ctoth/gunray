@@ -10,6 +10,7 @@ from .types import GroundAtom, Scalar
 if TYPE_CHECKING:
     from .arguments import Argument
     from .dialectic import DialecticalNode
+    from .grounding_types import GroundingInspection
 
 
 def _rule_fire_trace_list_factory() -> list["RuleFireTrace"]:
@@ -132,6 +133,7 @@ class DefeasibleTrace:
     definitely: tuple[GroundAtom, ...] = ()
     supported: tuple[GroundAtom, ...] = ()
     strict_trace: DatalogTrace | None = None
+    grounding_inspection: "GroundingInspection | None" = None
     arguments: tuple["Argument", ...] = ()
     trees: dict[GroundAtom, "DialecticalNode"] = field(default_factory=_tree_dict_factory)
     markings: dict[GroundAtom, Literal["U", "D"]] = field(default_factory=_marking_dict_factory)

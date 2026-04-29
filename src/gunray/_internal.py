@@ -5,11 +5,17 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from itertools import product
-from typing import TypeAlias, overload
+from typing import TypeAlias, cast, overload
 
 from .anytime import EnumerationExceeded
 from .compiled import compile_simple_matcher, iter_compiled_bindings
 from .errors import ArityMismatchError, SafetyViolationError, UnboundVariableError
+from .grounding_types import (
+    GroundingInspection,
+    GroundingSubstitution,
+    GroundRuleInstance,
+    GroundRuleKind,
+)
 from .parser import ground_atom, parse_defeasible_theory
 from .relation import IndexedRelation
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
@@ -61,6 +67,8 @@ class _GroundedTheory:
     grounded_strict_rules: tuple[GroundDefeasibleRule, ...]
     grounded_defeasible_rules: tuple[GroundDefeasibleRule, ...]
     grounded_defeater_rules: tuple[GroundDefeasibleRule, ...]
+    conflicts: frozenset[tuple[str, str]]
+    inspection: GroundingInspection
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,33 +82,98 @@ class _GroundRuleInstance:
 def _ground_theory(theory: SchemaDefeasibleTheory) -> _GroundedTheory:
     """Parse, ground, and bucket every rule of ``theory`` by kind."""
 
-    facts, defeasible_rules, _conflicts = parse_defeasible_theory(theory)
+    facts, defeasible_rules, conflicts = parse_defeasible_theory(theory)
     strict_rules = tuple(r for r in defeasible_rules if r.kind == "strict")
     body_rules = tuple(r for r in defeasible_rules if r.kind == "defeasible")
     defeater_rules = tuple(r for r in defeasible_rules if r.kind == "defeater")
 
     positive_model = _positive_closure_for_grounding(facts, defeasible_rules)
 
-    grounded_strict_rules: tuple[GroundDefeasibleRule, ...] = tuple(
+    strict_instances = tuple(
         instance
         for rule in strict_rules
-        for instance in _ground_rule_instances(rule, positive_model)
+        for instance in _ground_rule_instances_with_substitutions(rule, positive_model)
     )
-    grounded_defeasible_rules: tuple[GroundDefeasibleRule, ...] = tuple(
-        instance for rule in body_rules for instance in _ground_rule_instances(rule, positive_model)
+    defeasible_instances = tuple(
+        instance
+        for rule in body_rules
+        for instance in _ground_rule_instances_with_substitutions(rule, positive_model)
     )
-    grounded_defeater_rules: tuple[GroundDefeasibleRule, ...] = tuple(
+    defeater_instances = tuple(
         instance
         for rule in defeater_rules
-        for instance in _ground_rule_instances(rule, positive_model)
+        for instance in _ground_rule_instances_with_substitutions(rule, positive_model)
+    )
+
+    fact_atoms = _fact_atoms(facts)
+    public_strict = tuple(
+        sorted((_public_ground_rule_instance(item) for item in strict_instances), key=_instance_sort_key)
+    )
+    public_defeasible = tuple(
+        sorted(
+            (_public_ground_rule_instance(item) for item in defeasible_instances),
+            key=_instance_sort_key,
+        )
+    )
+    public_defeater = tuple(
+        sorted(
+            (_public_ground_rule_instance(item) for item in defeater_instances),
+            key=_instance_sort_key,
+        )
     )
 
     return _GroundedTheory(
-        fact_atoms=_fact_atoms(facts),
-        grounded_strict_rules=grounded_strict_rules,
-        grounded_defeasible_rules=grounded_defeasible_rules,
-        grounded_defeater_rules=grounded_defeater_rules,
+        fact_atoms=fact_atoms,
+        grounded_strict_rules=tuple(instance.rule for instance in strict_instances),
+        grounded_defeasible_rules=tuple(instance.rule for instance in defeasible_instances),
+        grounded_defeater_rules=tuple(instance.rule for instance in defeater_instances),
+        conflicts=frozenset(conflicts),
+        inspection=GroundingInspection(
+            fact_atoms=tuple(sorted(fact_atoms, key=_atom_sort_key)),
+            strict_rules=public_strict,
+            defeasible_rules=public_defeasible,
+            defeater_rules=public_defeater,
+            simplification=_simplify_strict_fact_grounding(
+                tuple(sorted(fact_atoms, key=_atom_sort_key)),
+                public_strict,
+                public_defeasible,
+                public_defeater,
+            ),
+        ),
     )
+
+
+def _public_ground_rule_instance(instance: _GroundRuleInstance) -> GroundRuleInstance:
+    return GroundRuleInstance(
+        rule_id=instance.rule.rule_id,
+        kind=cast(GroundRuleKind, instance.rule.kind),
+        head=instance.rule.head,
+        body=instance.rule.body,
+        substitution=_public_substitution(instance.substitution),
+    )
+
+
+def _public_substitution(
+    substitution: tuple[tuple[str, object], ...],
+) -> GroundingSubstitution:
+    return tuple((name, cast(Scalar, value)) for name, value in substitution)
+
+
+def _instance_sort_key(
+    instance: GroundRuleInstance,
+) -> tuple[str, GroundRuleKind, tuple[str, FactTuple], GroundingSubstitution]:
+    return instance.rule_id, instance.kind, _atom_sort_key(instance.head), instance.substitution
+
+
+def _simplify_strict_fact_grounding(
+    fact_atoms: tuple[GroundAtom, ...],
+    strict_rules: tuple[GroundRuleInstance, ...],
+    defeasible_rules: tuple[GroundRuleInstance, ...],
+    defeater_rules: tuple[GroundRuleInstance, ...],
+):
+    from .grounding import _simplify_strict_fact_grounding as simplify
+
+    return simplify(fact_atoms, strict_rules, defeasible_rules, defeater_rules)
 
 
 def _force_strict_for_closure(rule: GroundDefeasibleRule) -> GroundDefeasibleRule:
@@ -280,8 +353,12 @@ def _head_only_bindings(
     for values in product(constants, repeat=len(variables)):
         if max_candidates is not None and len(bindings) >= max_candidates:
             return EnumerationExceeded(
-                partial_count=len(bindings),
-                max_candidates=max_candidates,
+                partial_arguments=(),
+                max_arguments=max_candidates,
+                reason=(
+                    "head-only binding enumeration budget exceeded: "
+                    f"{len(bindings)} candidates produced of {max_candidates} allowed"
+                ),
             )
         bindings.append({name: value for name, value in zip(variables, values, strict=True)})
     return bindings

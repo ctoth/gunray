@@ -7,7 +7,15 @@ from typing import cast, overload
 from .closure import ClosureEvaluator
 from .defeasible import DefeasibleEvaluator
 from .evaluator import SemiNaiveEvaluator
-from .schema import DefeasibleModel, DefeasibleTheory, Model, NegationSemantics, Policy, Program
+from .schema import (
+    ClosurePolicy,
+    DefeasibleModel,
+    DefeasibleTheory,
+    MarkingPolicy,
+    Model,
+    NegationSemantics,
+    Program,
+)
 from .trace import DatalogTrace, DefeasibleTrace, TraceConfig
 
 
@@ -31,7 +39,6 @@ class GunrayEvaluator:
     def evaluate(
         self,
         item: Program,
-        policy: Policy | None = None,
         *,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
     ) -> Model: ...
@@ -40,40 +47,40 @@ class GunrayEvaluator:
     def evaluate(
         self,
         item: DefeasibleTheory,
-        policy: Policy | None = None,
         *,
+        marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
+        closure_policy: ClosurePolicy | None = None,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        max_arguments: int | None = None,
     ) -> DefeasibleModel: ...
 
     def evaluate(
         self,
         item: Program | DefeasibleTheory,
-        policy: Policy | None = None,
         *,
+        marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
+        closure_policy: ClosurePolicy | None = None,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        max_arguments: int | None = None,
     ) -> Model | DefeasibleModel:
         if isinstance(item, Program):
             return self._datalog.evaluate(item, negation_semantics=negation_semantics)
         if isinstance(item, DefeasibleTheory):
-            actual_policy = policy if policy is not None else Policy.BLOCKING
-            if actual_policy in {
-                Policy.RATIONAL_CLOSURE,
-                Policy.LEXICOGRAPHIC_CLOSURE,
-                Policy.RELEVANT_CLOSURE,
-            }:
-                return self._closure.evaluate(item, actual_policy)
+            if closure_policy is not None:
+                return self._closure.evaluate(item, closure_policy)
             return self._defeasible.evaluate(
                 item,
-                actual_policy,
+                marking_policy=marking_policy,
+                closure_policy=closure_policy,
                 negation_semantics=negation_semantics,
+                max_arguments=max_arguments,
             )
-        return cast(Model | DefeasibleModel, self._suite_bridge().evaluate(item, policy))  # type: ignore[attr-defined]
+        return cast(Model | DefeasibleModel, self._suite_bridge().evaluate(item, None))  # type: ignore[attr-defined]
 
     @overload
     def evaluate_with_trace(
         self,
         item: Program,
-        policy: Policy | None = None,
         trace_config: TraceConfig | None = None,
         *,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
@@ -83,19 +90,23 @@ class GunrayEvaluator:
     def evaluate_with_trace(
         self,
         item: DefeasibleTheory,
-        policy: Policy | None = None,
         trace_config: TraceConfig | None = None,
         *,
+        marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
+        closure_policy: ClosurePolicy | None = None,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        max_arguments: int | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]: ...
 
     def evaluate_with_trace(
         self,
         item: Program | DefeasibleTheory,
-        policy: Policy | None = None,
         trace_config: TraceConfig | None = None,
         *,
+        marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
+        closure_policy: ClosurePolicy | None = None,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        max_arguments: int | None = None,
     ) -> tuple[Model | DefeasibleModel, DatalogTrace | DefeasibleTrace]:
         if isinstance(item, Program):
             return self._datalog.evaluate_with_trace(
@@ -104,29 +115,26 @@ class GunrayEvaluator:
                 negation_semantics=negation_semantics,
             )
         if isinstance(item, DefeasibleTheory):
-            actual_policy = policy if policy is not None else Policy.BLOCKING
-            if actual_policy in {
-                Policy.RATIONAL_CLOSURE,
-                Policy.LEXICOGRAPHIC_CLOSURE,
-                Policy.RELEVANT_CLOSURE,
-            }:
-                return self._closure.evaluate_with_trace(item, actual_policy, trace_config)
+            if closure_policy is not None:
+                return self._closure.evaluate_with_trace(item, closure_policy, trace_config)
             return self._defeasible.evaluate_with_trace(
                 item,
-                actual_policy,
                 trace_config,
+                marking_policy=marking_policy,
+                closure_policy=closure_policy,
                 negation_semantics=negation_semantics,
+                max_arguments=max_arguments,
             )
         return cast(
             tuple[Model | DefeasibleModel, DatalogTrace | DefeasibleTrace],
-            self._suite_bridge().evaluate_with_trace(item, policy, trace_config),  # type: ignore[attr-defined]
+            self._suite_bridge().evaluate_with_trace(item, None, trace_config),  # type: ignore[attr-defined]
         )
 
     def satisfies_klm_property(
         self,
         theory: DefeasibleTheory,
         property_name: str,
-        policy: Policy,
+        policy: ClosurePolicy,
     ) -> bool:
         if isinstance(theory, DefeasibleTheory):
             return self._closure.satisfies_klm_property(theory, property_name, policy)

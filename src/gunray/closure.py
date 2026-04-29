@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from typing import TypeVar
 
-from .schema import DefeasibleModel, DefeasibleTheory, Policy, Rule
+from .schema import ClosurePolicy, DefeasibleModel, DefeasibleTheory, Rule
 from .trace import DefeasibleTrace, TraceConfig
 from .types import GroundAtom
 
@@ -46,20 +46,20 @@ class Formula:
 class ClosureEvaluator:
     """Evaluate the current reduced closure fragment."""
 
-    def evaluate(self, theory: DefeasibleTheory, policy: Policy) -> DefeasibleModel:
+    def evaluate(self, theory: DefeasibleTheory, policy: ClosurePolicy) -> DefeasibleModel:
         model, _ = self.evaluate_with_trace(theory, policy)
         return model
 
     def evaluate_with_trace(
         self,
         theory: DefeasibleTheory,
-        policy: Policy,
+        policy: ClosurePolicy,
         trace_config: TraceConfig | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]:
         if policy not in {
-            Policy.RATIONAL_CLOSURE,
-            Policy.LEXICOGRAPHIC_CLOSURE,
-            Policy.RELEVANT_CLOSURE,
+            ClosurePolicy.RATIONAL_CLOSURE,
+            ClosurePolicy.LEXICOGRAPHIC_CLOSURE,
+            ClosurePolicy.RELEVANT_CLOSURE,
         }:
             raise ValueError(f"Unsupported closure policy: {policy.value}")
 
@@ -94,7 +94,7 @@ class ClosureEvaluator:
         self,
         theory: DefeasibleTheory,
         property_name: str,
-        policy: Policy,
+        policy: ClosurePolicy,
     ) -> bool:
         # "Or" is the KLM disjunction postulate from Kraus, Lehmann, and
         # Magidor 1990, Nonmonotonic Reasoning, Preferential Models and
@@ -105,9 +105,9 @@ class ClosureEvaluator:
         if property_name != "Or":
             raise ValueError(f"Unsupported KLM property: {property_name}")
         if policy not in {
-            Policy.RATIONAL_CLOSURE,
-            Policy.LEXICOGRAPHIC_CLOSURE,
-            Policy.RELEVANT_CLOSURE,
+            ClosurePolicy.RATIONAL_CLOSURE,
+            ClosurePolicy.LEXICOGRAPHIC_CLOSURE,
+            ClosurePolicy.RELEVANT_CLOSURE,
         }:
             raise ValueError(f"Unsupported closure policy: {policy.value}")
 
@@ -226,7 +226,7 @@ def _closure_entails(
     theory: DefeasibleTheory,
     facts: set[str],
     query: str,
-    policy: Policy,
+    policy: ClosurePolicy,
 ) -> bool:
     antecedent = _conjunction_formula(sorted(facts))
     consequent = _literal_formula(query)
@@ -238,13 +238,13 @@ def _formula_entails(
     theory: DefeasibleTheory,
     antecedent: Formula,
     consequent: Formula,
-    policy: Policy,
+    policy: ClosurePolicy,
 ) -> bool:
-    if policy is Policy.RATIONAL_CLOSURE:
+    if policy is ClosurePolicy.RATIONAL_CLOSURE:
         return _rational_formula_entails(ranked, theory, antecedent, consequent)
-    if policy is Policy.LEXICOGRAPHIC_CLOSURE:
+    if policy is ClosurePolicy.LEXICOGRAPHIC_CLOSURE:
         return _lexicographic_formula_entails(ranked, theory, antecedent, consequent)
-    if policy is Policy.RELEVANT_CLOSURE:
+    if policy is ClosurePolicy.RELEVANT_CLOSURE:
         return _relevant_formula_entails(ranked, theory, antecedent, consequent)
     raise ValueError(f"Unsupported closure policy: {policy.value}")
 

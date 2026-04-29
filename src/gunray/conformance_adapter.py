@@ -10,7 +10,7 @@ from typing import Any, Protocol, TypeAlias, cast
 import yaml
 
 from .adapter import GunrayEvaluator
-from .schema import DefeasibleTheory, NegationSemantics, Policy, Program, Rule
+from .schema import ClosurePolicy, DefeasibleTheory, MarkingPolicy, NegationSemantics, Program, Rule
 from .trace import TraceConfig
 
 RuleAttributeName: TypeAlias = str
@@ -96,15 +96,21 @@ def _translate_theory(theory: Any) -> DefeasibleTheory:
     )
 
 
-def _translate_policy(policy: Policy | Any | None) -> Policy | None:
+def _translate_policy(
+    policy: MarkingPolicy | ClosurePolicy | Any | None,
+) -> tuple[MarkingPolicy, ClosurePolicy | None]:
     if policy is None:
-        return None
-    if isinstance(policy, Policy):
-        return policy
+        return MarkingPolicy.BLOCKING, None
+    if isinstance(policy, MarkingPolicy):
+        return policy, None
+    if isinstance(policy, ClosurePolicy):
+        return MarkingPolicy.BLOCKING, policy
     _require_suite_support()
     assert SuitePolicy is not None
     if isinstance(policy, SuitePolicy):
-        return Policy(policy.value)
+        if policy.value == MarkingPolicy.BLOCKING.value:
+            return MarkingPolicy.BLOCKING, None
+        return MarkingPolicy.BLOCKING, ClosurePolicy(policy.value)
     raise TypeError(f"Unsupported policy type: {type(policy).__name__}")
 
 
@@ -192,10 +198,17 @@ class GunrayConformanceEvaluator:
     def evaluate(
         self,
         item: Program | DefeasibleTheory | Any,
-        policy: Policy | Any | None = None,
+        policy: MarkingPolicy | ClosurePolicy | Any | None = None,
     ) -> object:
-        if isinstance(item, Program | DefeasibleTheory):
-            return self._core.evaluate(item, _translate_policy(policy))
+        if isinstance(item, Program):
+            return self._core.evaluate(item)
+        if isinstance(item, DefeasibleTheory):
+            marking_policy, closure_policy = _translate_policy(policy)
+            return self._core.evaluate(
+                item,
+                marking_policy=marking_policy,
+                closure_policy=closure_policy,
+            )
 
         _require_suite_support()
         assert SuiteProgram is not None
@@ -206,9 +219,11 @@ class GunrayConformanceEvaluator:
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
         if isinstance(item, SuiteDefeasibleTheory):
+            marking_policy, closure_policy = _translate_policy(policy)
             return self._core.evaluate(
                 _translate_theory(item),
-                _translate_policy(policy),
+                marking_policy=marking_policy,
+                closure_policy=closure_policy,
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
         raise TypeError(f"Unsupported input type: {type(item).__name__}")
@@ -216,11 +231,19 @@ class GunrayConformanceEvaluator:
     def evaluate_with_trace(
         self,
         item: Program | DefeasibleTheory | Any,
-        policy: Policy | Any | None = None,
+        policy: MarkingPolicy | ClosurePolicy | Any | None = None,
         trace_config: TraceConfig | None = None,
     ) -> tuple[object, object]:
-        if isinstance(item, Program | DefeasibleTheory):
-            return self._core.evaluate_with_trace(item, _translate_policy(policy), trace_config)
+        if isinstance(item, Program):
+            return self._core.evaluate_with_trace(item, trace_config)
+        if isinstance(item, DefeasibleTheory):
+            marking_policy, closure_policy = _translate_policy(policy)
+            return self._core.evaluate_with_trace(
+                item,
+                trace_config,
+                marking_policy=marking_policy,
+                closure_policy=closure_policy,
+            )
 
         _require_suite_support()
         assert SuiteProgram is not None
@@ -228,15 +251,16 @@ class GunrayConformanceEvaluator:
         if isinstance(item, SuiteProgram):
             return self._core.evaluate_with_trace(
                 _translate_program(item),
-                None,
                 trace_config,
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
         if isinstance(item, SuiteDefeasibleTheory):
+            marking_policy, closure_policy = _translate_policy(policy)
             return self._core.evaluate_with_trace(
                 _translate_theory(item),
-                _translate_policy(policy),
                 trace_config,
+                marking_policy=marking_policy,
+                closure_policy=closure_policy,
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
         raise TypeError(f"Unsupported input type: {type(item).__name__}")
@@ -245,18 +269,21 @@ class GunrayConformanceEvaluator:
         self,
         theory: DefeasibleTheory | Any,
         property_name: str,
-        policy: Policy | Any,
+        policy: ClosurePolicy | Any,
     ) -> bool:
+        _marking_policy, closure_policy = _translate_policy(policy)
+        if closure_policy is None:
+            raise ValueError("KLM property checks require a ClosurePolicy")
         if isinstance(theory, DefeasibleTheory):
             return self._core.satisfies_klm_property(
                 theory,
                 property_name,
-                _translate_policy(policy) or Policy.BLOCKING,
+                closure_policy,
             )
 
         _require_suite_support()
         return self._core.satisfies_klm_property(
             _translate_theory(theory),
             property_name,
-            _translate_policy(policy) or Policy.BLOCKING,
+            closure_policy,
         )

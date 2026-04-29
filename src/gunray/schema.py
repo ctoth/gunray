@@ -40,25 +40,26 @@ def _pair_tuple_factory() -> tuple[tuple[str, str], ...]:
     return ()
 
 
-class Policy(str, Enum):
-    """Named evaluation policies supported by Gunray.
+class MarkingPolicy(str, Enum):
+    """Dialectical-tree marking policies supported by Gunray.
 
-    Post-Block-2, ``BLOCKING`` is the only supported value for the
-    dialectical-tree defeasible path (Garcia & Simari 2004 Def 5.1 +
-    Def 4.7 acceptable argumentation lines). Argument preference is
-    resolved via ``preference.GeneralizedSpecificity`` (Simari & Loui
-    1992 Lemma 2.4). ``PROPAGATING`` was deprecated — see
-    ``notes/policy_propagating_fate.md`` for the decision and the
-    re-introduction path if a future consumer needs Antoniou 2007
-    §3.5 ambiguity-propagating semantics.
+    ``BLOCKING`` is the García & Simari 2004 Def 5.1 / Def 4.7
+    dialectical-tree path implemented by Gunray. Argument preference
+    is resolved via ``preference.CompositePreference``.
+    """
+
+    BLOCKING = "blocking"
+
+
+class ClosurePolicy(str, Enum):
+    """KLM closure policies supported by Gunray's closure engine.
 
     The three closure values — ``RATIONAL_CLOSURE``,
     ``LEXICOGRAPHIC_CLOSURE``, ``RELEVANT_CLOSURE`` — route into
     ``closure.ClosureEvaluator`` instead of the dialectical-tree
-    path and are unrelated to the BLOCKING/PROPAGATING distinction.
+    path and are not marking policies.
     """
 
-    BLOCKING = "blocking"
     RATIONAL_CLOSURE = "rational_closure"
     LEXICOGRAPHIC_CLOSURE = "lexicographic_closure"
     RELEVANT_CLOSURE = "relevant_closure"
@@ -162,12 +163,17 @@ class DefeasibleTheory:
                 known_ids.add(rule.id)
 
         for left, right in self.superiority:
+            if left == right:
+                raise ValueError(
+                    f"DefeasibleTheory.superiority self-pair {left!r} is invalid"
+                )
             for rule_id, side in ((left, "left"), (right, "right")):
                 if rule_id not in known_ids:
                     raise ValueError(
                         f"DefeasibleTheory.superiority {side} id {rule_id!r} "
                         "is not defined in strict/defeasible/defeaters rules"
                     )
+        _raise_if_superiority_cyclic(self.superiority)
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,3 +188,29 @@ class DefeasibleModel:
     """Defeasible model returned by evaluators."""
 
     sections: DefeasibleSections
+
+
+def _raise_if_superiority_cyclic(pairs: tuple[tuple[str, str], ...]) -> None:
+    graph: dict[str, set[str]] = {}
+    for higher, lower in pairs:
+        graph.setdefault(higher, set()).add(lower)
+        graph.setdefault(lower, set())
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(node: str, path: tuple[str, ...]) -> None:
+        if node in visiting:
+            cycle_start = path.index(node)
+            cycle = " -> ".join(path[cycle_start:] + (node,))
+            raise ValueError(f"DefeasibleTheory.superiority cycle detected: {cycle}")
+        if node in visited:
+            return
+        visiting.add(node)
+        for child in graph.get(node, set()):
+            visit(child, path + (child,))
+        visiting.remove(node)
+        visited.add(node)
+
+    for node in graph:
+        visit(node, (node,))

@@ -71,6 +71,7 @@ def disagrees(
     h2: GroundAtom,
     strict_context: tuple[GroundDefeasibleRule, ...],
     facts: frozenset[GroundAtom] = frozenset(),
+    conflicts: frozenset[tuple[str, str]] = frozenset(),
 ) -> bool:
     """Return True iff ``{h1, h2}`` is contradictory under ``strict_context``.
 
@@ -84,8 +85,31 @@ def disagrees(
 
     if h1 == complement(h2):
         return True
+    if _explicitly_conflict(h1, h2, conflicts):
+        return True
     closure = strict_closure(frozenset({h1, h2}), strict_context, facts=facts)
+    return has_contradiction(closure, conflicts=conflicts)
+
+
+def has_contradiction(
+    closure: frozenset[GroundAtom],
+    *,
+    conflicts: frozenset[tuple[str, str]] = frozenset(),
+) -> bool:
     for atom in closure:
         if complement(atom) in closure:
             return True
+    atoms = tuple(closure)
+    for left in atoms:
+        for right in atoms:
+            if _explicitly_conflict(left, right, conflicts):
+                return True
     return False
+
+
+def _explicitly_conflict(
+    left: GroundAtom,
+    right: GroundAtom,
+    conflicts: frozenset[tuple[str, str]],
+) -> bool:
+    return left.arguments == right.arguments and (left.predicate, right.predicate) in conflicts

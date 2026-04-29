@@ -37,7 +37,17 @@ from ._internal import _atom_sort_key, _strict_rule_to_program_text
 from .closure import ClosureEvaluator
 from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
-from .schema import DefeasibleModel, FactTuple, ModelFacts, NegationSemantics, Policy
+from .anytime import EnumerationExceeded
+from .arguments import build_arguments
+from .grounding import inspect_grounding
+from .schema import (
+    ClosurePolicy,
+    DefeasibleModel,
+    FactTuple,
+    MarkingPolicy,
+    ModelFacts,
+    NegationSemantics,
+)
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
 from .schema import Program as SchemaProgram
 from .trace import (
@@ -50,13 +60,7 @@ from .types import GroundAtom
 if TYPE_CHECKING:  # pragma: no cover - import-time only
     from .arguments import Argument
     from .dialectic import DialecticalNode
-
-
-_CLOSURE_POLICIES = {
-    Policy.RATIONAL_CLOSURE,
-    Policy.LEXICOGRAPHIC_CLOSURE,
-    Policy.RELEVANT_CLOSURE,
-}
+    from .types import GroundDefeasibleRule
 
 
 class DefeasibleEvaluator:
@@ -65,33 +69,45 @@ class DefeasibleEvaluator:
     def evaluate(
         self,
         theory: SchemaDefeasibleTheory,
-        policy: Policy,
         *,
+        marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
+        closure_policy: ClosurePolicy | None = None,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        max_arguments: int | None = None,
     ) -> DefeasibleModel:
-        model, _ = self.evaluate_with_trace(
-            theory,
-            policy,
-            negation_semantics=negation_semantics,
-        )
+        try:
+            model, _ = self.evaluate_with_trace(
+                theory,
+                marking_policy=marking_policy,
+                closure_policy=closure_policy,
+                negation_semantics=negation_semantics,
+                max_arguments=max_arguments,
+            )
+        except EnumerationExceeded as exc:
+            exc.partial_trace = None
+            raise
         return model
 
     def evaluate_with_trace(
         self,
         theory: SchemaDefeasibleTheory,
-        policy: Policy,
         trace_config: TraceConfig | None = None,
         *,
+        marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
+        closure_policy: ClosurePolicy | None = None,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        max_arguments: int | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]:
-        if policy in _CLOSURE_POLICIES:
+        if closure_policy is not None:
             return ClosureEvaluator().evaluate_with_trace(
                 theory,
-                policy,
+                closure_policy,
                 trace_config,
             )
+        if marking_policy is not MarkingPolicy.BLOCKING:
+            raise ValueError(f"Unsupported marking policy: {marking_policy.value}")
 
-        # Post-Block-2, Policy.BLOCKING is the only dialectical-tree
+        # Post-Block-2, MarkingPolicy.BLOCKING is the only dialectical-tree
         # policy. Argument preference is resolved by
         # GeneralizedSpecificity (Simari 92 Lemma 2.4).
         actual_trace_config = trace_config or TraceConfig()
@@ -103,6 +119,7 @@ class DefeasibleEvaluator:
             )
             trace = DefeasibleTrace(config=actual_trace_config)
             trace.strict_trace = strict_trace
+            trace.grounding_inspection = inspect_grounding(theory)
             trace.definitely = tuple(
                 sorted(
                     _section_to_atoms(model.sections.get("definitely", {})),
@@ -110,14 +127,21 @@ class DefeasibleEvaluator:
                 )
             )
             trace.supported = trace.definitely
+            _populate_strict_only_argument_view(theory, trace)
             return model, trace
 
-        return _evaluate_via_argument_pipeline(theory, actual_trace_config)
+        return _evaluate_via_argument_pipeline(
+            theory,
+            actual_trace_config,
+            max_arguments=max_arguments,
+        )
 
 
 def _evaluate_via_argument_pipeline(
     theory: SchemaDefeasibleTheory,
     trace_config: TraceConfig,
+    *,
+    max_arguments: int | None = None,
 ) -> tuple[DefeasibleModel, DefeasibleTrace]:
     """Garcia & Simari 2004 §5 pipeline: enumerate, mark, project.
 
@@ -125,8 +149,7 @@ def _evaluate_via_argument_pipeline(
     and ``dialectic``: the dialectical module imports
     ``_atom_sort_key`` from this file at import time.
     """
-    from .arguments import build_arguments
-    from .dialectic import _theory_predicates, build_tree, mark
+    from .dialectic import _dialectical_context, _theory_predicates, build_tree, mark
     from .disagreement import complement
     from .preference import (
         CompositePreference,
@@ -134,7 +157,20 @@ def _evaluate_via_argument_pipeline(
         SuperiorityPreference,
     )
 
-    arguments = tuple(sorted(build_arguments(theory), key=_argument_sort_key))
+    grounding_inspection = inspect_grounding(theory)
+    try:
+        arguments = tuple(
+            sorted(
+                build_arguments(theory, max_arguments=max_arguments),
+                key=_argument_sort_key,
+            )
+        )
+    except EnumerationExceeded as exc:
+        trace = DefeasibleTrace(config=trace_config)
+        trace.grounding_inspection = grounding_inspection
+        trace.arguments = tuple(sorted(exc.partial_arguments, key=_argument_sort_key))
+        exc.partial_trace = trace
+        raise
     # Composed preference: Garcia & Simari 2004 §4.1 notes that the
     # rule priority criterion (explicit ``superiority`` pairs) and
     # generalized specificity (Lemma 2.4) are modular alternatives.
@@ -148,6 +184,8 @@ def _evaluate_via_argument_pipeline(
         GeneralizedSpecificity(theory),
     )
     predicates = _theory_predicates(theory)
+    dialectical_context = _dialectical_context(theory)
+    concordance_cache: dict[frozenset["GroundDefeasibleRule"], bool] = {}
 
     # Defeater-kind arguments exist in the argument universe (so they
     # can attack in the dialectical tree) but do not warrant anything:
@@ -167,7 +205,14 @@ def _evaluate_via_argument_pipeline(
             continue
         if arg.conclusion in warranted:
             continue
-        tree = build_tree(arg, criterion, theory, universe=arguments)
+        tree = build_tree(
+            arg,
+            criterion,
+            theory,
+            universe=arguments,
+            context=dialectical_context,
+            concordance_cache=concordance_cache,
+        )
         label = mark(tree)
         if arg.conclusion not in trees or label == "U":
             trees[arg.conclusion] = tree
@@ -239,6 +284,7 @@ def _evaluate_via_argument_pipeline(
     )
 
     trace = DefeasibleTrace(config=trace_config)
+    trace.grounding_inspection = grounding_inspection
     trace.definitely = tuple(sorted(definitely_atoms, key=_atom_sort_key))
     trace.supported = tuple(sorted(definitely_atoms | defeasibly_atoms, key=_atom_sort_key))
     trace.arguments = arguments
@@ -250,6 +296,28 @@ def _evaluate_via_argument_pipeline(
         for atom, label in sorted(markings.items(), key=lambda item: _atom_sort_key(item[0]))
     }
     return model, trace
+
+
+def _populate_strict_only_argument_view(
+    theory: SchemaDefeasibleTheory,
+    trace: DefeasibleTrace,
+) -> None:
+    """Populate the optional argument view for the strict-only fast path.
+
+    Strict-only enumeration is bounded by the strict closure size: there
+    are no defeasible rule subsets to enumerate, only ``<empty, h>`` leaf
+    arguments for strict consequences.
+    """
+
+    from .dialectic import DialecticalNode
+
+    arguments = tuple(sorted(build_arguments(theory), key=_argument_sort_key))
+    trace.arguments = arguments
+    trace.trees = {
+        argument.conclusion: DialecticalNode(argument=argument, children=())
+        for argument in arguments
+    }
+    trace.markings = {argument.conclusion: "U" for argument in arguments}
 
 
 def _argument_sort_key(

@@ -39,14 +39,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from ._internal import _atom_sort_key, _fact_atoms, _force_strict_for_closure
+from ._internal import _atom_sort_key, _force_strict_for_closure, _ground_theory
 from .answer import Answer
 from .arguments import (
     Argument,
     build_arguments,
     is_subargument,
 )
-from .disagreement import complement, disagrees, strict_closure
+from .disagreement import complement, disagrees, has_contradiction, strict_closure
 from .parser import parse_defeasible_theory
 from .preference import PreferenceCriterion
 from .schema import DefeasibleTheory
@@ -62,28 +62,29 @@ def _theory_strict_rules(
     strict knowledge base ``Π``. We reach ``Π`` by re-running the
     argument builder's grounding pass over ``theory``.
     """
-    # Reuse build_arguments' own machinery: it already grounds strict
-    # rules via the same positive-closure pass. Instead of duplicating
-    # that logic we import the helpers lazily from `arguments` — this
-    # keeps the dialectic module small.
-    from ._internal import _ground_rule_instances, _positive_closure_for_grounding
-
-    _facts, defeasible_rules, _conflicts = parse_defeasible_theory(theory)
-    strict_source = tuple(r for r in defeasible_rules if r.kind == "strict")
-    positive_model = _positive_closure_for_grounding(_facts, defeasible_rules)
-    grounded = tuple(
-        instance
-        for rule in strict_source
-        for instance in _ground_rule_instances(rule, positive_model)
-    )
-    return grounded
+    return _ground_theory(theory).grounded_strict_rules
 
 
 def _theory_pi_facts(theory: DefeasibleTheory) -> frozenset[GroundAtom]:
     """Return the ground facts in ``Pi`` for disagreement checks."""
 
-    facts, _defeasible_rules, _conflicts = parse_defeasible_theory(theory)
-    return _fact_atoms(facts)
+    return _ground_theory(theory).fact_atoms
+
+
+@dataclass(frozen=True, slots=True)
+class DialecticalContext:
+    strict_rules: tuple[GroundDefeasibleRule, ...]
+    facts: frozenset[GroundAtom]
+    conflicts: frozenset[tuple[str, str]]
+
+
+def _dialectical_context(theory: DefeasibleTheory) -> DialecticalContext:
+    grounded = _ground_theory(theory)
+    return DialecticalContext(
+        strict_rules=grounded.grounded_strict_rules,
+        facts=grounded.fact_atoms,
+        conflicts=grounded.conflicts,
+    )
 
 
 def counter_argues(
@@ -106,9 +107,15 @@ def counter_argues(
     sub-arguments; descending is the whole point of this refactor.
     """
     universe = universe if universe is not None else build_arguments(theory)
-    strict_rules = _theory_strict_rules(theory)
-    facts = _theory_pi_facts(theory)
-    for _sub in _disagreeing_subarguments(attacker, target, universe, strict_rules, facts):
+    context = _dialectical_context(theory)
+    for _sub in _disagreeing_subarguments(
+        attacker,
+        target,
+        universe,
+        context.strict_rules,
+        context.facts,
+        context.conflicts,
+    ):
         return True
     return False
 
@@ -119,6 +126,7 @@ def _disagreeing_subarguments(
     universe: tuple[Argument, ...] | frozenset[Argument],
     strict_rules: tuple[GroundDefeasibleRule, ...],
     facts: frozenset[GroundAtom],
+    conflicts: frozenset[tuple[str, str]] = frozenset(),
 ) -> list[Argument]:
     """Return every sub-argument ``⟨A, h⟩`` of ``target`` whose
     conclusion disagrees with ``attacker.conclusion``.
@@ -133,7 +141,13 @@ def _disagreeing_subarguments(
     for sub in universe:
         if not is_subargument(sub, target):
             continue
-        if disagrees(attacker.conclusion, sub.conclusion, strict_rules, facts=facts):
+        if disagrees(
+            attacker.conclusion,
+            sub.conclusion,
+            strict_rules,
+            facts=facts,
+            conflicts=conflicts,
+        ):
             hits.append(sub)
     return hits
 
@@ -156,9 +170,15 @@ def proper_defeater(
     nothing is proper.
     """
     universe = universe if universe is not None else build_arguments(theory)
-    strict_rules = _theory_strict_rules(theory)
-    facts = _theory_pi_facts(theory)
-    for sub in _disagreeing_subarguments(attacker, target, universe, strict_rules, facts):
+    context = _dialectical_context(theory)
+    for sub in _disagreeing_subarguments(
+        attacker,
+        target,
+        universe,
+        context.strict_rules,
+        context.facts,
+        context.conflicts,
+    ):
         if criterion.prefers(attacker, sub):
             return True
     return False
@@ -180,9 +200,15 @@ def blocking_defeater(
     ``⟨A, h⟩ > a1``).
     """
     universe = universe if universe is not None else build_arguments(theory)
-    strict_rules = _theory_strict_rules(theory)
-    facts = _theory_pi_facts(theory)
-    for sub in _disagreeing_subarguments(attacker, target, universe, strict_rules, facts):
+    context = _dialectical_context(theory)
+    for sub in _disagreeing_subarguments(
+        attacker,
+        target,
+        universe,
+        context.strict_rules,
+        context.facts,
+        context.conflicts,
+    ):
         if not criterion.prefers(attacker, sub) and not criterion.prefers(sub, attacker):
             return True
     return False
@@ -217,16 +243,16 @@ def _concordant(
     closure pass, matching the Def 3.1 condition (2) treatment in
     ``build_arguments``.
     """
-    facts = _theory_pi_facts(theory)
-    strict_rules = _theory_strict_rules(theory)
+    context = _dialectical_context(theory)
     rules = frozenset(rule for rule_set in rule_sets for rule in rule_set)
-    return _concordant_rules(rules, strict_rules, facts, {})
+    return _concordant_rules(rules, context.strict_rules, context.facts, context.conflicts, {})
 
 
 def _concordant_rules(
     rules: frozenset[GroundDefeasibleRule],
     strict_rules: tuple[GroundDefeasibleRule, ...],
     facts: frozenset[GroundAtom],
+    conflicts: frozenset[tuple[str, str]],
     cache: dict[frozenset[GroundDefeasibleRule], bool],
 ) -> bool:
     cached = cache.get(rules)
@@ -236,10 +262,9 @@ def _concordant_rules(
     for rule in rules:
         combined.append(_force_strict_for_closure(rule))
     closure = strict_closure(frozenset(), tuple(combined), facts=facts)
-    for atom in closure:
-        if complement(atom) in closure:
-            cache[rules] = False
-            return False
+    if has_contradiction(closure, conflicts=conflicts):
+        cache[rules] = False
+        return False
     cache[rules] = True
     return True
 
@@ -251,6 +276,7 @@ def _defeat_kind(
     universe: tuple[Argument, ...] | frozenset[Argument],
     strict_rules: tuple[GroundDefeasibleRule, ...],
     facts: frozenset[GroundAtom],
+    conflicts: frozenset[tuple[str, str]],
 ) -> str | None:
     """Return ``"proper"``, ``"blocking"``, or ``None``.
 
@@ -260,7 +286,7 @@ def _defeat_kind(
     some disagreeing sub-argument is preference-neutral vs.
     ``attacker``; otherwise ``None``.
     """
-    subs = _disagreeing_subarguments(attacker, target, universe, strict_rules, facts)
+    subs = _disagreeing_subarguments(attacker, target, universe, strict_rules, facts, conflicts)
     proper_hit = False
     blocking_hit = False
     for sub in subs:
@@ -281,6 +307,8 @@ def build_tree(
     theory: DefeasibleTheory,
     *,
     universe: tuple[Argument, ...] | frozenset[Argument] | None = None,
+    context: DialecticalContext | None = None,
+    concordance_cache: dict[frozenset[GroundDefeasibleRule], bool] | None = None,
 ) -> DialecticalNode:
     """Garcia & Simari 2004 Def 5.1 + Def 4.7 acceptable argumentation line.
 
@@ -304,20 +332,20 @@ def build_tree(
     cond 3 forbids re-entry along a line.
     """
     argument_universe = universe if universe is not None else build_arguments(theory)
-    strict_rules = _theory_strict_rules(theory)
-    facts = _theory_pi_facts(theory)
-    concordance_cache: dict[frozenset[GroundDefeasibleRule], bool] = {}
+    actual_context = context if context is not None else _dialectical_context(theory)
+    actual_concordance_cache = concordance_cache if concordance_cache is not None else {}
     return _expand(
         root,
         [root],
         [None],
         argument_universe,
         criterion,
-        strict_rules,
-        facts,
+        actual_context.strict_rules,
+        actual_context.facts,
+        actual_context.conflicts,
         root.rules,
         frozenset(),
-        concordance_cache,
+        actual_concordance_cache,
     )
 
 
@@ -329,6 +357,7 @@ def _expand(
     criterion: PreferenceCriterion,
     strict_rules: tuple[GroundDefeasibleRule, ...],
     facts: frozenset[GroundAtom],
+    conflicts: frozenset[tuple[str, str]],
     supporting_rules: frozenset[GroundDefeasibleRule],
     interfering_rules: frozenset[GroundDefeasibleRule],
     concordance_cache: dict[frozenset[GroundDefeasibleRule], bool],
@@ -345,7 +374,7 @@ def _expand(
     parent_edge_kind = edge_kinds[-1]
 
     for candidate in universe:
-        kind = _defeat_kind(candidate, current, criterion, universe, strict_rules, facts)
+        kind = _defeat_kind(candidate, current, criterion, universe, strict_rules, facts, conflicts)
         if kind is None:
             continue
 
@@ -373,6 +402,7 @@ def _expand(
                 next_supporting_rules,
                 strict_rules,
                 facts,
+                conflicts,
                 concordance_cache,
             ):
                 continue
@@ -383,6 +413,7 @@ def _expand(
                 next_interfering_rules,
                 strict_rules,
                 facts,
+                conflicts,
                 concordance_cache,
             ):
                 continue
@@ -399,6 +430,7 @@ def _expand(
                 criterion,
                 strict_rules,
                 facts,
+                conflicts,
                 next_supporting_rules,
                 next_interfering_rules,
                 concordance_cache,
@@ -420,11 +452,7 @@ def mark(node: DialecticalNode) -> Literal["U", "D"]:
     No mutation, no caching, no early exit. Block 1 is
     correctness-first.
     """
-    if not node.children:
-        return "U"
-    if any(mark(child) == "U" for child in node.children):
-        return "D"
-    return "U"
+    return _mark_table(node)[node]
 
 
 def _format_atom(atom: GroundAtom) -> str:
