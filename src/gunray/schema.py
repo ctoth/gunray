@@ -164,9 +164,7 @@ class DefeasibleTheory:
 
         for left, right in self.superiority:
             if left == right:
-                raise ValueError(
-                    f"DefeasibleTheory.superiority self-pair {left!r} is invalid"
-                )
+                raise ValueError(f"DefeasibleTheory.superiority self-pair {left!r} is invalid")
             for rule_id, side in ((left, "left"), (right, "right")):
                 if rule_id not in known_ids:
                     raise ValueError(
