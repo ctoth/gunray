@@ -355,6 +355,7 @@ def _head_only_bindings(
             return EnumerationExceeded(
                 partial_arguments=(),
                 max_arguments=max_candidates,
+                partial_count=len(bindings),
                 reason=(
                     "head-only binding enumeration budget exceeded: "
                     f"{len(bindings)} candidates produced of {max_candidates} allowed"

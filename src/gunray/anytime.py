@@ -27,6 +27,7 @@ class EnumerationExceeded(Exception):
         partial_arguments: tuple["Argument", ...],
         max_arguments: int,
         partial_trace: "DefeasibleTrace | None" = None,
+        partial_count: int | None = None,
         reason: str | None = None,
     ) -> None:
         self.partial_arguments = partial_arguments
@@ -36,7 +37,7 @@ class EnumerationExceeded(Exception):
             "argument enumeration budget exceeded: "
             f"{len(partial_arguments)} candidates produced of {max_arguments} allowed"
         )
-        self.partial_count = len(partial_arguments)
+        self.partial_count = partial_count if partial_count is not None else len(partial_arguments)
         self.max_candidates = max_arguments
         self.remainder_provenance: VacuousRemainderProvenance = "vacuous"
         super().__init__(self.reason)

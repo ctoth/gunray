@@ -83,14 +83,14 @@ def test_build_tree_grounds_strict_context_once(monkeypatch: pytest.MonkeyPatch)
     universe = build_arguments(theory)
     root = _find_argument(theory, _ga("p", "x"), "root")
     calls = 0
-    original = dialectic._theory_strict_rules
+    original = dialectic._ground_theory
 
     def counted(theory_arg: DefeasibleTheory):
         nonlocal calls
         calls += 1
         return original(theory_arg)
 
-    monkeypatch.setattr(dialectic, "_theory_strict_rules", counted)
+    monkeypatch.setattr(dialectic, "_ground_theory", counted)
 
     build_tree(root, TrivialPreference(), theory, universe=universe)
 
