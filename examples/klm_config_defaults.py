@@ -1,6 +1,6 @@
 """KLM rational closure: DB-down suppresses the server-responds default.
 
-Shows: ``Policy.RATIONAL_CLOSURE`` routing into ``ClosureEvaluator`` and
+Shows: ``ClosurePolicy.RATIONAL_CLOSURE`` routing into ``ClosureEvaluator`` and
 producing a zero-arity ``DefeasibleModel`` where an exceptional subclass
 (``db_down``) blocks the more general default (``server_responds`` under
 ``server_up``). The ``ClosureEvaluator`` enforces a zero-arity
@@ -19,7 +19,7 @@ from gunray import (
     DefeasibleModel,
     DefeasibleTheory,
     GunrayEvaluator,
-    Policy,
+    ClosurePolicy, MarkingPolicy,
     Rule,
 )
 from gunray.schema import FactTuple, PredicateFacts
@@ -45,7 +45,7 @@ theory = DefeasibleTheory(
     ],
 )
 
-model = GunrayEvaluator().evaluate(theory, Policy.RATIONAL_CLOSURE)
+model = GunrayEvaluator().evaluate(theory, closure_policy=ClosurePolicy.RATIONAL_CLOSURE)
 assert isinstance(model, DefeasibleModel)
 
 defeasibly = model.sections.get("defeasibly", {})

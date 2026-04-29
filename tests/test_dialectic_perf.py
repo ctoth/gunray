@@ -3,7 +3,7 @@ import time
 import pytest
 
 import gunray.dialectic as dialectic
-from gunray import DefeasibleEvaluator, DefeasibleTheory, Policy, Rule
+from gunray import DefeasibleEvaluator, DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
 from gunray.arguments import build_arguments
 from gunray.dialectic import (
     DialecticalNode,
@@ -40,7 +40,7 @@ def test_linear_chain_evaluate_completes_under_30s() -> None:
 
     theory = _linear_chain_theory(n=20)
     start = time.perf_counter()
-    DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+    DefeasibleEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
     elapsed = time.perf_counter() - start
     assert elapsed < 30.0, f"long-chain evaluate took {elapsed:.1f}s"
 

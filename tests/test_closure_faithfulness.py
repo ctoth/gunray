@@ -22,7 +22,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 import gunray.closure as gunray_closure
-from gunray import DefeasibleTheory, Policy, Rule
+from gunray import ClosurePolicy, DefeasibleTheory, Rule
 from gunray.closure import ClosureEvaluator
 
 _ATOMS = ("a", "b", "c")
@@ -32,9 +32,9 @@ RawTheory: TypeAlias = tuple[
     tuple[tuple[str, tuple[str, ...]], ...],
 ]
 _POLICY_PAIRS = (
-    (Policy.RATIONAL_CLOSURE, SuitePolicy.RATIONAL_CLOSURE),
-    (Policy.LEXICOGRAPHIC_CLOSURE, SuitePolicy.LEXICOGRAPHIC_CLOSURE),
-    (Policy.RELEVANT_CLOSURE, SuitePolicy.RELEVANT_CLOSURE),
+    (ClosurePolicy.RATIONAL_CLOSURE, SuitePolicy.RATIONAL_CLOSURE),
+    (ClosurePolicy.LEXICOGRAPHIC_CLOSURE, SuitePolicy.LEXICOGRAPHIC_CLOSURE),
+    (ClosurePolicy.RELEVANT_CLOSURE, SuitePolicy.RELEVANT_CLOSURE),
 )
 
 
@@ -112,7 +112,7 @@ def test_relevant_entailment_matches_reference_with_negative_strict_body() -> No
         gunray_theory,
         gunray_closure.Formula(kind="true"),
         gunray_closure._literal_formula("a"),
-        Policy.RELEVANT_CLOSURE,
+        ClosurePolicy.RELEVANT_CLOSURE,
     )
     expected = suite_closure._formula_entails(
         suite_ranked_defaults,

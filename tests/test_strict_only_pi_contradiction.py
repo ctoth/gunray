@@ -10,7 +10,7 @@ from hypothesis import assume, given, settings
 # src/gunray/ — test code is explicitly allowed to check internals.
 from gunray.defeasible import DefeasibleEvaluator, _is_strict_only_theory
 from gunray.errors import ContradictoryStrictTheoryError
-from gunray.schema import DefeasibleTheory, Policy, Rule
+from gunray.schema import DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
 
 
 def test_strict_only_theory_with_contradictory_pi_raises() -> None:
@@ -25,7 +25,7 @@ def test_strict_only_theory_with_contradictory_pi_raises() -> None:
     )
 
     with pytest.raises(ContradictoryStrictTheoryError):
-        DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+        DefeasibleEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
 
 
 def test_presumption_only_theory_does_not_take_strict_only_fast_path() -> None:
@@ -60,7 +60,7 @@ def test_strict_only_theory_respects_conflicts_field() -> None:
     )
 
     with pytest.raises(ContradictoryStrictTheoryError):
-        DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+        DefeasibleEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
 
 
 @settings(max_examples=200)
@@ -73,7 +73,7 @@ def test_hypothesis_strict_only_never_definitely_contradicts(
         assume(False)
 
     try:
-        model = DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+        model = DefeasibleEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
     except ContradictoryStrictTheoryError:
         return
 

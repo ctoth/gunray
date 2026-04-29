@@ -19,7 +19,7 @@ from gunray.answer import Answer
 from gunray.dialectic import answer
 from gunray.disagreement import complement
 from gunray.preference import GeneralizedSpecificity, TrivialPreference
-from gunray.schema import DefeasibleTheory, Policy, Rule
+from gunray.schema import DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
 from gunray.types import GroundAtom
 
 
@@ -320,7 +320,7 @@ def test_nixon_diamond_still_undecided_under_specificity() -> None:
 
 def test_sections_projection_under_specificity() -> None:
     """Full pipeline test: evaluating the Tweety theory through
-    ``GunrayEvaluator`` with ``Policy.BLOCKING`` routes into
+    ``GunrayEvaluator`` with ``MarkingPolicy.BLOCKING`` routes into
     ``DefeasibleEvaluator.evaluate_with_trace`` and must project
     Opus into the correct Def 5.3 sections once
     ``GeneralizedSpecificity`` is wired in:
@@ -334,7 +334,7 @@ def test_sections_projection_under_specificity() -> None:
     change.
     """
     theory = _tweety_theory()
-    model = GunrayEvaluator().evaluate(theory, Policy.BLOCKING)
+    model = GunrayEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
     assert isinstance(model, type(model))  # narrow for type checkers
     sections = model.sections  # type: ignore[attr-defined]
 

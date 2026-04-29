@@ -76,7 +76,9 @@ defeaters, and no superiority as degenerate — they are classical
 Datalog wearing a defeasible jacket. The fast path in
 [`defeasible.py`](src/gunray/defeasible.py) routes them into
 `SemiNaiveEvaluator` and mirrors every derived fact into both the
-`definitely` and `defeasibly` sections.
+`definitely` and `defeasibly` sections. It also populates the optional
+argument view on `DefeasibleTrace`: every strict consequence is exposed
+as a leaf `Argument(frozenset(), h)` with marking `U`.
 
 The fast path runs **only after Π consistency is checked**. The strict
 closure of Π is taken; if it contains any `h, ~h` pair — or any pair
@@ -91,8 +93,42 @@ covering rational, lexicographic, and relevant closure plus KLM `Or`
 (Kraus-Lehmann-Magidor 1990). Zero-arity propositional fragment only —
 no variables, no unification. Reachable as
 `gunray.closure.ClosureEvaluator` and dispatched to by
-`GunrayEvaluator` for closure-policy inputs; scope is the
+`GunrayEvaluator` for `ClosurePolicy` inputs; scope is the
 conformance-suite cases it was built for.
+
+## Public policy and budget boundary
+
+`schema.MarkingPolicy` and `schema.ClosurePolicy` are separate enums.
+`MarkingPolicy.BLOCKING` selects the García/Simari dialectical-tree
+marking path. `ClosurePolicy.RATIONAL_CLOSURE`,
+`ClosurePolicy.LEXICOGRAPHIC_CLOSURE`, and
+`ClosurePolicy.RELEVANT_CLOSURE` select the propositional KLM closure
+engine. `DefeasibleEvaluator.evaluate(...)` and
+`evaluate_with_trace(...)` therefore accept keyword-only
+`marking_policy=...` and `closure_policy=...`; the old mixed `Policy`
+surface is gone.
+
+`evaluate_with_trace` is the canonical defeasible entry point. The
+returned `DefeasibleTrace` carries the single grounding pass as
+`trace.grounding_inspection`, plus `arguments`, `trees`, and `markings`
+when the dialectical or strict-only paths construct them. `evaluate` is
+only a convenience wrapper that discards the trace.
+
+The dialectical path accepts `max_arguments: int | None`. If exact
+argument enumeration would exceed that budget, Gunray raises
+`EnumerationExceeded`. The exception carries `partial_arguments` and,
+from `evaluate_with_trace`, a `partial_trace` containing those partial
+arguments and the grounding inspection. Partial results are incomplete;
+the only exact continuation is to rerun with a larger budget.
+
+`DefeasibleTheory.superiority` is validated at construction time as an
+irreflexive acyclic relation over declared rule ids. Self-pairs and
+cycles are rejected before preference closure is computed.
+
+Section projection and generalized specificity remain owned by the
+García 2004 / Simari 1992 path. The section-projection contract is
+being revised in the propstore WS-O-gun-garcia workstream; consumers
+that depend on section names should track that workstream.
 
 ## Out-of-contract
 
@@ -147,8 +183,9 @@ Argument pipeline internals:
 Supporting infrastructure:
 
 - [`schema.py`](src/gunray/schema.py) — `Rule`, `DefeasibleTheory`,
-  `Program`, `Model`, `DefeasibleModel`, `Policy`, `NegationSemantics`.
-  Frozen dataclasses with slots; construction validates.
+  `Program`, `Model`, `DefeasibleModel`, `MarkingPolicy`,
+  `ClosurePolicy`, `NegationSemantics`. Frozen dataclasses with slots;
+  construction validates.
 - [`trace.py`](src/gunray/trace.py) — `TraceConfig`, `DatalogTrace`,
   `DefeasibleTrace`.
 - [`types.py`](src/gunray/types.py) — frozen value types
@@ -197,4 +234,8 @@ load-bearing, not ornamental.
   [`_internal.py`](src/gunray/_internal.py). No
   `from gunray.evaluator import _helper`, no
   `from gunray.arguments import _force_strict_for_closure`. If two
-  modules need the same helper, promote it to `_internal.py`.
+  modules need the same helper, promote it to `_internal.py`. Public
+  grounding value types live in
+  [`grounding_types.py`](src/gunray/grounding_types.py); the grounding
+  inspector reads the shared grounder result instead of re-parsing and
+  re-grounding independently.

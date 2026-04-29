@@ -103,6 +103,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         config.hook.pytest_deselected(items=deselected)
         items[:] = remaining
     for item in items:
+        if getattr(item.obj, "hypothesis", None) is not None:
+            item.add_marker(pytest.mark.property)
         for skipped_id, reason in _CONFORMANCE_SKIPPED.items():
             if _has_param_id(item, skipped_id):
                 item.add_marker(pytest.mark.skip(reason=reason))

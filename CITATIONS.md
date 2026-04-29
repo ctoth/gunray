@@ -67,6 +67,20 @@ supporter of its own head. Cited in [`arguments.py`](src/gunray/arguments.py),
 [`defeasible.py`](src/gunray/defeasible.py), and [`dialectic.py`](src/gunray/dialectic.py)
 as the "Nute/Antoniou reading"; see `notes/b2_defeater_participation.md`.
 
+### Diller, Geilke, Gottifredi, García & Simari 2025 — *Grounding Rule-Based Argumentation in Datalog*
+Gunray uses the paper's Datalog-grounding contract for the public
+grounding inspection surface:
+
+- Definition 9 p. 3 (ground substitutions are those whose rule bodies
+  hold in the least Datalog model) — [`_internal.py`](src/gunray/_internal.py)
+  computes the shared positive grounding model and substitutions.
+- Algorithm 2 p. 7 (ASPIC+-specific grounding simplifications) —
+  [`grounding.py`](src/gunray/grounding.py) implements the conservative
+  strict/fact-only fragment in `_simplify_strict_fact_grounding`.
+- Deliberate carve-out: Gunray does not remove defeasible or defeater
+  ground rules during this simplification; it only resolves strict
+  rules whose bodies are already definite facts.
+
 ## Contextual (shaped design, not directly implemented)
 
 ### Darwiche & Pearl 1997 — *On the Logic of Iterated Belief Revision*
@@ -79,11 +93,6 @@ Tolerance-based consistency for mixed strict/defeasible databases,
 equivalent to System Z preferential semantics. Background for the
 Π-consistency check in the strict-only fast path, though the actual
 check is a direct `{h, ~h}` derivation test, not a tolerance partition.
-
-### Diller, Geilke, Gottifredi, García & Simari 2025 — *Grounding Rule-Based Argumentation in Datalog*
-Intelligent grounding of first-order ASPIC+ via Datalog. Read for
-shape of the argument-grounding problem; Gunray enumerates arguments
-directly from DeLP rules rather than compiling through ASPIC+.
 
 ### Deagustini, Dalibón, Gottifredi, Falappa, Chesñevar & Simari 2013 — *Relational Databases as a Massive Information Source for Defeasible Argumentation*
 DB-DeLP architecture connecting DeLP to relational databases via

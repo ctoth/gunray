@@ -34,6 +34,9 @@ testpaths = ["tests"]
 addopts = "-v"
 timeout = 30
 timeout_method = "thread"
+markers = [
+    "property: Hypothesis/property-based tests",
+]
 
 [tool.ruff]
 line-length = 100

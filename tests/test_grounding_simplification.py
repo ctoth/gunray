@@ -4,7 +4,7 @@ from gunray import (
     DefeasibleEvaluator,
     DefeasibleTheory,
     GroundAtom,
-    Policy,
+    MarkingPolicy,
     Rule,
     inspect_grounding,
 )
@@ -59,9 +59,9 @@ def test_resolving_strict_fact_rules_preserves_checked_conclusions() -> None:
     evaluator = DefeasibleEvaluator()
 
     assert (
-        evaluator.evaluate(original, Policy.BLOCKING).sections
+        evaluator.evaluate(original, marking_policy=MarkingPolicy.BLOCKING).sections
         == evaluator.evaluate(
             manually_simplified,
-            Policy.BLOCKING,
+            marking_policy=MarkingPolicy.BLOCKING,
         ).sections
     )

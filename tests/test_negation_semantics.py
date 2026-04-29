@@ -12,7 +12,7 @@ from gunray import (
     DefeasibleEvaluator,
     DefeasibleTheory,
     NegationSemantics,
-    Policy,
+    ClosurePolicy, MarkingPolicy,
     Program,
     Rule,
     SemiNaiveEvaluator,
@@ -61,7 +61,7 @@ def test_defeasible_evaluator_default_mode_is_safe() -> None:
     )
 
     with pytest.raises(SafetyViolationError):
-        DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+        DefeasibleEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
 
 
 def test_conformance_adapter_routes_nemo_fixtures_to_nemo_mode() -> None:

@@ -6,7 +6,7 @@ from conftest import ground_atom_strategy, strict_context_strategy
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from gunray import DefeasibleEvaluator, DefeasibleTheory, Policy, Rule
+from gunray import DefeasibleEvaluator, DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
 from gunray.disagreement import complement, disagrees, strict_closure
 from gunray.types import GroundAtom, GroundDefeasibleRule
 
@@ -95,7 +95,7 @@ def test_defeasible_evaluator_disagreement_uses_pi_facts_end_to_end() -> None:
         conflicts=[],
     )
 
-    model = DefeasibleEvaluator().evaluate(theory, Policy.BLOCKING)
+    model = DefeasibleEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
 
     assert ("a",) not in model.sections.get("defeasibly", {}).get("p", set())
     assert ("a",) not in model.sections.get("defeasibly", {}).get("q", set())

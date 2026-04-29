@@ -21,7 +21,7 @@ ahead of ``GeneralizedSpecificity``):
     (d4, d3) — break-glass overrides an ordinary audit hold.
     (d2, d4) — but the self-dealing bar survives break-glass.
 
-Observe: ``d4`` is *not* ranked against ``d5``. Policy does not grant
+Observe: ``d4`` is *not* ranked against ``d5``. The marking policy does not grant
 emergency the power to waive the four-eyes requirement, nor does it
 grant four-eyes enough weight to trump a declared emergency. When
 both fire together, specificity is silent (disjoint bodies) and

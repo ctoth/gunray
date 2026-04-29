@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 import gunray.closure as closure_module
-from gunray import DefeasibleTheory, Policy, Rule
+from gunray import DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
 from gunray.closure import (
     ClosureEvaluator,
     _conjunction_formula,
@@ -29,8 +29,8 @@ def test_example6_distinguishes_rational_from_lexicographic_closure() -> None:
     )
 
     evaluator = ClosureEvaluator()
-    rational = evaluator.evaluate(theory, Policy.RATIONAL_CLOSURE)
-    lexicographic = evaluator.evaluate(theory, Policy.LEXICOGRAPHIC_CLOSURE)
+    rational = evaluator.evaluate(theory, ClosurePolicy.RATIONAL_CLOSURE)
+    lexicographic = evaluator.evaluate(theory, ClosurePolicy.LEXICOGRAPHIC_CLOSURE)
 
     assert "m" not in rational.sections["defeasibly"]
     assert "a" not in rational.sections["defeasibly"]
@@ -57,9 +57,9 @@ def test_or_counterexample_fails_only_for_relevant_closure() -> None:
 
     evaluator = ClosureEvaluator()
 
-    assert evaluator.satisfies_klm_property(theory, "Or", Policy.RATIONAL_CLOSURE)
-    assert evaluator.satisfies_klm_property(theory, "Or", Policy.LEXICOGRAPHIC_CLOSURE)
-    assert not evaluator.satisfies_klm_property(theory, "Or", Policy.RELEVANT_CLOSURE)
+    assert evaluator.satisfies_klm_property(theory, "Or", ClosurePolicy.RATIONAL_CLOSURE)
+    assert evaluator.satisfies_klm_property(theory, "Or", ClosurePolicy.LEXICOGRAPHIC_CLOSURE)
+    assert not evaluator.satisfies_klm_property(theory, "Or", ClosurePolicy.RELEVANT_CLOSURE)
 
 
 def test_impossible_antecedent_is_handled_consistently_across_closure_policies() -> None:
@@ -84,9 +84,9 @@ def test_impossible_antecedent_is_handled_consistently_across_closure_policies()
     antecedent = _conjunction_formula(["a", "~a"])
     consequent = _literal_formula("p")
 
-    assert _formula_entails(ranked, theory, antecedent, consequent, Policy.RATIONAL_CLOSURE)
-    assert _formula_entails(ranked, theory, antecedent, consequent, Policy.LEXICOGRAPHIC_CLOSURE)
-    assert _formula_entails(ranked, theory, antecedent, consequent, Policy.RELEVANT_CLOSURE)
+    assert _formula_entails(ranked, theory, antecedent, consequent, ClosurePolicy.RATIONAL_CLOSURE)
+    assert _formula_entails(ranked, theory, antecedent, consequent, ClosurePolicy.LEXICOGRAPHIC_CLOSURE)
+    assert _formula_entails(ranked, theory, antecedent, consequent, ClosurePolicy.RELEVANT_CLOSURE)
 
 
 def test_public_closure_policies_do_not_materialize_all_worlds(
@@ -121,5 +121,5 @@ def test_public_closure_policies_do_not_materialize_all_worlds(
     )
 
     evaluator = ClosureEvaluator()
-    evaluator.evaluate(theory, Policy.RATIONAL_CLOSURE)
+    evaluator.evaluate(theory, ClosurePolicy.RATIONAL_CLOSURE)
     assert not hasattr(closure_module, "product")

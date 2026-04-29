@@ -7,7 +7,7 @@ each other and it works out which conclusions survive — and, if you ask,
 exactly why. Zero runtime dependencies, MIT, Python 3.11+.
 
 ```python
-from gunray import DefeasibleTheory, GunrayEvaluator, Policy, Rule
+from gunray import DefeasibleTheory, GunrayEvaluator, ClosurePolicy, MarkingPolicy, Rule
 
 theory = DefeasibleTheory(
     facts={"bird": {("tweety",), ("opus",)}, "penguin": {("opus",)}},
@@ -18,7 +18,7 @@ theory = DefeasibleTheory(
     ],
 )
 
-model = GunrayEvaluator().evaluate(theory, Policy.BLOCKING)
+model = GunrayEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
 # model.sections["defeasibly"] contains flies(tweety) and ~flies(opus).
 ```
 

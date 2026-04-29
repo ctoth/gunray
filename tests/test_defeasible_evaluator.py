@@ -27,7 +27,7 @@ from gunray import (
     DefeasibleTheory,
     DefeasibleTrace,
     GunrayEvaluator,
-    Policy,
+    ClosurePolicy, MarkingPolicy,
     Rule,
     TraceConfig,
 )
@@ -140,7 +140,7 @@ def test_tweety_sections_projection() -> None:
       and ``flies(opus)`` lands in ``not_defeasibly``.
     """
     evaluator = GunrayEvaluator()
-    model = evaluator.evaluate(_tweety_theory(), Policy.BLOCKING)
+    model = evaluator.evaluate(_tweety_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
     assert model.sections["definitely"]["bird"] == {("tweety",), ("opus",)}
     assert model.sections["definitely"]["penguin"] == {("opus",)}
@@ -165,7 +165,7 @@ def test_nixon_sections_projection() -> None:
     ``TrivialPreference``. Garcia 04 Def 5.3 returns UNDECIDED for
     both literals; both must land in ``undecided``."""
     evaluator = GunrayEvaluator()
-    model = evaluator.evaluate(_direct_nixon_theory(), Policy.BLOCKING)
+    model = evaluator.evaluate(_direct_nixon_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
     assert "undecided" in model.sections
     assert ("nixon",) in model.sections["undecided"]["pacifist"]
@@ -181,7 +181,7 @@ def test_strict_only_sections_projection() -> None:
     in ``definitely`` (and ``defeasibly``). The strict-only shortcut
     must continue to route through ``SemiNaiveEvaluator``."""
     evaluator = GunrayEvaluator()
-    model = evaluator.evaluate(_strict_only_theory(), Policy.BLOCKING)
+    model = evaluator.evaluate(_strict_only_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
     expected_paths = {("a", "b"), ("b", "c"), ("a", "c")}
     assert model.sections["definitely"]["path"] == expected_paths
@@ -201,7 +201,7 @@ def test_missing_body_literal_is_not_defeasibly() -> None:
     either side).
     """
     evaluator = DefeasibleEvaluator()
-    model = evaluator.evaluate(_missing_body_theory(), Policy.BLOCKING)
+    model = evaluator.evaluate(_missing_body_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
     flies_defeasibly = model.sections.get("defeasibly", {}).get("flies", set())
     assert ("tweety",) not in flies_defeasibly
@@ -215,7 +215,7 @@ def test_strict_complement_projects_opposite_literal_to_not_defeasibly() -> None
     """A strict complement should make the opposite literal NO."""
 
     evaluator = GunrayEvaluator()
-    model = evaluator.evaluate(_strict_complement_theory(), Policy.BLOCKING)
+    model = evaluator.evaluate(_strict_complement_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
     assert ("tweety",) in model.sections["definitely"]["~flies"]
     assert ("tweety",) in model.sections["not_defeasibly"]["flies"]
@@ -227,13 +227,13 @@ def test_direct_defeasible_evaluator_routes_closure_policy_to_closure_evaluator(
     """Closure policies belong to the closure evaluator, even on direct calls."""
 
     theory = DefeasibleTheory(defeasible_rules=(Rule(id="d1", head="b", body=("a",)),))
-    calls: list[tuple[DefeasibleTheory, Policy, TraceConfig | None]] = []
+    calls: list[tuple[DefeasibleTheory, ClosurePolicy, TraceConfig | None]] = []
 
     class StubClosureEvaluator:
         def evaluate_with_trace(
             self,
             routed_theory: DefeasibleTheory,
-            routed_policy: Policy,
+            routed_policy: ClosurePolicy,
             trace_config: TraceConfig | None = None,
         ) -> tuple[DefeasibleModel, DefeasibleTrace]:
             calls.append((routed_theory, routed_policy, trace_config))
@@ -249,7 +249,10 @@ def test_direct_defeasible_evaluator_routes_closure_policy_to_closure_evaluator(
         raising=False,
     )
 
-    model = DefeasibleEvaluator().evaluate(theory, Policy.RATIONAL_CLOSURE)
+    model = DefeasibleEvaluator().evaluate(
+        theory,
+        closure_policy=ClosurePolicy.RATIONAL_CLOSURE,
+    )
 
     assert model.sections == {"defeasibly": {"sentinel": {()}}}
-    assert calls == [(theory, Policy.RATIONAL_CLOSURE, None)]
+    assert calls == [(theory, ClosurePolicy.RATIONAL_CLOSURE, None)]

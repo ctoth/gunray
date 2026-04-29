@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 
-from gunray import DefeasibleModel, DefeasibleTheory, DefeasibleTrace, Policy, Program
+from gunray import DefeasibleModel, DefeasibleTheory, DefeasibleTrace, MarkingPolicy, Program
 from gunray.adapter import GunrayEvaluator
 from gunray.conformance_adapter import GunrayConformanceEvaluator
 from gunray.schema import Model
@@ -34,7 +34,7 @@ def test_evaluate_with_trace_returns_public_datalog_types() -> None:
 def test_evaluate_with_trace_returns_public_defeasible_types() -> None:
     model, trace = GunrayEvaluator().evaluate_with_trace(
         DefeasibleTheory(),
-        Policy.BLOCKING,
+        marking_policy=MarkingPolicy.BLOCKING,
     )
 
     assert isinstance(model, DefeasibleModel)

@@ -9,7 +9,7 @@ from gunray import (
     DefeasibleTheory,
     DefeasibleTrace,
     GunrayEvaluator,
-    Policy,
+    ClosurePolicy, MarkingPolicy,
     Program,
     Rule,
     TraceConfig,
@@ -96,7 +96,7 @@ def _classic_tweety_theory() -> DefeasibleTheory:
 def test_defeasible_trace_captures_arguments() -> None:
     model, trace = DefeasibleEvaluator().evaluate_with_trace(
         _classic_tweety_theory(),
-        Policy.BLOCKING,
+        marking_policy=MarkingPolicy.BLOCKING,
     )
 
     assert trace.arguments
@@ -115,7 +115,7 @@ def test_defeasible_trace_captures_arguments() -> None:
 def test_defeasible_trace_captures_trees_and_markings() -> None:
     _, trace = DefeasibleEvaluator().evaluate_with_trace(
         _classic_tweety_theory(),
-        Policy.BLOCKING,
+        marking_policy=MarkingPolicy.BLOCKING,
     )
     tweety_flies = GroundAtom(predicate="flies", arguments=("tweety",))
 
@@ -131,7 +131,7 @@ def test_defeasible_trace_captures_trees_and_markings() -> None:
 def test_defeasible_trace_can_query_by_predicate_and_row() -> None:
     _, trace = DefeasibleEvaluator().evaluate_with_trace(
         _classic_tweety_theory(),
-        Policy.BLOCKING,
+        marking_policy=MarkingPolicy.BLOCKING,
     )
 
     assert trace.tree_for_parts("flies", ("tweety",)) is not None
@@ -154,7 +154,7 @@ def test_deleted_fields_absent() -> None:
 def test_hypothesis_markings_have_trees(theory: DefeasibleTheory) -> None:
     """Every atom with a marking has a corresponding tree."""
 
-    _, trace = DefeasibleEvaluator().evaluate_with_trace(theory, Policy.BLOCKING)
+    _, trace = DefeasibleEvaluator().evaluate_with_trace(theory, marking_policy=MarkingPolicy.BLOCKING)
 
     for atom in trace.markings:
         assert atom in trace.trees, f"{atom} marked but no tree"
@@ -176,7 +176,7 @@ def test_strict_only_trace_exposes_underlying_datalog_trace() -> None:
 
     model, trace = evaluator.evaluate_with_trace(
         theory,
-        Policy.BLOCKING,
+        marking_policy=MarkingPolicy.BLOCKING,
         trace_config=TraceConfig(capture_derived_rows=True, max_derived_rows_per_rule_fire=2),
     )
 
@@ -269,7 +269,7 @@ def test_strict_only_trace_property_matches_definite_section(
 
     model, trace = evaluator.evaluate_with_trace(
         theory,
-        Policy.BLOCKING,
+        marking_policy=MarkingPolicy.BLOCKING,
         trace_config=TraceConfig(
             capture_derived_rows=True,
             max_derived_rows_per_rule_fire=row_limit,
