@@ -13,13 +13,32 @@ delegates to each criterion in priority order.
 
 from __future__ import annotations
 
-from typing import Protocol
+from dataclasses import dataclass
+from typing import Literal, Protocol
 
 from ._internal import _force_strict_for_closure, _ground_theory
 from .arguments import Argument
 from .disagreement import strict_closure
 from .schema import DefeasibleTheory
 from .types import GroundAtom, GroundDefeasibleRule
+
+
+@dataclass(frozen=True, slots=True)
+class PreferenceComparison:
+    """Public comparison report for a pair of arguments.
+
+    Garcia & Simari 2004 p. 108 Example 3.5 makes the comparison
+    direction user-visible: one argument is "more specific" than
+    another, or the pair remains incomparable/equi-specific. This
+    value type exposes that relation without forcing callers to run
+    two separate boolean preference checks and reconstruct the reason.
+    """
+
+    relation: Literal["left", "right", "incomparable", "equi_specific"]
+    left_prefers: bool
+    right_prefers: bool
+    reason: str
+    citation: str
 
 
 class PreferenceCriterion(Protocol):
@@ -159,6 +178,40 @@ class GeneralizedSpecificity:
             # empty-rule arguments.
             return "strictly more specific (no antecedents to discharge)"
         return "strictly more specific"
+
+    def compare(self, left: Argument, right: Argument) -> PreferenceComparison:
+        """Return the full generalized-specificity relation for ``left`` and ``right``.
+
+        Garcia & Simari 2004 p. 108 Example 3.5 uses generalized
+        specificity as an inspectable comparison: a chicken-based
+        argument is more specific than a bird-based argument, and a
+        scared-chicken argument is more specific than the chicken
+        argument because it uses more information. The underlying
+        strict preference is still ``prefers``; this method preserves
+        both directions and a paper citation for explanation layers.
+        """
+
+        left_prefers = self.prefers(left, right)
+        right_prefers = self.prefers(right, left)
+        if left_prefers:
+            relation: Literal["left", "right", "incomparable", "equi_specific"] = "left"
+            reason = "left argument is strictly more specific"
+        elif right_prefers:
+            relation = "right"
+            reason = "right argument is strictly more specific"
+        elif left == right:
+            relation = "equi_specific"
+            reason = "arguments are identical"
+        else:
+            relation = "incomparable"
+            reason = "neither argument strictly covers the other"
+        return PreferenceComparison(
+            relation=relation,
+            left_prefers=left_prefers,
+            right_prefers=right_prefers,
+            reason=reason,
+            citation="Garcia & Simari 2004, p. 108",
+        )
 
     def _covers(
         self,

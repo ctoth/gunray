@@ -31,6 +31,7 @@ from .parser import parse_atom_text
 from .preference import (
     CompositePreference,
     GeneralizedSpecificity,
+    PreferenceComparison,
     PreferenceCriterion,
     SuperiorityPreference,
     TrivialPreference,
@@ -82,6 +83,7 @@ __all__ = [
     "MarkingPolicy",
     "Model",
     "NegationSemantics",
+    "PreferenceComparison",
     "PreferenceCriterion",
     "Program",
     "Rule",
