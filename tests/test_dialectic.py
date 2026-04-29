@@ -12,6 +12,7 @@ from gunray.dialectic import (
     _concordant,
     blocking_defeater,
     build_tree,
+    classify_defeat,
     counter_argues,
     mark,
     proper_defeater,
@@ -157,6 +158,23 @@ def test_proper_defeater_under_mock_preference() -> None:
     # The dispreferred direction is neither proper nor a blocker
     # *towards* a strictly better opponent — it's the strict loser.
     assert not proper_defeater(flies, not_flies, criterion, theory)
+
+
+def test_tree_exposes_proper_defeater_kind() -> None:
+    """Garcia & Simari 2004 p. 110 Defs 4.1-4.2: child edges expose kind."""
+
+    theory = _tweety_theory()
+    flies = _find_argument(theory, _ga("flies", "opus"))
+    not_flies = _find_argument(theory, _ga("~flies", "opus"))
+    criterion = _MockPreference(winner=not_flies)
+
+    assert classify_defeat(not_flies, flies, criterion, theory) == "proper"
+    tree = build_tree(flies, criterion, theory)
+
+    assert tree.defeater_kind == "root"
+    assert len(tree.children) == 1
+    assert tree.children[0].argument == not_flies
+    assert tree.children[0].defeater_kind == "proper"
 
 
 # -- Test 5 — Nixon Diamond tree shape (Garcia 04 Def 5.1 + Def 4.7). --
