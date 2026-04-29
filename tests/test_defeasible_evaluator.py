@@ -105,6 +105,38 @@ def _strict_complement_theory() -> DefeasibleTheory:
     )
 
 
+def _default_negation_self_defeat_theory() -> DefeasibleTheory:
+    """Garcia & Simari 2004 pp. 125-126: not L assumptions cannot derive L."""
+
+    return DefeasibleTheory(
+        facts={"bird": {("tweety",)}, "penguin": {("tweety",)}},
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="r1", head="flies(X)", body=["bird(X)", "not penguin(X)"]),
+            Rule(id="r2", head="~flies(X)", body=["penguin(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
+def _default_negation_attack_theory() -> DefeasibleTheory:
+    """Garcia & Simari 2004 p. 126 Def 6.3: arguments attack not L assumptions."""
+
+    return DefeasibleTheory(
+        facts={"a": {()}, "b": {()}},
+        strict_rules=[],
+        defeasible_rules=[
+            Rule(id="p_default", head="p", body=["a", "not q"]),
+            Rule(id="q_counter", head="q", body=["b"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
 # ---------- Sections projection paper examples ----------------------------
 
 
@@ -205,6 +237,30 @@ def test_strict_complement_projects_opposite_literal_to_no() -> None:
 
     assert ("tweety",) in model.sections["yes"]["~flies"]
     assert ("tweety",) in model.sections["no"]["flies"]
+
+
+def test_default_negated_body_rejects_self_defeating_argument() -> None:
+    """Garcia & Simari 2004 pp. 125-126 Def 6.2 condition 2."""
+
+    model = GunrayEvaluator().evaluate(
+        _default_negation_self_defeat_theory(),
+        marking_policy=MarkingPolicy.BLOCKING,
+    )
+
+    assert ("tweety",) in model.sections["yes"]["~flies"]
+    assert ("tweety",) in model.sections["no"]["flies"]
+
+
+def test_argument_for_default_negated_literal_attacks_assumption() -> None:
+    """Garcia & Simari 2004 p. 126 Def 6.3 default-negation attack point."""
+
+    model = GunrayEvaluator().evaluate(
+        _default_negation_attack_theory(),
+        marking_policy=MarkingPolicy.BLOCKING,
+    )
+
+    assert () in model.sections["yes"]["q"]
+    assert () in model.sections["no"]["p"]
 
 
 def test_direct_defeasible_evaluator_routes_closure_policy_to_closure_evaluator(
