@@ -130,8 +130,8 @@ class DatalogTrace:
 @dataclass(slots=True)
 class DefeasibleTrace:
     config: TraceConfig = field(default_factory=TraceConfig)
-    definitely: tuple[GroundAtom, ...] = ()
-    supported: tuple[GroundAtom, ...] = ()
+    strict: tuple[GroundAtom, ...] = ()
+    yes: tuple[GroundAtom, ...] = ()
     strict_trace: DatalogTrace | None = None
     grounding_inspection: "GroundingInspection | None" = None
     arguments: tuple["Argument", ...] = ()

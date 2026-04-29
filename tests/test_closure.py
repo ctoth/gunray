@@ -32,10 +32,10 @@ def test_example6_distinguishes_rational_from_lexicographic_closure() -> None:
     rational = evaluator.evaluate(theory, ClosurePolicy.RATIONAL_CLOSURE)
     lexicographic = evaluator.evaluate(theory, ClosurePolicy.LEXICOGRAPHIC_CLOSURE)
 
-    assert "m" not in rational.sections["defeasibly"]
-    assert "a" not in rational.sections["defeasibly"]
-    assert "m" in lexicographic.sections["defeasibly"]
-    assert "a" in lexicographic.sections["defeasibly"]
+    assert "m" not in rational.sections["yes"]
+    assert "a" not in rational.sections["yes"]
+    assert "m" in lexicographic.sections["yes"]
+    assert "a" in lexicographic.sections["yes"]
 
 
 def test_or_counterexample_fails_only_for_relevant_closure() -> None:

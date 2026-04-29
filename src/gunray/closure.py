@@ -66,28 +66,26 @@ class ClosureEvaluator:
         _ensure_propositional(theory)
         ranked = _ranked_defaults(theory)
         facts = _fact_literals(theory)
-        definite = _strict_closure(facts, theory.strict_rules)
+        strict = _strict_closure(facts, theory.strict_rules)
         literals = _literal_universe(theory)
 
-        defeasible = {
+        yes = {
             literal
             for literal in literals
             if _closure_entails(ranked, theory, facts, literal, policy)
         }
-        defeasible.update(definite)
-        not_defeasible = literals - defeasible
+        yes.update(strict)
+        no = literals - yes
 
         sections: dict[str, dict[str, set[tuple[()]]]] = {}
-        if definite:
-            sections["definitely"] = _atoms_to_section(definite)
-        if defeasible:
-            sections["defeasibly"] = _atoms_to_section(defeasible)
-        if not_defeasible:
-            sections["not_defeasibly"] = _atoms_to_section(not_defeasible)
+        sections["yes"] = _atoms_to_section(yes)
+        sections["no"] = _atoms_to_section(no)
+        sections["undecided"] = {}
+        sections["unknown"] = {}
 
         trace = DefeasibleTrace(config=trace_config or TraceConfig())
-        trace.definitely = tuple(_ground_atoms_from_literals(definite))
-        trace.supported = tuple(_ground_atoms_from_literals(defeasible))
+        trace.strict = tuple(_ground_atoms_from_literals(strict))
+        trace.yes = tuple(_ground_atoms_from_literals(yes))
         return DefeasibleModel(sections=sections), trace
 
     def satisfies_klm_property(

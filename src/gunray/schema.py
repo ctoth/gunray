@@ -21,7 +21,8 @@ Scalar: TypeAlias = str | int | float | bool
 FactTuple: TypeAlias = tuple[Scalar, ...]
 PredicateFacts: TypeAlias = Mapping[str, Iterable[FactTuple]]
 ModelFacts: TypeAlias = Mapping[str, set[FactTuple]]
-DefeasibleSections: TypeAlias = Mapping[str, ModelFacts]
+GarciaSections: TypeAlias = Mapping[str, ModelFacts]
+DefeasibleSections: TypeAlias = GarciaSections
 
 
 def _predicate_facts_factory() -> PredicateFacts:
@@ -185,7 +186,7 @@ class Model:
 class DefeasibleModel:
     """Defeasible model returned by evaluators."""
 
-    sections: DefeasibleSections
+    sections: GarciaSections
 
 
 def _raise_if_superiority_cyclic(pairs: tuple[tuple[str, str], ...]) -> None:

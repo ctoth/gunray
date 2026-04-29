@@ -65,10 +65,10 @@ def test_strict_only_theory_respects_conflicts_field() -> None:
 
 @settings(max_examples=200)
 @given(small_theory_strategy())
-def test_hypothesis_strict_only_never_definitely_contradicts(
+def test_hypothesis_strict_only_never_yes_contradicts(
     theory: DefeasibleTheory,
 ) -> None:
-    """A successful strict-only evaluation must not definitely prove p and ~p."""
+    """A successful strict-only evaluation must not answer YES to p and ~p."""
     if theory.defeasible_rules or theory.defeaters or theory.superiority:
         assume(False)
 
@@ -77,10 +77,10 @@ def test_hypothesis_strict_only_never_definitely_contradicts(
     except ContradictoryStrictTheoryError:
         return
 
-    definitely = model.sections.get("definitely", {})
-    for predicate, rows in definitely.items():
+    yes = model.sections.get("yes", {})
+    for predicate, rows in yes.items():
         complement_predicate = predicate[1:] if predicate.startswith("~") else f"~{predicate}"
-        complement_rows = definitely.get(complement_predicate, set())
+        complement_rows = yes.get(complement_predicate, set())
         assert not rows & complement_rows, (
-            f"Pi contradiction leaked into definitely: {predicate} vs {complement_predicate}"
+            f"Pi contradiction leaked into YES: {predicate} vs {complement_predicate}"
         )

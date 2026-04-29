@@ -105,9 +105,9 @@ def test_defeasible_trace_captures_arguments() -> None:
             for row in rows:
                 atom = GroundAtom(predicate=predicate, arguments=row)
                 matching = trace.arguments_for_conclusion(atom)
-                if section in ("definitely", "defeasibly"):
+                if section == "yes":
                     assert matching, f"no argument for {atom} in {section}"
-                if section == "not_defeasibly":
+                if section == "no":
                     opposite = trace.arguments_for_conclusion(complement(atom))
                     assert matching or opposite, f"no argument pair for {atom} in {section}"
 
@@ -183,7 +183,7 @@ def test_strict_only_trace_exposes_underlying_datalog_trace() -> None:
         trace_config=TraceConfig(capture_derived_rows=True, max_derived_rows_per_rule_fire=2),
     )
 
-    assert model.sections["definitely"]["path"] == {("a", "b"), ("b", "c"), ("a", "c")}
+    assert model.sections["yes"]["path"] == {("a", "b"), ("b", "c"), ("a", "c")}
     assert trace.strict_trace is not None
     strict_fires = trace.strict_trace.find_rule_fires(
         head_predicate="path",
@@ -253,7 +253,7 @@ def test_datalog_trace_property_find_rule_fires_matches_manual_filter(
 
 
 @given(edges=_edge_sets(), row_limit=st.integers(min_value=0, max_value=3))
-def test_strict_only_trace_property_matches_definite_section(
+def test_strict_only_trace_property_matches_yes_section(
     edges: set[tuple[str, str]],
     row_limit: int,
 ) -> None:
@@ -280,9 +280,9 @@ def test_strict_only_trace_property_matches_definite_section(
     )
 
     assert trace.strict_trace is not None
-    assert set(trace.definitely) == set(trace.supported)
+    assert set(trace.strict) == set(trace.yes)
 
-    definitely_path_rows = model.sections.get("definitely", {}).get("path", set())
+    yes_path_rows = model.sections.get("yes", {}).get("path", set())
     for fire in trace.strict_trace.find_rule_fires(head_predicate="path"):
         assert len(fire.derived_rows) <= row_limit
-        assert all(row in definitely_path_rows for row in fire.derived_rows)
+        assert all(row in yes_path_rows for row in fire.derived_rows)

@@ -12,11 +12,9 @@ Implements the Garcia & Simari 2004 §5 pipeline verbatim:
   sub-argument exclusion, block-on-block ban) enforced during
   construction.
 - U/D marking follows Procedure 5.1.
-- The four-valued answer (Def 5.3) projects into the
-  ``DefeasibleModel.sections`` dict with the four keys
-  ``definitely`` / ``defeasibly`` / ``not_defeasibly`` /
-  ``undecided`` for backwards compatibility with the propstore
-  contract.
+- The four-valued answer (Def 5.3, Garcia & Simari 2004 p. 120)
+  projects into ``DefeasibleModel.sections`` with the four answer
+  keys ``yes`` / ``no`` / ``undecided`` / ``unknown``.
 
 The preference criterion is
 ``CompositePreference(SuperiorityPreference, GeneralizedSpecificity)``:
@@ -120,13 +118,13 @@ class DefeasibleEvaluator:
             trace = DefeasibleTrace(config=actual_trace_config)
             trace.strict_trace = strict_trace
             trace.grounding_inspection = inspect_grounding(theory)
-            trace.definitely = tuple(
+            trace.strict = tuple(
                 sorted(
-                    _section_to_atoms(model.sections.get("definitely", {})),
+                    _section_to_atoms(model.sections.get("yes", {})),
                     key=_atom_sort_key,
                 )
             )
-            trace.supported = trace.definitely
+            trace.yes = trace.strict
             _populate_strict_only_argument_view(theory, trace)
             return model, trace
 
@@ -193,7 +191,7 @@ def _evaluate_via_argument_pipeline(
     # (``notes/b2_defeater_participation.md``). We therefore exclude
     # them here when computing ``warranted`` and separately track the
     # atoms they probe so the section projection can classify those
-    # atoms as ``not_defeasibly`` rather than leaving them unclassified.
+    # atoms as Garcia ``NO`` rather than leaving them unclassified.
     def _is_defeater_argument(arg: "Argument") -> bool:
         return any(rule.kind == "defeater" for rule in arg.rules)
 
@@ -228,65 +226,54 @@ def _evaluate_via_argument_pipeline(
     conclusions: set[GroundAtom] = {arg.conclusion for arg in arguments}
     conclusions.update(complement(atom) for atom in strict_atoms)
 
-    # Section projection rules (per the B1.6 prompt verbatim):
-    #   strict   = ∃⟨∅, h⟩
-    #   yes      = ∃⟨A, h⟩ marked U
-    #   no       = ∃⟨A, complement(h)⟩ marked U
-    #   definitely    iff strict
-    #   defeasibly    iff yes OR strict
-    #   not_defeasibly iff no AND NOT strict
-    #   undecided     iff (NOT yes AND NOT no AND NOT strict)
-    #                    AND (some argument for h or complement(h) exists)
-    #   UNKNOWN (predicate not in language) → omitted from every section
-    definitely_atoms: set[GroundAtom] = set()
-    defeasibly_atoms: set[GroundAtom] = set()
-    not_defeasibly_atoms: set[GroundAtom] = set()
+    # Garcia & Simari 2004 Def 5.3 (p. 120):
+    #   YES       iff ``atom`` is warranted; strict Pi conclusions are
+    #             represented as strict-only arguments and therefore
+    #             count as warranted here.
+    #   NO        iff the strong complement is warranted.
+    #   UNDECIDED iff neither side is warranted but an argument exists
+    #             on at least one side.
+    #   UNKNOWN   iff the predicate is absent from the theory language.
+    yes_atoms: set[GroundAtom] = set()
+    no_atoms: set[GroundAtom] = set()
     undecided_atoms: set[GroundAtom] = set()
+    unknown_atoms: set[GroundAtom] = set()
 
     for atom in conclusions:
-        # UNKNOWN gate: literals whose predicate isn't in the
-        # language are omitted from every section per Garcia 04
-        # Def 5.3 (and propstore's expectation per scout 2.2).
         if _strip_negation(atom.predicate) not in predicates:
+            unknown_atoms.add(atom)
             continue
 
         strict = atom in strict_atoms
         yes = atom in warranted
         no = complement(atom) in warranted or complement(atom) in strict_atoms
-        # Nute/Antoniou defeater contribution: a defeater rule whose
-        # head is ``atom`` or ``complement(atom)`` probes the literal
-        # without ever warranting it, and routes both sides of the
-        # probe into ``not_defeasibly``. See
-        # ``notes/b2_defeater_participation.md``.
+        # Nute/Antoniou defeater contribution: a defeater rule probes
+        # the literal without ever warranting it. On the Garcia answer
+        # surface, that probe makes the attacked literal a NO result.
         defeater_touches = atom in defeater_probed or complement(atom) in defeater_probed
 
-        if strict:
-            definitely_atoms.add(atom)
         if yes or strict:
-            defeasibly_atoms.add(atom)
+            yes_atoms.add(atom)
             continue
         if no or defeater_touches:
-            not_defeasibly_atoms.add(atom)
+            no_atoms.add(atom)
             continue
-        # Neither yes, no, nor strict — but at least one argument
-        # exists for ``atom`` (it is in ``conclusions``), so by Def 5.3
-        # this is UNDECIDED.
         undecided_atoms.add(atom)
 
     sections = {
-        "definitely": _atoms_to_section(definitely_atoms),
-        "defeasibly": _atoms_to_section(defeasibly_atoms),
-        "not_defeasibly": _atoms_to_section(not_defeasibly_atoms),
+        "yes": _atoms_to_section(yes_atoms),
+        "no": _atoms_to_section(no_atoms),
         "undecided": _atoms_to_section(undecided_atoms),
+        "unknown": _atoms_to_section(unknown_atoms),
     }
     model = DefeasibleModel(
-        sections={name: facts_map for name, facts_map in sections.items() if facts_map}
+        sections=sections,
     )
 
     trace = DefeasibleTrace(config=trace_config)
     trace.grounding_inspection = grounding_inspection
-    trace.definitely = tuple(sorted(definitely_atoms, key=_atom_sort_key))
-    trace.supported = tuple(sorted(definitely_atoms | defeasibly_atoms, key=_atom_sort_key))
+    trace.strict = tuple(sorted(strict_atoms, key=_atom_sort_key))
+    trace.yes = tuple(sorted(yes_atoms, key=_atom_sort_key))
     trace.arguments = arguments
     trace.trees = {
         atom: tree for atom, tree in sorted(trees.items(), key=lambda item: _atom_sort_key(item[0]))
@@ -361,11 +348,13 @@ def _evaluate_strict_only_theory_with_trace(
     )
     _raise_if_strict_pi_contradictory(model.facts, theory.conflicts)
     sections = {
-        "definitely": {predicate: set(rows) for predicate, rows in model.facts.items()},
-        "defeasibly": {predicate: set(rows) for predicate, rows in model.facts.items()},
+        "yes": {predicate: set(rows) for predicate, rows in model.facts.items()},
+        "no": {},
+        "undecided": {},
+        "unknown": {},
     }
     return DefeasibleModel(
-        sections={name: facts_map for name, facts_map in sections.items() if facts_map}
+        sections=sections,
     ), trace
 
 

@@ -49,13 +49,13 @@ def _rebutted_presumption_theory() -> DefeasibleTheory:
 
 
 def test_presumption_holds_when_no_defeating_argument_exists() -> None:
-    """A lone presumption lands in ``defeasibly`` — no counter-argument exists."""
+    """A lone presumption is a YES answer because no counter-argument exists."""
     model = DefeasibleEvaluator().evaluate(
         _presumption_only_theory(),
         marking_policy=MarkingPolicy.BLOCKING,
     )
 
-    innocent = model.sections.get("defeasibly", {}).get("innocent", set())
+    innocent = model.sections.get("yes", {}).get("innocent", set())
     assert () in innocent
 
 
@@ -76,15 +76,5 @@ def test_presumption_challenged_observed_behavior() -> None:
     )
 
     sections = model.sections
-    innocent_warranted = () in sections.get("defeasibly", {}).get("innocent", set())
-    not_innocent_warranted = () in sections.get("defeasibly", {}).get("~innocent", set())
-    innocent_undecided = () in sections.get("undecided", {}).get("innocent", set())
-    innocent_not_defeasibly = () in sections.get("not_defeasibly", {}).get("innocent", set())
-
-    outcomes = (
-        innocent_warranted,
-        not_innocent_warranted,
-        innocent_undecided,
-        innocent_not_defeasibly,
-    )
-    assert any(outcomes), f"innocent landed nowhere coherent; sections={sections!r}"
+    assert () in sections.get("yes", {}).get("~innocent", set())
+    assert () in sections.get("no", {}).get("innocent", set())

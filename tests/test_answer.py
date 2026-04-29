@@ -325,9 +325,9 @@ def test_sections_projection_under_specificity() -> None:
     Opus into the correct Def 5.3 sections once
     ``GeneralizedSpecificity`` is wired in:
 
-    - ``flies(tweety)`` in ``defeasibly``
-    - ``flies(opus)`` in ``not_defeasibly``
-    - ``~flies(opus)`` in ``defeasibly``
+    - ``flies(tweety)`` in ``yes``
+    - ``flies(opus)`` in ``no``
+    - ``~flies(opus)`` in ``yes``
 
     This exercises the evaluator wire, not just the ``answer`` query
     path, and is the green-gate test for the B2.3 evaluator-side
@@ -338,9 +338,9 @@ def test_sections_projection_under_specificity() -> None:
     assert isinstance(model, type(model))  # narrow for type checkers
     sections = model.sections  # type: ignore[attr-defined]
 
-    defeasibly = sections.get("defeasibly", {})
-    not_defeasibly = sections.get("not_defeasibly", {})
+    yes = sections.get("yes", {})
+    no = sections.get("no", {})
 
-    assert ("tweety",) in defeasibly.get("flies", set())
-    assert ("opus",) in defeasibly.get("~flies", set())
-    assert ("opus",) in not_defeasibly.get("flies", set())
+    assert ("tweety",) in yes.get("flies", set())
+    assert ("opus",) in yes.get("~flies", set())
+    assert ("opus",) in no.get("flies", set())

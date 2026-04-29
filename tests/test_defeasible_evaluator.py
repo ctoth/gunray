@@ -1,21 +1,8 @@
-"""Sections-projection unit tests for ``DefeasibleEvaluator`` (B1.6).
+"""Garcia-answer section tests for ``DefeasibleEvaluator`` (B1.6).
 
 These tests exercise the public ``DefeasibleModel.sections`` four-key
-contract (``definitely`` / ``defeasibly`` / ``not_defeasibly`` /
-``undecided``) that propstore and the conformance suite consume. They
-assert the section projection rules from Garcia & Simari 2004 §5
-applied to the paper-pipeline output:
-
-- ``definitely`` iff some ``⟨frozenset(), h⟩`` argument exists.
-- ``defeasibly`` iff some ``⟨A, h⟩`` argument's tree marks ``U``,
-  OR ``definitely``.
-- ``not_defeasibly`` iff some ``⟨A, complement(h)⟩`` argument's tree
-  marks ``U`` AND NOT ``definitely``.
-- ``undecided`` iff arguments exist for ``h`` or ``complement(h)``
-  but neither is warranted.
-
-Atoms whose predicate is not in the theory's language at all
-(``Answer.UNKNOWN``) are omitted from every section.
+contract (``yes`` / ``no`` / ``undecided`` / ``unknown``) from Garcia
+& Simari 2004 Def 5.3, p. 120.
 """
 
 from __future__ import annotations
@@ -86,7 +73,7 @@ def _missing_body_theory() -> DefeasibleTheory:
     but ``injured(tweety)`` is neither a fact nor derivable. The
     grounded ``flies(tweety)`` argument therefore has no valid body
     activation, so no argument exists and the literal must NOT
-    appear in the ``defeasibly`` section.
+    appear in the ``yes`` section.
     """
     return DefeasibleTheory(
         facts={"bird": {("tweety",)}},
@@ -122,23 +109,21 @@ def _strict_complement_theory() -> DefeasibleTheory:
 
 
 def test_tweety_sections_projection() -> None:
-    """Garcia 04 §5 Tweety / Simari 92 §5 Opus: strict+defeasible
+    """Garcia 04 §5 Tweety / Simari 92 §5 Opus: warranted-answer
     projection under ``GeneralizedSpecificity``.
 
     - ``bird(tweety)``, ``bird(opus)``, ``penguin(opus)`` are all in
       the strict closure of ``Π``: ``bird(opus)`` follows from
-      ``penguin(opus)`` via ``s1``. They land in ``definitely`` and
-      (because every strict derivation is also a defeasible
-      derivation per the prompt's rules) also in ``defeasibly``.
+      ``penguin(opus)`` via ``s1``. They are YES answers.
     - ``flies(tweety)`` has only the defeasible rule ``r1@tweety``
       and no counter-argument exists, so its tree marks ``U`` and it
-      lands in ``defeasibly``.
+      lands in ``yes``.
     - Under Block 2's ``GeneralizedSpecificity`` (Simari 92 Lemma 2.4),
       ``~flies(opus)`` is strictly more specific than ``flies(opus)``
       because ``penguin(opus)`` strict-closes to ``bird(opus)`` but
       not vice versa. The ``~flies(opus)`` argument properly defeats
-      the ``flies(opus)`` argument, so ``~flies(opus)`` is warranted
-      and ``flies(opus)`` lands in ``not_defeasibly``.
+      the ``flies(opus)`` argument, so ``~flies(opus)`` is YES and
+      ``flies(opus)`` is NO.
     """
     evaluator = GunrayEvaluator()
     model = evaluator.evaluate(_tweety_theory(), marking_policy=MarkingPolicy.BLOCKING)
@@ -148,17 +133,14 @@ def test_tweety_sections_projection() -> None:
     assert ("opus",) in model.sections["yes"]["~flies"]
     assert ("opus",) in model.sections["no"]["flies"]
 
-    assert model.sections["definitely"]["bird"] == {("tweety",), ("opus",)}
-    assert model.sections["definitely"]["penguin"] == {("opus",)}
-
-    assert model.sections["defeasibly"]["bird"] == {("tweety",), ("opus",)}
-    assert model.sections["defeasibly"]["penguin"] == {("opus",)}
-    assert ("tweety",) in model.sections["defeasibly"]["flies"]
+    assert model.sections["yes"]["bird"] == {("tweety",), ("opus",)}
+    assert model.sections["yes"]["penguin"] == {("opus",)}
+    assert ("tweety",) in model.sections["yes"]["flies"]
 
     # Block-2 Opus resolution: ~flies(opus) is warranted, flies(opus)
     # is not warranted.
-    assert ("opus",) in model.sections["defeasibly"]["~flies"]
-    assert ("opus",) in model.sections["not_defeasibly"]["flies"]
+    assert ("opus",) in model.sections["yes"]["~flies"]
+    assert ("opus",) in model.sections["no"]["flies"]
 
     # Opus must NOT remain in undecided under GeneralizedSpecificity.
     undecided_flies = model.sections.get("undecided", {}).get("flies", set())
@@ -177,54 +159,52 @@ def test_nixon_sections_projection() -> None:
     assert ("nixon",) in model.sections["undecided"]["pacifist"]
     assert ("nixon",) in model.sections["undecided"]["~pacifist"]
 
-    # Strict facts still land in definitely.
-    assert ("nixon",) in model.sections["definitely"]["republican"]
-    assert ("nixon",) in model.sections["definitely"]["quaker"]
+    # Strict facts are YES answers.
+    assert ("nixon",) in model.sections["yes"]["republican"]
+    assert ("nixon",) in model.sections["yes"]["quaker"]
 
 
 def test_strict_only_sections_projection() -> None:
-    """Scout 5.6 strict-only path closure: every derived path lands
-    in ``definitely`` (and ``defeasibly``). The strict-only shortcut
-    must continue to route through ``SemiNaiveEvaluator``."""
+    """Scout 5.6 strict-only path closure: every derived path is YES."""
     evaluator = GunrayEvaluator()
     model = evaluator.evaluate(_strict_only_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
     expected_paths = {("a", "b"), ("b", "c"), ("a", "c")}
-    assert model.sections["definitely"]["path"] == expected_paths
-    assert model.sections["defeasibly"]["path"] == expected_paths
+    assert model.sections["yes"]["path"] == expected_paths
+    assert model.sections["no"] == {}
+    assert model.sections["undecided"] == {}
+    assert model.sections["unknown"] == {}
 
 
-def test_missing_body_literal_is_not_defeasibly() -> None:
+def test_missing_body_literal_is_not_yes() -> None:
     """Regression preserved from the deleted ``test_defeasible_core.py``.
 
     ``flies(X) :- bird(X), injured(X)`` with ``bird(tweety)`` but no
     ``injured(tweety)``: the defeasible rule has no valid body
     activation, so no argument for ``flies(tweety)`` exists. The
-    literal must NOT appear in the ``defeasibly`` section. Its
+    literal must NOT appear in the ``yes`` section. Its
     predicate ``flies`` IS in the language, but the literal has no
     argument and no warranted complement, so it should also not
-    appear in ``not_defeasibly`` or ``undecided`` (no argument for
-    either side).
+    appear in ``no`` or ``undecided`` (no argument for either side).
     """
     evaluator = DefeasibleEvaluator()
     model = evaluator.evaluate(_missing_body_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
-    flies_defeasibly = model.sections.get("defeasibly", {}).get("flies", set())
-    assert ("tweety",) not in flies_defeasibly
+    flies_yes = model.sections.get("yes", {}).get("flies", set())
+    assert ("tweety",) not in flies_yes
 
-    # bird(tweety) is a fact and lands in definitely + defeasibly.
-    assert ("tweety",) in model.sections["definitely"]["bird"]
-    assert ("tweety",) in model.sections["defeasibly"]["bird"]
+    # bird(tweety) is a fact and is a YES answer.
+    assert ("tweety",) in model.sections["yes"]["bird"]
 
 
-def test_strict_complement_projects_opposite_literal_to_not_defeasibly() -> None:
+def test_strict_complement_projects_opposite_literal_to_no() -> None:
     """A strict complement should make the opposite literal NO."""
 
     evaluator = GunrayEvaluator()
     model = evaluator.evaluate(_strict_complement_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
-    assert ("tweety",) in model.sections["definitely"]["~flies"]
-    assert ("tweety",) in model.sections["not_defeasibly"]["flies"]
+    assert ("tweety",) in model.sections["yes"]["~flies"]
+    assert ("tweety",) in model.sections["no"]["flies"]
 
 
 def test_direct_defeasible_evaluator_routes_closure_policy_to_closure_evaluator(
@@ -244,7 +224,7 @@ def test_direct_defeasible_evaluator_routes_closure_policy_to_closure_evaluator(
         ) -> tuple[DefeasibleModel, DefeasibleTrace]:
             calls.append((routed_theory, routed_policy, trace_config))
             return (
-                DefeasibleModel(sections={"defeasibly": {"sentinel": {()}}}),
+                DefeasibleModel(sections={"yes": {"sentinel": {()}}}),
                 DefeasibleTrace(config=trace_config or TraceConfig()),
             )
 
@@ -260,5 +240,5 @@ def test_direct_defeasible_evaluator_routes_closure_policy_to_closure_evaluator(
         closure_policy=ClosurePolicy.RATIONAL_CLOSURE,
     )
 
-    assert model.sections == {"defeasibly": {"sentinel": {()}}}
+    assert model.sections == {"yes": {"sentinel": {()}}}
     assert calls == [(theory, ClosurePolicy.RATIONAL_CLOSURE, None)]
