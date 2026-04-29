@@ -3,7 +3,7 @@ import time
 import pytest
 
 import gunray.dialectic as dialectic
-from gunray import DefeasibleEvaluator, DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
+from gunray import DefeasibleEvaluator, DefeasibleTheory, MarkingPolicy, Rule
 from gunray.arguments import build_arguments
 from gunray.dialectic import (
     DialecticalNode,

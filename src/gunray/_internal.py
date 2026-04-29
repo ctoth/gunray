@@ -107,7 +107,10 @@ def _ground_theory(theory: SchemaDefeasibleTheory) -> _GroundedTheory:
 
     fact_atoms = _fact_atoms(facts)
     public_strict = tuple(
-        sorted((_public_ground_rule_instance(item) for item in strict_instances), key=_instance_sort_key)
+        sorted(
+            (_public_ground_rule_instance(item) for item in strict_instances),
+            key=_instance_sort_key,
+        )
     )
     public_defeasible = tuple(
         sorted(

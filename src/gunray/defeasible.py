@@ -34,11 +34,11 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Literal
 
 from ._internal import _atom_sort_key, _strict_rule_to_program_text
+from .anytime import EnumerationExceeded
+from .arguments import build_arguments
 from .closure import ClosureEvaluator
 from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
-from .anytime import EnumerationExceeded
-from .arguments import build_arguments
 from .grounding import inspect_grounding
 from .schema import (
     ClosurePolicy,

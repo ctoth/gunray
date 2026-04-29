@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 import gunray.closure as closure_module
-from gunray import DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
+from gunray import ClosurePolicy, DefeasibleTheory, Rule
 from gunray.closure import (
     ClosureEvaluator,
     _conjunction_formula,
@@ -85,7 +85,13 @@ def test_impossible_antecedent_is_handled_consistently_across_closure_policies()
     consequent = _literal_formula("p")
 
     assert _formula_entails(ranked, theory, antecedent, consequent, ClosurePolicy.RATIONAL_CLOSURE)
-    assert _formula_entails(ranked, theory, antecedent, consequent, ClosurePolicy.LEXICOGRAPHIC_CLOSURE)
+    assert _formula_entails(
+        ranked,
+        theory,
+        antecedent,
+        consequent,
+        ClosurePolicy.LEXICOGRAPHIC_CLOSURE,
+    )
     assert _formula_entails(ranked, theory, antecedent, consequent, ClosurePolicy.RELEVANT_CLOSURE)
 
 

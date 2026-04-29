@@ -11,8 +11,8 @@ from datalog_conformance.plugin import _load_multi_case_file
 from gunray import (
     DefeasibleEvaluator,
     DefeasibleTheory,
+    MarkingPolicy,
     NegationSemantics,
-    ClosurePolicy, MarkingPolicy,
     Program,
     Rule,
     SemiNaiveEvaluator,

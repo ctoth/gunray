@@ -13,7 +13,7 @@ F-A report, finding on arg-bearing presumption heads).
 
 from __future__ import annotations
 
-from gunray import DefeasibleEvaluator, DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
+from gunray import DefeasibleEvaluator, DefeasibleTheory, MarkingPolicy, Rule
 
 
 def _presumption_only_theory() -> DefeasibleTheory:
@@ -50,7 +50,10 @@ def _rebutted_presumption_theory() -> DefeasibleTheory:
 
 def test_presumption_holds_when_no_defeating_argument_exists() -> None:
     """A lone presumption lands in ``defeasibly`` — no counter-argument exists."""
-    model = DefeasibleEvaluator().evaluate(_presumption_only_theory(), marking_policy=MarkingPolicy.BLOCKING)
+    model = DefeasibleEvaluator().evaluate(
+        _presumption_only_theory(),
+        marking_policy=MarkingPolicy.BLOCKING,
+    )
 
     innocent = model.sections.get("defeasibly", {}).get("innocent", set())
     assert () in innocent
@@ -67,7 +70,10 @@ def test_presumption_challenged_observed_behavior() -> None:
     observed outcome rather than pinning it — if it changes, that is
     a deliberate semantic decision for the next iteration.
     """
-    model = DefeasibleEvaluator().evaluate(_rebutted_presumption_theory(), marking_policy=MarkingPolicy.BLOCKING)
+    model = DefeasibleEvaluator().evaluate(
+        _rebutted_presumption_theory(),
+        marking_policy=MarkingPolicy.BLOCKING,
+    )
 
     sections = model.sections
     innocent_warranted = () in sections.get("defeasibly", {}).get("innocent", set())

@@ -22,12 +22,13 @@ from __future__ import annotations
 
 import gunray.defeasible as defeasible_module
 from gunray import (
+    ClosurePolicy,
     DefeasibleEvaluator,
     DefeasibleModel,
     DefeasibleTheory,
     DefeasibleTrace,
     GunrayEvaluator,
-    ClosurePolicy, MarkingPolicy,
+    MarkingPolicy,
     Rule,
     TraceConfig,
 )

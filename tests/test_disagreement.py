@@ -6,7 +6,7 @@ from conftest import ground_atom_strategy, strict_context_strategy
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from gunray import DefeasibleEvaluator, DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
+from gunray import DefeasibleEvaluator, DefeasibleTheory, MarkingPolicy, Rule
 from gunray.disagreement import complement, disagrees, strict_closure
 from gunray.types import GroundAtom, GroundDefeasibleRule
 

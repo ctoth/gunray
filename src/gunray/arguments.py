@@ -22,8 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from itertools import product
 
-from .anytime import EnumerationExceeded
 from ._internal import _force_strict_for_closure, _ground_theory
+from .anytime import EnumerationExceeded
 from .disagreement import has_contradiction, strict_closure
 from .errors import ContradictoryStrictTheoryError
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
@@ -163,7 +163,8 @@ def build_arguments(
                 combined_rules = grounded_strict_rules + tuple(
                     _force_strict_for_closure(r) for r in rule_set
                 )
-                if has_contradiction(strict_closure(fact_atoms, combined_rules), conflicts=conflicts):
+                closure = strict_closure(fact_atoms, combined_rules)
+                if has_contradiction(closure, conflicts=conflicts):
                     continue
                 if _add_minimal_argument(
                     arguments,

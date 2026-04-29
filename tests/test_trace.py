@@ -9,7 +9,7 @@ from gunray import (
     DefeasibleTheory,
     DefeasibleTrace,
     GunrayEvaluator,
-    ClosurePolicy, MarkingPolicy,
+    MarkingPolicy,
     Program,
     Rule,
     TraceConfig,
@@ -154,7 +154,10 @@ def test_deleted_fields_absent() -> None:
 def test_hypothesis_markings_have_trees(theory: DefeasibleTheory) -> None:
     """Every atom with a marking has a corresponding tree."""
 
-    _, trace = DefeasibleEvaluator().evaluate_with_trace(theory, marking_policy=MarkingPolicy.BLOCKING)
+    _, trace = DefeasibleEvaluator().evaluate_with_trace(
+        theory,
+        marking_policy=MarkingPolicy.BLOCKING,
+    )
 
     for atom in trace.markings:
         assert atom in trace.trees, f"{atom} marked but no tree"

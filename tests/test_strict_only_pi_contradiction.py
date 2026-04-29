@@ -10,7 +10,7 @@ from hypothesis import assume, given, settings
 # src/gunray/ — test code is explicitly allowed to check internals.
 from gunray.defeasible import DefeasibleEvaluator, _is_strict_only_theory
 from gunray.errors import ContradictoryStrictTheoryError
-from gunray.schema import DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
+from gunray.schema import DefeasibleTheory, MarkingPolicy, Rule
 
 
 def test_strict_only_theory_with_contradictory_pi_raises() -> None:

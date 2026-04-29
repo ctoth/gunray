@@ -16,10 +16,10 @@ p.150 (as cited in ``closure.py``).
 from __future__ import annotations
 
 from gunray import (
+    ClosurePolicy,
     DefeasibleModel,
     DefeasibleTheory,
     GunrayEvaluator,
-    ClosurePolicy, MarkingPolicy,
     Rule,
 )
 from gunray.schema import FactTuple, PredicateFacts

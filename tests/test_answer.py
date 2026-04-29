@@ -19,7 +19,7 @@ from gunray.answer import Answer
 from gunray.dialectic import answer
 from gunray.disagreement import complement
 from gunray.preference import GeneralizedSpecificity, TrivialPreference
-from gunray.schema import DefeasibleTheory, ClosurePolicy, MarkingPolicy, Rule
+from gunray.schema import DefeasibleTheory, MarkingPolicy, Rule
 from gunray.types import GroundAtom
 
 
