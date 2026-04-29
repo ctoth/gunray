@@ -124,7 +124,10 @@ def build_arguments(
         # Non-contradiction guard (Def 3.1 cond 2 analogue): rejecting
         # ``{d}`` if ``Pi union {d}`` would be contradictory.
         combined = grounded_strict_rules + (_force_strict_for_closure(rule),)
-        if has_contradiction(strict_closure(fact_atoms, combined), conflicts=conflicts):
+        closure = strict_closure(fact_atoms, combined)
+        if has_contradiction(closure, conflicts=conflicts):
+            continue
+        if _violates_default_negation(frozenset({rule}), closure):
             continue
         _add_argument_with_budget(
             arguments,
@@ -164,6 +167,8 @@ def build_arguments(
                     _force_strict_for_closure(r) for r in rule_set
                 )
                 closure = strict_closure(fact_atoms, combined_rules)
+                if _violates_default_negation(rule_set, closure):
+                    continue
                 if has_contradiction(closure, conflicts=conflicts):
                     continue
                 if _add_minimal_argument(
@@ -219,9 +224,22 @@ def _has_redundant_nonempty_subset(
             _force_strict_for_closure(candidate) for candidate in reduced
         )
         closure = strict_closure(fact_atoms, combined_rules)
-        if conclusion in closure and not has_contradiction(closure, conflicts=conflicts):
+        if (
+            conclusion in closure
+            and not has_contradiction(closure, conflicts=conflicts)
+            and not _violates_default_negation(reduced, closure)
+        ):
             return True
     return False
+
+
+def _violates_default_negation(
+    rule_set: frozenset[GroundDefeasibleRule],
+    closure: frozenset[GroundAtom],
+) -> bool:
+    """Garcia & Simari 2004 p. 125 Def 6.2 rejects self-defeating arguments."""
+
+    return any(atom in closure for rule in rule_set for atom in rule.default_negated_body)
 
 
 def _add_argument_with_budget(

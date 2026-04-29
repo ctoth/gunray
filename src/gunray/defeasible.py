@@ -224,7 +224,7 @@ def _evaluate_via_argument_pipeline(
 
     strict_atoms: set[GroundAtom] = {arg.conclusion for arg in arguments if not arg.rules}
     conclusions: set[GroundAtom] = {arg.conclusion for arg in arguments}
-    conclusions.update(complement(atom) for atom in strict_atoms)
+    conclusions.update(complement(atom) for atom in tuple(conclusions))
 
     # Garcia & Simari 2004 Def 5.3 (p. 120):
     #   YES       iff ``atom`` is warranted; strict Pi conclusions are

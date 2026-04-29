@@ -260,7 +260,7 @@ def test_argument_for_default_negated_literal_attacks_assumption() -> None:
     )
 
     assert () in model.sections["yes"]["q"]
-    assert () in model.sections["no"]["p"]
+    assert () in model.sections["undecided"]["p"]
 
 
 def test_direct_defeasible_evaluator_routes_closure_policy_to_closure_evaluator(

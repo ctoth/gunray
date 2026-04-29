@@ -20,6 +20,7 @@ class GroundRuleInstance:
     head: GroundAtom
     body: tuple[GroundAtom, ...]
     substitution: GroundingSubstitution
+    default_negated_body: tuple[GroundAtom, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

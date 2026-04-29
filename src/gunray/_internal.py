@@ -153,6 +153,7 @@ def _public_ground_rule_instance(instance: _GroundRuleInstance) -> GroundRuleIns
         head=instance.rule.head,
         body=instance.rule.body,
         substitution=_public_substitution(instance.substitution),
+        default_negated_body=instance.rule.default_negated_body,
     )
 
 
@@ -187,6 +188,7 @@ def _force_strict_for_closure(rule: GroundDefeasibleRule) -> GroundDefeasibleRul
         kind="strict",
         head=rule.head,
         body=rule.body,
+        default_negated_body=(),
     )
 
 
@@ -237,6 +239,9 @@ def _rule_variable_names(rule: DefeasibleRule) -> list[str]:
     for atom in rule.body:
         for term in atom.terms:
             names |= variables_in_term(term)
+    for atom in rule.default_negated_body:
+        for term in atom.terms:
+            names |= variables_in_term(term)
     return sorted(names)
 
 
@@ -261,6 +266,7 @@ def _ground_rule_instances_with_substitutions(
     if not variables:
         head = ground_atom(rule.head, {})
         body = tuple(ground_atom(atom, {}) for atom in rule.body)
+        default_negated_body = tuple(ground_atom(atom, {}) for atom in rule.default_negated_body)
         return (
             _GroundRuleInstance(
                 rule=GroundDefeasibleRule(
@@ -268,6 +274,7 @@ def _ground_rule_instances_with_substitutions(
                     kind=rule.kind,
                     head=head,
                     body=body,
+                    default_negated_body=default_negated_body,
                 ),
                 substitution=(),
             ),
@@ -288,6 +295,12 @@ def _ground_rule_instances_with_substitutions(
             body = tuple(ground_atom(atom, binding) for atom in rule.body)
         except KeyError:
             continue
+        try:
+            default_negated_body = tuple(
+                ground_atom(atom, binding) for atom in rule.default_negated_body
+            )
+        except KeyError:
+            continue
         key = (rule.rule_id, head.arguments)
         seen[key] = _GroundRuleInstance(
             rule=GroundDefeasibleRule(
@@ -295,6 +308,7 @@ def _ground_rule_instances_with_substitutions(
                 kind=rule.kind,
                 head=head,
                 body=body,
+                default_negated_body=default_negated_body,
             ),
             substitution=tuple(sorted(binding.items())),
         )

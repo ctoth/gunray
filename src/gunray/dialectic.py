@@ -152,6 +152,9 @@ def _disagreeing_subarguments(
             conflicts=conflicts,
         ):
             hits.append(sub)
+            continue
+        if any(attacker.conclusion in rule.default_negated_body for rule in sub.rules):
+            hits.append(sub)
     return hits
 
 

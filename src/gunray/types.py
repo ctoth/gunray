@@ -83,6 +83,7 @@ class DefeasibleRule:
     kind: str
     head: Atom
     body: tuple[Atom, ...]
+    default_negated_body: tuple[Atom, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +92,7 @@ class GroundDefeasibleRule:
     kind: str
     head: GroundAtom
     body: tuple[GroundAtom, ...]
+    default_negated_body: tuple[GroundAtom, ...] = ()
 
 
 def variables_in_term(term: AtomTerm) -> set[str]:

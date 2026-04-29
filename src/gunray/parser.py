@@ -92,11 +92,26 @@ def parse_defeasible_theory(
 def parse_defeasible_rule(rule: SchemaRule, *, kind: str) -> DefeasibleRule:
     """Parse a structured defeasible rule entry."""
 
+    positive_body: list[Atom] = []
+    default_negated_body: list[Atom] = []
+    for item in rule.body:
+        candidate = item.strip()
+        if candidate.startswith("not "):
+            if kind == "strict":
+                raise ParseError(
+                    "Default-negated body literals are only supported in defeasible rules "
+                    "(Garcia & Simari 2004 pp. 125-126)"
+                )
+            default_negated_body.append(parse_atom_text(candidate[4:].strip()))
+            continue
+        positive_body.append(parse_atom_text(candidate))
+
     return DefeasibleRule(
         rule_id=rule.id,
         kind=kind,
         head=parse_atom_text(rule.head),
-        body=tuple(parse_atom_text(item) for item in rule.body),
+        body=tuple(positive_body),
+        default_negated_body=tuple(default_negated_body),
     )
 
 
