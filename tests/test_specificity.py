@@ -122,6 +122,27 @@ def _strict_only_theory() -> DefeasibleTheory:
     )
 
 
+def _garcia_tina_theory() -> DefeasibleTheory:
+    """Garcia & Simari 2004 p. 108 Example 3.5 Tina bird/chicken theory."""
+
+    return DefeasibleTheory(
+        facts={"chicken": {("tina",)}, "scared": {("tina",)}},
+        strict_rules=[Rule(id="s_chicken_bird", head="bird(X)", body=["chicken(X)"])],
+        defeasible_rules=[
+            Rule(id="r_bird_flies", head="flies(X)", body=["bird(X)"]),
+            Rule(id="r_chicken_not_flies", head="~flies(X)", body=["chicken(X)"]),
+            Rule(
+                id="r_scared_chicken_flies",
+                head="flies(X)",
+                body=["chicken(X)", "scared(X)"],
+            ),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+
+
 def _find_argument(args: frozenset[Argument], rule_id: str) -> Argument:
     """Locate the argument whose rule set contains ``rule_id``."""
 
@@ -205,6 +226,29 @@ def test_royal_elephants_off_path() -> None:
 
     assert criterion.prefers(d2_arg, d1_arg) is True
     assert criterion.prefers(d1_arg, d2_arg) is False
+
+
+def test_garcia_example_35_reports_specificity_direction() -> None:
+    """Garcia & Simari 2004 p. 108 Ex. 3.5: Tina's chicken rules outrank bird."""
+
+    theory = _garcia_tina_theory()
+    args = build_arguments(theory)
+    bird_flies = _find_argument(args, "r_bird_flies")
+    chicken_not_flies = _find_argument(args, "r_chicken_not_flies")
+    scared_chicken_flies = _find_argument(args, "r_scared_chicken_flies")
+    criterion = GeneralizedSpecificity(theory)
+
+    chicken_vs_bird = criterion.compare(chicken_not_flies, bird_flies)
+    assert chicken_vs_bird.relation == "left"
+    assert chicken_vs_bird.left_prefers is True
+    assert chicken_vs_bird.right_prefers is False
+    assert chicken_vs_bird.citation == "Garcia & Simari 2004, p. 108"
+
+    scared_vs_chicken = criterion.compare(scared_chicken_flies, chicken_not_flies)
+    assert scared_vs_chicken.relation == "left"
+    assert scared_vs_chicken.left_prefers is True
+    assert scared_vs_chicken.right_prefers is False
+    assert scared_vs_chicken.citation == "Garcia & Simari 2004, p. 108"
 
 
 def test_strict_only_arguments_incomparable() -> None:
