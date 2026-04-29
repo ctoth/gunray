@@ -90,7 +90,30 @@ def test_morris_closure_corpus_matches_ranked_world_reference() -> None:
         for gunray_policy, suite_policy in _POLICY_PAIRS[:2]:
             actual = evaluator.evaluate(gunray_theory, gunray_policy)
             expected = reference.evaluate(case.theory, suite_policy)
-            assert actual.sections == expected.sections
+            assert actual.sections == _suite_sections_to_garcia(expected.sections)
+
+
+def _suite_sections_to_garcia(
+    sections: dict[str, dict[str, set[tuple[()]]]],
+) -> dict[str, dict[str, set[tuple[()]]]]:
+    """Translate the conformance-suite legacy section names to Garcia Def 5.3 names."""
+
+    yes: dict[str, set[tuple[()]]] = {}
+    for bucket_name in ("definitely", "defeasibly"):
+        for predicate, rows in sections.get(bucket_name, {}).items():
+            yes.setdefault(predicate, set()).update(rows)
+    return {
+        "yes": yes,
+        "no": {
+            predicate: set(rows) for predicate, rows in sections.get("not_defeasibly", {}).items()
+        },
+        "undecided": {
+            predicate: set(rows) for predicate, rows in sections.get("undecided", {}).items()
+        },
+        "unknown": {
+            predicate: set(rows) for predicate, rows in sections.get("unknown", {}).items()
+        },
+    }
 
 
 def test_relevant_entailment_matches_reference_with_negative_strict_body() -> None:
