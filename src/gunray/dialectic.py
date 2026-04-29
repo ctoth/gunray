@@ -52,6 +52,9 @@ from .preference import PreferenceCriterion
 from .schema import DefeasibleTheory
 from .types import GroundAtom, GroundDefeasibleRule
 
+DefeaterKind = Literal["proper", "blocking"]
+NodeDefeaterKind = Literal["root", "proper", "blocking"]
+
 
 def _theory_strict_rules(
     theory: DefeasibleTheory,
@@ -219,11 +222,15 @@ class DialecticalNode:
     """Garcia & Simari 2004 Definition 5.1 — node of a dialectical tree.
 
     Immutable. No ``mark`` field — marking is a pure function over
-    the tree (``mark``), per Procedure 5.1.
+    the tree (``mark``), per Procedure 5.1. ``defeater_kind`` records
+    the Garcia & Simari 2004 p. 110 Def 4.1/4.2 edge kind that
+    attached the node to its parent; the root has no incoming
+    defeat edge and uses ``"root"``.
     """
 
     argument: Argument
     children: tuple["DialecticalNode", ...]
+    defeater_kind: NodeDefeaterKind = "root"
 
 
 def _concordant(
@@ -277,7 +284,7 @@ def _defeat_kind(
     strict_rules: tuple[GroundDefeasibleRule, ...],
     facts: frozenset[GroundAtom],
     conflicts: frozenset[tuple[str, str]],
-) -> str | None:
+) -> DefeaterKind | None:
     """Return ``"proper"``, ``"blocking"``, or ``None``.
 
     Helper used by ``build_tree`` to classify a candidate defeater.
@@ -298,6 +305,39 @@ def _defeat_kind(
         return "proper"
     if blocking_hit:
         return "blocking"
+    return None
+
+
+def classify_defeat(
+    attacker: Argument,
+    target: Argument,
+    criterion: PreferenceCriterion,
+    theory: DefeasibleTheory,
+    *,
+    universe: tuple[Argument, ...] | frozenset[Argument] | None = None,
+) -> DefeaterKind | None:
+    """Classify a candidate defeat as proper, blocking, or absent.
+
+    Garcia & Simari 2004 p. 110 Def 4.1 names proper defeaters and
+    Def 4.2 names blocking defeaters. This public helper exposes that
+    paper-level distinction for explanation and downstream storage
+    layers while delegating to the same classifier used by
+    ``build_tree``.
+    """
+
+    actual_universe = universe if universe is not None else build_arguments(theory)
+    context = _dialectical_context(theory)
+    kind = _defeat_kind(
+        attacker,
+        target,
+        criterion,
+        actual_universe,
+        context.strict_rules,
+        context.facts,
+        context.conflicts,
+    )
+    if kind == "proper" or kind == "blocking":
+        return kind
     return None
 
 
@@ -352,7 +392,7 @@ def build_tree(
 def _expand(
     current: Argument,
     line: list[Argument],
-    edge_kinds: list[str | None],
+    edge_kinds: list[DefeaterKind | None],
     universe: tuple[Argument, ...] | frozenset[Argument],
     criterion: PreferenceCriterion,
     strict_rules: tuple[GroundDefeasibleRule, ...],
@@ -372,6 +412,7 @@ def _expand(
     """
     children_nodes: list[DialecticalNode] = []
     parent_edge_kind = edge_kinds[-1]
+    node_defeater_kind: NodeDefeaterKind = parent_edge_kind if parent_edge_kind else "root"
 
     for candidate in universe:
         kind = _defeat_kind(candidate, current, criterion, universe, strict_rules, facts, conflicts)
@@ -437,7 +478,11 @@ def _expand(
             )
         )
 
-    return DialecticalNode(argument=current, children=tuple(children_nodes))
+    return DialecticalNode(
+        argument=current,
+        children=tuple(children_nodes),
+        defeater_kind=node_defeater_kind,
+    )
 
 
 def mark(node: DialecticalNode) -> Literal["U", "D"]:
