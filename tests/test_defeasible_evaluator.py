@@ -143,6 +143,11 @@ def test_tweety_sections_projection() -> None:
     evaluator = GunrayEvaluator()
     model = evaluator.evaluate(_tweety_theory(), marking_policy=MarkingPolicy.BLOCKING)
 
+    assert set(model.sections) <= {"yes", "no", "undecided", "unknown"}
+    assert ("tweety",) in model.sections["yes"]["bird"]
+    assert ("opus",) in model.sections["yes"]["~flies"]
+    assert ("opus",) in model.sections["no"]["flies"]
+
     assert model.sections["definitely"]["bird"] == {("tweety",), ("opus",)}
     assert model.sections["definitely"]["penguin"] == {("opus",)}
 
