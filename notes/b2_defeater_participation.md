@@ -300,5 +300,17 @@ an inherited B2.3 misclassification.
 3. Write report reports/b2-defeater-participation.md.
 4. Commit Hypothesis test.
 
+## 2026-04-29 — WS-O-gun-garcia supersession
+
+The April 13 `not_defeasibly` projection analysis above is preserved as
+historical diagnosis only. WS-O-gun-garcia replaced that model surface
+with Garcia & Simari 2004 Def 5.3 answer sections: `yes`, `no`,
+`undecided`, and `unknown`.
+
+Nute/Antoniou-style defeater rules still participate as pure attackers,
+but the old "defeater touches therefore `not_defeasibly`" section rule is
+not part of the public model. Callers that need to inspect defeater
+participation use `DefeasibleTrace.defeater_probed_atoms` and the
+`DialecticalNode.defeater_kind` edge labels instead.
 
 

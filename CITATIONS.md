@@ -43,6 +43,9 @@ KLM closure lifted to Datalog+. Uses:
 Source of the KLM postulates. Gunray's closure engine implements the
 `Or` disjunction postulate directly — [`closure.py`](src/gunray/closure.py)
 cites KLM 1990 via Morris/Ross/Meyer 2020's Datalog+ restatement.
+`tests/test_closure_faithfulness.py` carries the Hypothesis comparison
+against the ranked-world reference evaluator for small generated
+theories, including the public `Or` postulate check.
 
 ### Apt, Blair & Walker 1988 — *Towards a Theory of Declarative Knowledge*
 Stratified-negation safety for Datalog. Uses:
@@ -66,6 +69,10 @@ the attacked literal participates only as a pure attacker, not as a
 supporter of its own head. Cited in [`arguments.py`](src/gunray/arguments.py),
 [`defeasible.py`](src/gunray/defeasible.py), and [`dialectic.py`](src/gunray/dialectic.py)
 as the "Nute/Antoniou reading"; see `notes/b2_defeater_participation.md`.
+The former section-level `not_defeasibly` projection derived from this
+reading is superseded by Garcia & Simari 2004 Def 5.3 `yes` / `no` /
+`undecided` / `unknown`; defeater participation is now inspectable on
+the trace instead of encoded as a model section.
 
 ### Diller, Geilke, Gottifredi, García & Simari 2025 — *Grounding Rule-Based Argumentation in Datalog*
 Gunray uses the paper's Datalog-grounding contract for the public

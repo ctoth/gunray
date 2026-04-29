@@ -43,8 +43,9 @@ step lives in a named module:
 - **Answers** are the four-valued `Answer` of García & Simari 2004
   Def 5.3 p. 28 — `YES` / `NO` / `UNDECIDED` / `UNKNOWN` — exposed by
   `answer` in [`answer.py`](src/gunray/answer.py) and projected into
-  the `definitely` / `defeasibly` / `not_defeasibly` / `undecided`
-  sections of `DefeasibleModel`.
+  the `yes` / `no` / `undecided` / `unknown` sections of
+  `DefeasibleModel`. The pre-rewrite `definitely`, `defeasibly`, and
+  `not_defeasibly` section names are not model fields.
 - **Presumptions** (García & Simari 2004 §6.2 p. 32) are defeasible
   rules with an empty body, written `h -< true` in the DeLP surface
   syntax. `DefeasibleTheory.presumptions` carries them; they flow
@@ -75,8 +76,8 @@ tests and for pure-dialectical-tree cases.
 defeaters, and no superiority as degenerate — they are classical
 Datalog wearing a defeasible jacket. The fast path in
 [`defeasible.py`](src/gunray/defeasible.py) routes them into
-`SemiNaiveEvaluator` and mirrors every derived fact into both the
-`definitely` and `defeasibly` sections. It also populates the optional
+`SemiNaiveEvaluator` and mirrors every derived fact into the `yes`
+section. It also populates the optional
 argument view on `DefeasibleTrace`: every strict consequence is exposed
 as a leaf `Argument(frozenset(), h)` with marking `U`.
 
@@ -126,9 +127,11 @@ irreflexive acyclic relation over declared rule ids. Self-pairs and
 cycles are rejected before preference closure is computed.
 
 Section projection and generalized specificity remain owned by the
-García 2004 / Simari 1992 path. The section-projection contract is
-being revised in the propstore WS-O-gun-garcia workstream; consumers
-that depend on section names should track that workstream.
+García 2004 / Simari 1992 path. The section-projection contract is now
+the Garcia Def 5.3 surface: `yes`, `no`, `undecided`, and `unknown`.
+`DefeasibleTrace` carries strict consequences, dialectical trees,
+markings, and `defeater_probed_atoms` for callers that need provenance
+or inspection beyond those four answers.
 
 ## Out-of-contract
 
@@ -143,7 +146,8 @@ marked skip/deselect, not silently counted as passes:
   `Policy.PROPAGATING` was deprecated — see
   [`notes/policy_propagating_fate.md`](notes/policy_propagating_fate.md).
 - **Spindle implicit-`not_defeasibly` projection** for zero-arity head
-  literals.
+  literals. This is a conformance-suite legacy expectation, not a
+  Gunray model section.
 - **Spindle partial-dominance superiority**, which relaxes García 04
   §4.1's all-rules-dominate requirement.
 
