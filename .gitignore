@@ -1,5 +1,6 @@
 *.pdf
 *.png
+**/pngs/
 *.log
 pyghidra_mcp_projects
 __pycache__/
