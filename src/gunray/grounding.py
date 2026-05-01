@@ -47,6 +47,7 @@ def compute_non_approximated(theory: SchemaDefeasibleTheory) -> frozenset[str]:
             if not _predicate_is_non_approximated_candidate(
                 predicate,
                 candidate,
+                predicates,
                 rules,
                 conflicts,
             ):
@@ -60,20 +61,19 @@ def _theory_predicates(
     rules: list[DefeasibleRule],
     conflicts: set[tuple[str, str]],
 ) -> frozenset[str]:
+    del conflicts
     predicates = set(facts)
     for rule in rules:
         predicates.add(rule.head.predicate)
         predicates.update(atom.predicate for atom in rule.body)
         predicates.update(atom.predicate for atom in rule.default_negated_body)
-    for left, right in conflicts:
-        predicates.add(left)
-        predicates.add(right)
     return frozenset(predicates)
 
 
 def _predicate_is_non_approximated_candidate(
     predicate: str,
     candidate: set[str],
+    predicates: frozenset[str],
     rules: list[DefeasibleRule],
     conflicts: set[tuple[str, str]],
 ) -> bool:
@@ -87,9 +87,9 @@ def _predicate_is_non_approximated_candidate(
         if any(atom.predicate not in candidate for atom in rule.default_negated_body):
             return False
     for left, right in conflicts:
-        if left == predicate and right not in candidate:
+        if left == predicate and right in predicates and right not in candidate:
             return False
-        if right == predicate and left not in candidate:
+        if right == predicate and left in predicates and left not in candidate:
             return False
     return True
 
