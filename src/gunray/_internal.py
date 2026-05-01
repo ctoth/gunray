@@ -141,6 +141,7 @@ def _ground_theory(theory: SchemaDefeasibleTheory) -> _GroundedTheory:
                 public_strict,
                 public_defeasible,
                 public_defeater,
+                _compute_non_approximated(theory),
             ),
         ),
     )
@@ -174,10 +175,23 @@ def _simplify_strict_fact_grounding(
     strict_rules: tuple[GroundRuleInstance, ...],
     defeasible_rules: tuple[GroundRuleInstance, ...],
     defeater_rules: tuple[GroundRuleInstance, ...],
+    non_approximated_predicates: frozenset[str],
 ):
     from .grounding import _simplify_strict_fact_grounding as simplify
 
-    return simplify(fact_atoms, strict_rules, defeasible_rules, defeater_rules)
+    return simplify(
+        fact_atoms,
+        strict_rules,
+        defeasible_rules,
+        defeater_rules,
+        non_approximated_predicates,
+    )
+
+
+def _compute_non_approximated(theory: SchemaDefeasibleTheory) -> frozenset[str]:
+    from .grounding import compute_non_approximated
+
+    return compute_non_approximated(theory)
 
 
 def _force_strict_for_closure(rule: GroundDefeasibleRule) -> GroundDefeasibleRule:
