@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from .types import GroundAtom, Scalar
@@ -40,6 +40,7 @@ class GroundingSimplification:
     strict_rules_for_argumentation: tuple[GroundRuleInstance, ...]
     defeasible_rules_for_argumentation: tuple[GroundRuleInstance, ...]
     defeater_rules_for_argumentation: tuple[GroundRuleInstance, ...]
+    non_approximated_predicates: tuple[str, ...] = field(default_factory=tuple)
 
     @property
     def ground_rules_for_argumentation(self) -> tuple[GroundRuleInstance, ...]:
