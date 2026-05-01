@@ -11,7 +11,9 @@ from .grounding_types import (
     GroundRuleKind,
     GroundRuleResolution,
 )
+from .parser import parse_defeasible_theory
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
+from .types import DefeasibleRule
 from .types import GroundAtom, Scalar
 
 
@@ -19,6 +21,77 @@ def inspect_grounding(theory: SchemaDefeasibleTheory) -> GroundingInspection:
     """Inspect the exact ground instances produced by Gunray's shared grounder."""
 
     return _ground_theory(theory).inspection
+
+
+def compute_non_approximated(theory: SchemaDefeasibleTheory) -> frozenset[str]:
+    """Return predicates determined only by facts, strict rules, and safe conflicts.
+
+    This is a conservative Diller-Definition-12 style analysis over Gunray's
+    typed defeasible theory surface. A predicate is rejected if a non-strict
+    rule can derive it, if a strict derivation depends on an approximated
+    predicate, or if one of its configured conflict partners is approximated.
+    """
+
+    facts, rules, conflicts = parse_defeasible_theory(theory)
+    predicates = _theory_predicates(facts, rules, conflicts)
+    non_strict_heads = {
+        rule.head.predicate
+        for rule in rules
+        if rule.kind != "strict"
+    }
+    candidate = set(predicates - non_strict_heads)
+    changed = True
+    while changed:
+        changed = False
+        for predicate in tuple(sorted(candidate)):
+            if not _predicate_is_non_approximated_candidate(
+                predicate,
+                candidate,
+                rules,
+                conflicts,
+            ):
+                candidate.remove(predicate)
+                changed = True
+    return frozenset(candidate)
+
+
+def _theory_predicates(
+    facts: dict[str, set[tuple[Scalar, ...]]],
+    rules: list[DefeasibleRule],
+    conflicts: set[tuple[str, str]],
+) -> frozenset[str]:
+    predicates = set(facts)
+    for rule in rules:
+        predicates.add(rule.head.predicate)
+        predicates.update(atom.predicate for atom in rule.body)
+        predicates.update(atom.predicate for atom in rule.default_negated_body)
+    for left, right in conflicts:
+        predicates.add(left)
+        predicates.add(right)
+    return frozenset(predicates)
+
+
+def _predicate_is_non_approximated_candidate(
+    predicate: str,
+    candidate: set[str],
+    rules: list[DefeasibleRule],
+    conflicts: set[tuple[str, str]],
+) -> bool:
+    for rule in rules:
+        if rule.head.predicate != predicate:
+            continue
+        if rule.kind != "strict":
+            return False
+        if any(atom.predicate not in candidate for atom in rule.body):
+            return False
+        if any(atom.predicate not in candidate for atom in rule.default_negated_body):
+            return False
+    for left, right in conflicts:
+        if left == predicate and right not in candidate:
+            return False
+        if right == predicate and left not in candidate:
+            return False
+    return True
 
 
 def _atom_sort_key(atom: GroundAtom) -> tuple[str, tuple[Scalar, ...]]:
@@ -36,6 +109,7 @@ def _simplify_strict_fact_grounding(
     strict_rules: tuple[GroundRuleInstance, ...],
     defeasible_rules: tuple[GroundRuleInstance, ...],
     defeater_rules: tuple[GroundRuleInstance, ...],
+    non_approximated_predicates: frozenset[str] = frozenset(),
 ) -> GroundingSimplification:
     """Resolve strict ground rules whose bodies are already definite facts.
 
@@ -74,4 +148,5 @@ def _simplify_strict_fact_grounding(
         strict_rules_for_argumentation=tuple(sorted(remaining, key=_instance_sort_key)),
         defeasible_rules_for_argumentation=defeasible_rules,
         defeater_rules_for_argumentation=defeater_rules,
+        non_approximated_predicates=tuple(sorted(non_approximated_predicates)),
     )
