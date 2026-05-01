@@ -26,6 +26,7 @@ from .grounding import (
     GroundingSimplification,
     GroundRuleInstance,
     GroundRuleResolution,
+    compute_non_approximated,
     inspect_grounding,
 )
 from .parser import parse_atom_text
@@ -102,6 +103,7 @@ __all__ = [
     "build_tree",
     "classify_defeat",
     "complement",
+    "compute_non_approximated",
     "counter_argues",
     "disagrees",
     "explain",
