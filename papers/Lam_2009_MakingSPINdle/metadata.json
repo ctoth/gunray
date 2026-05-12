@@ -1,0 +1,14 @@
+{
+  "title": "The making of SPINdle",
+  "authors": [
+    "Ho-Pun Lam",
+    "Guido Governatori"
+  ],
+  "year": "2009",
+  "doi": "10.1007/978-3-642-04985-9_29",
+  "venue": "Rule Representation, Interchange and Reasoning on the Web",
+  "pages": "315-322",
+  "pdf_url": "http://www.governatori.net/papers/2009/ruleml09spindle.pdf",
+  "processed_with": "paper-retriever + paper-reader",
+  "reading_basis": "page images in pngs/page-*.png"
+}
