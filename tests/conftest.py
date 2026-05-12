@@ -37,31 +37,6 @@ _CONFORMANCE_SKIPPED: dict[str, str] = {
         "Fixture expects a supported-with-unprovable-body classification that Garcia "
         "& Simari 2004 Definition 3.1 rejects once Pi contradicts flies(tweety)."
     ),
-    "defeasible/basic/spindle_racket_inline_tests::spindle_racket_unsatisfied_antecedent": (
-        "Unsupported Spindle projection: gunray does not classify defined-but-unprovable "
-        "rule heads into not_defeasibly when no argument exists on either side."
-    ),
-    (
-        "defeasible/basic/spindle_racket_query_integration"
-        "::spindle_racket_query_missing_premise_failure"
-    ): (
-        "Unsupported Spindle projection: gunray does not classify defined-but-unprovable "
-        "rule heads into not_defeasibly when no argument exists on either side."
-    ),
-    ("defeasible/basic/spindle_racket_query_tests::spindle_racket_query_missing_premise_theory"): (
-        "Unsupported Spindle projection: gunray does not classify defined-but-unprovable "
-        "rule heads into not_defeasibly when no argument exists on either side."
-    ),
-    "defeasible/basic/spindle_racket_inline_tests::spindle_racket_simplified_penguin": (
-        "Unsupported partial-dominance superiority reading: Garcia & Simari 2004 "
-        "Section 4.1 requires every rule in the stronger argument to dominate every "
-        "rule in the weaker argument."
-    ),
-    ("defeasible/basic/spindle_racket_test_theories::spindle_racket_penguin_exception"): (
-        "Unsupported partial-dominance superiority reading: Garcia & Simari 2004 "
-        "Section 4.1 requires every rule in the stronger argument to dominate every "
-        "rule in the weaker argument."
-    ),
 }
 
 
