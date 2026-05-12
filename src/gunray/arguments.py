@@ -127,7 +127,7 @@ def build_arguments(
         closure = strict_closure(fact_atoms, combined)
         if has_contradiction(closure, conflicts=conflicts):
             continue
-        if _violates_default_negation(frozenset({rule}), closure):
+        if _violates_default_negation(frozenset({rule}), closure, pi_closure):
             continue
         _add_argument_with_budget(
             arguments,
@@ -160,6 +160,7 @@ def build_arguments(
                     rule.head,
                     fact_atoms,
                     grounded_strict_rules,
+                    pi_closure,
                     conflicts,
                 ):
                     continue
@@ -167,7 +168,7 @@ def build_arguments(
                     _force_strict_for_closure(r) for r in rule_set
                 )
                 closure = strict_closure(fact_atoms, combined_rules)
-                if _violates_default_negation(rule_set, closure):
+                if _violates_default_negation(rule_set, closure, pi_closure):
                     continue
                 if has_contradiction(closure, conflicts=conflicts):
                     continue
@@ -214,6 +215,7 @@ def _has_redundant_nonempty_subset(
     conclusion: GroundAtom,
     fact_atoms: frozenset[GroundAtom],
     grounded_strict_rules: tuple[GroundDefeasibleRule, ...],
+    pi_closure: frozenset[GroundAtom],
     conflicts: frozenset[tuple[str, str]],
 ) -> bool:
     for rule in rule_set:
@@ -227,7 +229,7 @@ def _has_redundant_nonempty_subset(
         if (
             conclusion in closure
             and not has_contradiction(closure, conflicts=conflicts)
-            and not _violates_default_negation(reduced, closure)
+            and not _violates_default_negation(reduced, closure, pi_closure)
         ):
             return True
     return False
@@ -236,10 +238,12 @@ def _has_redundant_nonempty_subset(
 def _violates_default_negation(
     rule_set: frozenset[GroundDefeasibleRule],
     closure: frozenset[GroundAtom],
+    pi_closure: frozenset[GroundAtom],
 ) -> bool:
     """Garcia & Simari 2004 p. 125 Def 6.2 rejects self-defeating arguments."""
 
-    return any(atom in closure for rule in rule_set for atom in rule.default_negated_body)
+    self_supported = closure - pi_closure
+    return any(atom in self_supported for rule in rule_set for atom in rule.default_negated_body)
 
 
 def _add_argument_with_budget(

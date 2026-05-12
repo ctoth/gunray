@@ -421,17 +421,21 @@ def _expand(
         kind = _defeat_kind(candidate, current, criterion, universe, strict_rules, facts, conflicts)
         if kind is None:
             continue
+        attacks_default_assumption = _attacks_default_assumption(candidate, current, universe)
 
         # Def 4.7 cond 4: blocking-defeater-of-blocking-defeater
         # terminates the line.
-        if parent_edge_kind == "blocking" and kind == "blocking":
+        if parent_edge_kind == "blocking" and kind == "blocking" and not attacks_default_assumption:
             continue
 
         # Def 4.7 cond 3: no argument in the line is a sub-argument
         # of an earlier one. We only need to check `candidate`
         # against existing line members — earlier inclusions were
         # already checked when they were added.
-        if any(is_subargument(candidate, earlier) for earlier in line):
+        if (
+            any(is_subargument(candidate, earlier) for earlier in line)
+            and not attacks_default_assumption
+        ):
             continue
 
         # Def 4.7 cond 2: the supporting set S_s (0-indexed even
@@ -486,6 +490,19 @@ def _expand(
         children=tuple(children_nodes),
         defeater_kind=node_defeater_kind,
     )
+
+
+def _attacks_default_assumption(
+    attacker: Argument,
+    target: Argument,
+    universe: tuple[Argument, ...] | frozenset[Argument],
+) -> bool:
+    for sub in universe:
+        if not is_subargument(sub, target):
+            continue
+        if any(attacker.conclusion in rule.default_negated_body for rule in sub.rules):
+            return True
+    return False
 
 
 def mark(node: DialecticalNode) -> Literal["U", "D"]:
