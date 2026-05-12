@@ -7,21 +7,11 @@ from gunray.arguments import Argument, build_arguments
 from gunray.preference import GeneralizedSpecificity
 from gunray.schema import DefeasibleTheory, Rule
 
-STOLZENBURG_PAGE_008 = (
-    "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-007.png"
-)
-STOLZENBURG_PAGE_009 = (
-    "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-008.png"
-)
-STOLZENBURG_PAGE_010 = (
-    "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-009.png"
-)
-STOLZENBURG_PAGE_013 = (
-    "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-012.png"
-)
-STOLZENBURG_PAGE_014 = (
-    "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-013.png"
-)
+STOLZENBURG_PAGE_008 = "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-007.png"
+STOLZENBURG_PAGE_009 = "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-008.png"
+STOLZENBURG_PAGE_010 = "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-009.png"
+STOLZENBURG_PAGE_013 = "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-012.png"
+STOLZENBURG_PAGE_014 = "papers/Stolzenburg_2003_ComputingGeneralizedSpecificity/pngs/page-013.png"
 
 
 def _find_argument(arguments: frozenset[Argument], rule_id: str) -> Argument:
@@ -121,10 +111,7 @@ def strict_chain_case(draw: st.DrawFn) -> tuple[int, int]:
 
 def _chain_theory(left_index: int, right_index: int) -> tuple[DefeasibleTheory, str, str]:
     facts = {"p0": {("a",)}, "irrelevant": {("z",)}}
-    strict_rules = [
-        Rule(id=f"s{i}", head=f"p{i + 1}(X)", body=[f"p{i}(X)"])
-        for i in range(4)
-    ]
+    strict_rules = [Rule(id=f"s{i}", head=f"p{i + 1}(X)", body=[f"p{i}(X)"]) for i in range(4)]
     left_rule_id = "r_left"
     right_rule_id = "r_right"
     return (

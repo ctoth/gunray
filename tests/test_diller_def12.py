@@ -47,4 +47,6 @@ def test_inspect_grounding_reports_non_approximated_predicates() -> None:
     simplification = inspect_grounding(theory).simplification
 
     assert simplification.non_approximated_predicates == ("animal", "bird")
-    assert GroundAtom(predicate="animal", arguments=("tweety",)) in simplification.definite_fact_atoms
+    assert (
+        GroundAtom(predicate="animal", arguments=("tweety",)) in simplification.definite_fact_atoms
+    )

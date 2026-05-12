@@ -13,8 +13,7 @@ from .grounding_types import (
 )
 from .parser import parse_defeasible_theory
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
-from .types import DefeasibleRule
-from .types import GroundAtom, Scalar
+from .types import DefeasibleRule, GroundAtom, Scalar
 
 
 def inspect_grounding(theory: SchemaDefeasibleTheory) -> GroundingInspection:
@@ -34,11 +33,7 @@ def compute_non_approximated(theory: SchemaDefeasibleTheory) -> frozenset[str]:
 
     facts, rules, conflicts = parse_defeasible_theory(theory)
     predicates = _theory_predicates(facts, rules, conflicts)
-    non_strict_heads = {
-        rule.head.predicate
-        for rule in rules
-        if rule.kind != "strict"
-    }
+    non_strict_heads = {rule.head.predicate for rule in rules if rule.kind != "strict"}
     candidate = set(predicates - non_strict_heads)
     changed = True
     while changed:
