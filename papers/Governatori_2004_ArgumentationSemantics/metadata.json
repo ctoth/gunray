@@ -1,0 +1,22 @@
+{
+  "title": "Argumentation Semantics for Defeasible Logic",
+  "authors": [
+    "Guido Governatori",
+    "Michael J. Maher",
+    "G. Antoniou",
+    "D. Billington"
+  ],
+  "year": "2004",
+  "doi": "10.1093/logcom/14.5.675",
+  "abstract": "Defeasible reasoning is a simple but efficient rule-based approach to nonmonotonic reasoning. It has powerful implementations and shows promise to be applied in the areas of legal reasoning and the modelling of business rules. This paper establishes significant links between defeasible reasoning and argumentation. In particular, Dung-like argumentation semantics is provided for two key defeasible logics, of which one is ambiguity propagating and the other ambiguity blocking. There are several reasons for the significance of this work: (a) establishing links between formal systems leads to a better understanding and cross-fertilization, in particular our work sheds light on the argumentation-theoretic features of defeasible logic; (b) we provide the first ambiguity blocking Dung-like argumentation system; (c) defeasible reasoning may provide an efficient implementation platform for systems of argumentation; and (d) argumentation-based semantics support a deeper understanding of defeasible reasoning, especially in the context of the intended applications.",
+  "url": "https://www.semanticscholar.org/paper/76ac891a4bba06932e9fea40160523a4a7220d22",
+  "pdf_url": "https://academic.oup.com/logcom/article-pdf/14/5/675/2776887/140675.pdf",
+  "bibtex": "@Article{Governatori2004ArgumentationSF,\n author = {Guido Governatori and Michael J. Maher and G. Antoniou and D. Billington},\n booktitle = {Journal of Logic and Computation},\n journal = {J. Log. Comput.},\n pages = {675-702},\n title = {Argumentation Semantics for Defeasible Logic},\n volume = {14},\n year = {2004}\n}\n",
+  "venue": "Journal of Logic and Computation",
+  "venue_type": "journal",
+  "volume": "14",
+  "pages": "675-702",
+  "processed_with": "paper-retriever + paper-reader",
+  "reading_basis": "page images in pngs/page-*.png",
+  "retrieval_note": "PDF retrieved through paper-retriever fallback for DOI 10.1093/logcom/14.5.675 after publisher direct PDF returned a browser challenge."
+}
