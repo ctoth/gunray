@@ -4,6 +4,13 @@ from .adapter import GunrayEvaluator
 from .answer import Answer
 from .anytime import EnumerationExceeded
 from .arguments import Argument, build_arguments, is_subargument
+from .consistency import (
+    ConditionalDatabase,
+    ConditionalSentence,
+    ConsistencyReport,
+    analyze_p_consistency,
+    strictly_p_entails,
+)
 from .defeasible import DefeasibleEvaluator
 from .dialectic import (
     DialecticalNode,
@@ -66,6 +73,9 @@ __all__ = [
     "Argument",
     "ClosurePolicy",
     "CompositePreference",
+    "ConditionalDatabase",
+    "ConditionalSentence",
+    "ConsistencyReport",
     "Constant",
     "DatalogTrace",
     "DefeasibleEvaluator",
@@ -102,6 +112,7 @@ __all__ = [
     "TrivialPreference",
     "Variable",
     "answer",
+    "analyze_p_consistency",
     "blocking_defeater",
     "build_arguments",
     "build_tree",
@@ -119,4 +130,5 @@ __all__ = [
     "render_tree",
     "render_tree_mermaid",
     "strict_closure",
+    "strictly_p_entails",
 ]
