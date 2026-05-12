@@ -5,16 +5,15 @@ from hypothesis import strategies as st
 
 from gunray import DefeasibleEvaluator, DefeasibleTheory, MarkingPolicy, Rule
 
-ANTONIOU_PAGE_010 = (
-    "papers/Antoniou_2007_DefeasibleReasoningSemanticWeb/pngs/page-010.png"
-)
+ANTONIOU_PAGE_010 = "papers/Antoniou_2007_DefeasibleReasoningSemanticWeb/pngs/page-010.png"
+Sections = dict[str, dict[str, set[tuple[str, ...]]]]
 
 
-def _has(model_sections: dict[str, dict[str, set[tuple[str, ...]]]], section: str, atom: str) -> bool:
+def _has(model_sections: Sections, section: str, atom: str) -> bool:
     return () in model_sections.get(section, {}).get(atom, set())
 
 
-def _policy_model(theory: DefeasibleTheory, policy: MarkingPolicy) -> dict[str, dict[str, set[tuple[str, ...]]]]:
+def _policy_model(theory: DefeasibleTheory, policy: MarkingPolicy) -> Sections:
     return DefeasibleEvaluator().evaluate(theory, marking_policy=policy).sections
 
 

@@ -192,9 +192,10 @@ def _suite_nemo_fingerprints() -> set[tuple[Any, ...]]:
 
 
 def _is_suite_blocking_antoniou_ambiguity_case(item: Any, policy: Any | None) -> bool:
-    if SuitePolicy is None or not isinstance(policy, SuitePolicy):
+    suite_policy_type = SuitePolicy
+    if suite_policy_type is None or not isinstance(policy, suite_policy_type):
         return False
-    if policy.value != MarkingPolicy.BLOCKING.value:
+    if getattr(policy, "value", None) != MarkingPolicy.BLOCKING.value:
         return False
     return _item_fingerprint(item) in {
         (
