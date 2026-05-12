@@ -115,7 +115,9 @@ def _translate_policy(
     assert SuitePolicy is not None
     if isinstance(policy, SuitePolicy):
         if policy.value == MarkingPolicy.BLOCKING.value:
-            return MarkingPolicy.BLOCKING, None
+            return MarkingPolicy.ANTONIOU_BLOCKING, None
+        if policy.value == "propagating":
+            return MarkingPolicy.ANTONIOU_PROPAGATING, None
         return MarkingPolicy.BLOCKING, ClosurePolicy(policy.value)
     raise TypeError(f"Unsupported policy type: {type(policy).__name__}")
 

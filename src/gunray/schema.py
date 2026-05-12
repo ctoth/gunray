@@ -47,9 +47,15 @@ class MarkingPolicy(str, Enum):
     ``BLOCKING`` is the García & Simari 2004 Def 5.1 / Def 4.7
     dialectical-tree path implemented by Gunray. Argument preference
     is resolved via ``preference.CompositePreference``.
+    ``ANTONIOU_BLOCKING`` is the opt-in ambiguity-blocking defeasible-logic
+    policy from Antoniou 2007 section 3.5.
+    ``ANTONIOU_PROPAGATING`` is the opt-in ambiguity-propagating
+    defeasible-logic policy from Antoniou 2007 section 3.5.
     """
 
     BLOCKING = "blocking"
+    ANTONIOU_BLOCKING = "antoniou_blocking"
+    ANTONIOU_PROPAGATING = "antoniou_propagating"
 
 
 class ClosurePolicy(str, Enum):

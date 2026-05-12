@@ -25,22 +25,6 @@ _CONFORMANCE_DESELECTED = frozenset(
 )
 
 _CONFORMANCE_SKIPPED: dict[str, str] = {
-    (
-        "defeasible/ambiguity/antoniou_basic_ambiguity"
-        "::antoniou_ambiguous_attacker_blocks_only_in_propagating"
-    ): (
-        "Unsupported ambiguity-policy regime: gunray implements the Garcia/Simari "
-        "dialectical path and does not claim Antoniou 2007 propagating/blocking "
-        "policy variants."
-    ),
-    (
-        "defeasible/ambiguity/antoniou_basic_ambiguity"
-        "::antoniou_ambiguity_propagates_to_downstream_rule"
-    ): (
-        "Unsupported ambiguity-policy regime: gunray implements the Garcia/Simari "
-        "dialectical path and does not claim Antoniou 2007 propagating/blocking "
-        "policy variants."
-    ),
     "defeasible/basic/depysible_birds::depysible_nests_in_trees_tina": (
         "Fixture expects a supported-with-unprovable-body classification that Garcia "
         "& Simari 2004 Definition 3.1 rejects once Pi contradicts flies(tweety)."

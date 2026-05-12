@@ -35,6 +35,7 @@ from ._internal import _atom_sort_key, _strict_rule_to_program_text
 from .anytime import EnumerationExceeded
 from .arguments import build_arguments
 from .closure import ClosureEvaluator
+from .disagreement import complement
 from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
 from .grounding import inspect_grounding, simplified_ground_theory
@@ -60,6 +61,7 @@ if TYPE_CHECKING:  # pragma: no cover - import-time only
     from .arguments import Argument
     from .dialectic import DialecticalNode
     from .grounding_types import GroundingInspection
+    from .preference import PreferenceCriterion
     from .types import GroundDefeasibleRule
 
 
@@ -109,13 +111,25 @@ class DefeasibleEvaluator:
                 closure_policy,
                 trace_config,
             )
+        actual_trace_config = trace_config or TraceConfig()
+        if marking_policy is MarkingPolicy.ANTONIOU_BLOCKING:
+            return _evaluate_antoniou_policy(
+                theory,
+                actual_trace_config,
+                propagate_ambiguity=False,
+            )
+        if marking_policy is MarkingPolicy.ANTONIOU_PROPAGATING:
+            return _evaluate_antoniou_policy(
+                theory,
+                actual_trace_config,
+                propagate_ambiguity=True,
+            )
         if marking_policy is not MarkingPolicy.BLOCKING:
             raise ValueError(f"Unsupported marking policy: {marking_policy.value}")
 
         # Post-Block-2, MarkingPolicy.BLOCKING is the only dialectical-tree
         # policy. Argument preference is resolved by
         # GeneralizedSpecificity (Simari 92 Lemma 2.4).
-        actual_trace_config = trace_config or TraceConfig()
         if grounding_mode is GroundingMode.DILLER_SIMPLIFIED:
             grounding_inspection = inspect_grounding(theory)
             simplified_theory = simplified_ground_theory(theory, grounding_inspection)
@@ -322,6 +336,132 @@ def _evaluate_via_argument_pipeline(
         for atom, label in sorted(markings.items(), key=lambda item: _atom_sort_key(item[0]))
     }
     return model, trace
+
+
+def _evaluate_antoniou_policy(
+    theory: SchemaDefeasibleTheory,
+    trace_config: TraceConfig,
+    *,
+    propagate_ambiguity: bool,
+) -> tuple[DefeasibleModel, DefeasibleTrace]:
+    """Antoniou 2007 section 3.5 ambiguity-blocking/propagating projection."""
+
+    from .dialectic import _theory_predicates
+    from .preference import (
+        CompositePreference,
+        GeneralizedSpecificity,
+        SuperiorityPreference,
+    )
+
+    arguments = tuple(sorted(build_arguments(theory), key=_argument_sort_key))
+    criterion = CompositePreference(
+        SuperiorityPreference(theory),
+        GeneralizedSpecificity(theory),
+    )
+    strict_atoms = {argument.conclusion for argument in arguments if not argument.rules}
+    supported_atoms = {argument.conclusion for argument in arguments}
+    non_defeater_arguments = tuple(
+        argument
+        for argument in arguments
+        if not any(rule.kind == "defeater" for rule in argument.rules)
+    )
+
+    accepted = set(strict_atoms)
+    changed = True
+    while changed:
+        changed = False
+        for argument in non_defeater_arguments:
+            if argument.conclusion in accepted:
+                continue
+            if not _argument_bodies_satisfied(argument, accepted):
+                continue
+            if _propagating_opposition_blocks(
+                argument,
+                non_defeater_arguments,
+                supported_atoms,
+                accepted,
+                strict_atoms,
+                criterion,
+                propagate_ambiguity=propagate_ambiguity,
+            ):
+                continue
+            accepted.add(argument.conclusion)
+            changed = True
+
+    conclusions = set(supported_atoms)
+    conclusions.update(complement(atom) for atom in tuple(conclusions))
+    predicates = _theory_predicates(theory)
+    yes_atoms: set[GroundAtom] = set()
+    no_atoms: set[GroundAtom] = set()
+    undecided_atoms: set[GroundAtom] = set()
+    unknown_atoms: set[GroundAtom] = set()
+    for atom in conclusions:
+        if _strip_negation(atom.predicate) not in predicates:
+            unknown_atoms.add(atom)
+            continue
+        if atom in accepted:
+            yes_atoms.add(atom)
+        elif atom in supported_atoms or complement(atom) in supported_atoms:
+            undecided_atoms.add(atom)
+        elif complement(atom) in accepted:
+            no_atoms.add(atom)
+
+    model = DefeasibleModel(
+        sections={
+            "yes": _atoms_to_section(yes_atoms),
+            "no": _atoms_to_section(no_atoms),
+            "undecided": _atoms_to_section(undecided_atoms),
+            "unknown": _atoms_to_section(unknown_atoms),
+        }
+    )
+    trace = DefeasibleTrace(config=trace_config)
+    trace.grounding_inspection = inspect_grounding(theory)
+    trace.strict = tuple(sorted(strict_atoms, key=_atom_sort_key))
+    trace.yes = tuple(sorted(yes_atoms, key=_atom_sort_key))
+    trace.arguments = arguments
+    return model, trace
+
+
+def _argument_bodies_satisfied(
+    argument: "Argument",
+    accepted: set[GroundAtom],
+) -> bool:
+    return all(atom in accepted for rule in argument.rules for atom in rule.body)
+
+
+def _argument_bodies_supported(
+    argument: "Argument",
+    supported: set[GroundAtom],
+) -> bool:
+    return all(atom in supported for rule in argument.rules for atom in rule.body)
+
+
+def _propagating_opposition_blocks(
+    argument: "Argument",
+    arguments: tuple["Argument", ...],
+    supported_atoms: set[GroundAtom],
+    accepted_atoms: set[GroundAtom],
+    strict_atoms: set[GroundAtom],
+    criterion: "PreferenceCriterion",
+    *,
+    propagate_ambiguity: bool,
+) -> bool:
+    if argument.conclusion in strict_atoms:
+        return False
+    opposite = complement(argument.conclusion)
+    for opponent in arguments:
+        if opponent.conclusion != opposite:
+            continue
+        if propagate_ambiguity:
+            opponent_body_available = _argument_bodies_supported(opponent, supported_atoms)
+        else:
+            opponent_body_available = _argument_bodies_satisfied(opponent, accepted_atoms)
+        if not opponent_body_available:
+            continue
+        if criterion.prefers(argument, opponent):
+            continue
+        return True
+    return False
 
 
 def _populate_strict_only_argument_view(
