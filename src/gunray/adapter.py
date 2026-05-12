@@ -15,8 +15,8 @@ from .schema import (
     MarkingPolicy,
     Model,
     NegationSemantics,
-    ProjectionSemantics,
     Program,
+    ProjectionSemantics,
 )
 from .trace import DatalogTrace, DefeasibleTrace, TraceConfig
 

@@ -453,7 +453,9 @@ def _spindle_rule_is_overruled(
             continue
         if any(atom in accepted for atom in opponent.default_negated_body):
             continue
-        if _spindle_opponent_is_defeated(opponent, rule.head, rules, accepted, superiority, conflicts):
+        if _spindle_opponent_is_defeated(
+            opponent, rule.head, rules, accepted, superiority, conflicts
+        ):
             continue
         return True
     return False

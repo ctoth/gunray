@@ -49,8 +49,8 @@ from .schema import (
     MarkingPolicy,
     Model,
     NegationSemantics,
-    ProjectionSemantics,
     Program,
+    ProjectionSemantics,
     Rule,
     Scalar,
 )
