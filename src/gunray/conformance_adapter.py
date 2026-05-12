@@ -11,6 +11,7 @@ import yaml
 
 from ._internal import _strict_rule_to_program_text
 from .adapter import GunrayEvaluator
+from .errors import ContradictoryStrictTheoryError
 from .schema import ClosurePolicy, DefeasibleTheory, MarkingPolicy, NegationSemantics, Program, Rule
 from .trace import TraceConfig
 from .types import GroundAtom
@@ -213,6 +214,7 @@ def _suite_strict_only_model(model: Any) -> Any:
     _require_suite_support()
     assert SuiteDefeasibleModel is not None
     facts = getattr(model, "facts", model)
+    _raise_if_strict_only_facts_contradictory(facts)
     definite = _copy_section(facts)
     return SuiteDefeasibleModel(
         sections={
@@ -227,6 +229,19 @@ def _suite_strict_only_model(model: Any) -> Any:
 
 def _copy_section(section: Mapping[str, Any]) -> dict[str, set[tuple[Any, ...]]]:
     return {predicate: {tuple(row) for row in rows} for predicate, rows in section.items()}
+
+
+def _raise_if_strict_only_facts_contradictory(section: Mapping[str, Any]) -> None:
+    facts = _copy_section(section)
+    for predicate, rows in facts.items():
+        if predicate.startswith("~"):
+            continue
+        overlap = rows & facts.get(f"~{predicate}", set())
+        if overlap:
+            row = next(iter(overlap))
+            raise ContradictoryStrictTheoryError(
+                f"Pi derives both {predicate}{row!r} and ~{predicate}{row!r}"
+            )
 
 
 def _ground_atoms_to_sections(atoms: tuple[GroundAtom, ...]) -> dict[str, set[tuple[Any, ...]]]:

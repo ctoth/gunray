@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 
+import pytest
 from datalog_conformance.schema import DefeasibleTheory as SuiteDefeasibleTheory
 from datalog_conformance.schema import Policy as SuitePolicy
 from datalog_conformance.schema import Rule as SuiteRule
@@ -9,6 +10,7 @@ from datalog_conformance.schema import Rule as SuiteRule
 from gunray import DefeasibleModel, DefeasibleTheory, DefeasibleTrace, MarkingPolicy, Program
 from gunray.adapter import GunrayEvaluator
 from gunray.conformance_adapter import GunrayConformanceEvaluator
+from gunray.errors import ContradictoryStrictTheoryError
 from gunray.schema import Model
 from gunray.trace import DatalogTrace
 
@@ -82,3 +84,15 @@ def test_conformance_adapter_routes_strict_only_suite_theory_as_datalog() -> Non
     assert model.sections["definitely"]["kept"] == {(1,)}
     assert model.sections["defeasibly"]["kept"] == {(1,)}
     assert "kept" not in model.sections["not_defeasibly"]
+
+
+def test_conformance_adapter_strict_only_route_preserves_contradiction_error() -> None:
+    theory = SuiteDefeasibleTheory(
+        facts={
+            "p": [()],
+            "~p": [()],
+        },
+    )
+
+    with pytest.raises(ContradictoryStrictTheoryError):
+        GunrayConformanceEvaluator().evaluate(theory, SuitePolicy.BLOCKING)
