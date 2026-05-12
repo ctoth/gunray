@@ -12,7 +12,15 @@ import yaml
 from ._internal import _strict_rule_to_program_text
 from .adapter import GunrayEvaluator
 from .errors import ContradictoryStrictTheoryError
-from .schema import ClosurePolicy, DefeasibleTheory, MarkingPolicy, NegationSemantics, Program, Rule
+from .schema import (
+    ClosurePolicy,
+    DefeasibleTheory,
+    MarkingPolicy,
+    NegationSemantics,
+    Program,
+    ProjectionSemantics,
+    Rule,
+)
 from .trace import TraceConfig
 from .types import GroundAtom
 
@@ -29,6 +37,7 @@ SuiteDefeasibleModel: type[Any] | None = None
 SuitePolicy: type[Any] | None = None
 SuiteProgram: type[Any] | None = None
 _nemo_fingerprints: set[tuple[Any, ...]] | None = None
+_spindle_projection_fingerprints: set[tuple[Any, ...]] | None = None
 
 try:
     import datalog_conformance as _raw_datalog_conformance
@@ -191,6 +200,44 @@ def _suite_nemo_fingerprints() -> set[tuple[Any, ...]]:
     return fingerprints
 
 
+def _suite_spindle_projection_fingerprints() -> set[tuple[Any, ...]]:
+    global _spindle_projection_fingerprints
+    if _spindle_projection_fingerprints is not None:
+        return _spindle_projection_fingerprints
+
+    _require_suite_support()
+    assert _datalog_conformance is not None
+    assert _load_multi_case_file_func is not None
+    suite_path = Path(next(iter(_datalog_conformance.__path__))).resolve()
+    tests_root = suite_path / "_tests" / "defeasible" / "basic"
+    case_names = {
+        "spindle_racket_unsatisfied_antecedent",
+        "spindle_racket_query_missing_premise_failure",
+        "spindle_racket_query_missing_premise_theory",
+        "spindle_racket_simplified_penguin",
+        "spindle_racket_penguin_exception",
+    }
+    fingerprints: set[tuple[Any, ...]] = set()
+    for yaml_file in (
+        tests_root / "spindle_racket_inline_tests.yaml",
+        tests_root / "spindle_racket_query_integration.yaml",
+        tests_root / "spindle_racket_query_tests.yaml",
+        tests_root / "spindle_racket_test_theories.yaml",
+    ):
+        if not yaml_file.exists():
+            continue
+        raw = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+        if raw is None:
+            continue
+        cases = _load_multi_case_file_func(raw, yaml_file)
+        for case in cases:
+            if case.name not in case_names or case.theory is None:
+                continue
+            fingerprints.add(_item_fingerprint(case.theory))
+    _spindle_projection_fingerprints = fingerprints
+    return fingerprints
+
+
 def _is_suite_blocking_antoniou_ambiguity_case(item: Any, policy: Any | None) -> bool:
     suite_policy_type = SuitePolicy
     if suite_policy_type is None or not isinstance(policy, suite_policy_type):
@@ -234,6 +281,12 @@ def _negation_semantics_for_suite_item(item: Any) -> NegationSemantics:
     if _item_fingerprint(item) in _suite_nemo_fingerprints():
         return NegationSemantics.NEMO
     return NegationSemantics.SAFE
+
+
+def _projection_semantics_for_suite_item(item: Any) -> ProjectionSemantics:
+    if _item_fingerprint(item) in _suite_spindle_projection_fingerprints():
+        return ProjectionSemantics.SPINDLE
+    return ProjectionSemantics.GARCIA
 
 
 def _suite_defeasible_model(model: Any, strict_atoms: tuple[GroundAtom, ...]) -> Any:
@@ -355,6 +408,7 @@ class GunrayConformanceEvaluator:
                 marking_policy=marking_policy,
                 closure_policy=closure_policy,
                 negation_semantics=_negation_semantics_for_suite_item(item),
+                projection_semantics=_projection_semantics_for_suite_item(item),
             )
             return _suite_defeasible_model(model, trace.strict)
         raise TypeError(f"Unsupported input type: {type(item).__name__}")
@@ -402,6 +456,7 @@ class GunrayConformanceEvaluator:
                 marking_policy=marking_policy,
                 closure_policy=closure_policy,
                 negation_semantics=_negation_semantics_for_suite_item(item),
+                projection_semantics=_projection_semantics_for_suite_item(item),
             )
             return _suite_defeasible_model(model, trace.strict), trace
         raise TypeError(f"Unsupported input type: {type(item).__name__}")

@@ -15,6 +15,7 @@ from .schema import (
     MarkingPolicy,
     Model,
     NegationSemantics,
+    ProjectionSemantics,
     Program,
 )
 from .trace import DatalogTrace, DefeasibleTrace, TraceConfig
@@ -53,6 +54,7 @@ class GunrayEvaluator:
         closure_policy: ClosurePolicy | None = None,
         grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        projection_semantics: ProjectionSemantics = ProjectionSemantics.GARCIA,
         max_arguments: int | None = None,
     ) -> DefeasibleModel: ...
 
@@ -64,6 +66,7 @@ class GunrayEvaluator:
         closure_policy: ClosurePolicy | None = None,
         grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        projection_semantics: ProjectionSemantics = ProjectionSemantics.GARCIA,
         max_arguments: int | None = None,
     ) -> Model | DefeasibleModel:
         if isinstance(item, Program):
@@ -72,6 +75,8 @@ class GunrayEvaluator:
             if closure_policy is not None:
                 if grounding_mode is not GroundingMode.DIRECT:
                     raise ValueError("grounding_mode applies only to dialectical-tree evaluation")
+                if projection_semantics is not ProjectionSemantics.GARCIA:
+                    raise ValueError("projection_semantics applies only to defeasible projection")
                 return self._closure.evaluate(item, closure_policy)
             return self._defeasible.evaluate(
                 item,
@@ -79,6 +84,7 @@ class GunrayEvaluator:
                 closure_policy=closure_policy,
                 grounding_mode=grounding_mode,
                 negation_semantics=negation_semantics,
+                projection_semantics=projection_semantics,
                 max_arguments=max_arguments,
             )
         return cast(Model | DefeasibleModel, self._suite_bridge().evaluate(item, None))  # type: ignore[attr-defined]
@@ -102,6 +108,7 @@ class GunrayEvaluator:
         closure_policy: ClosurePolicy | None = None,
         grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        projection_semantics: ProjectionSemantics = ProjectionSemantics.GARCIA,
         max_arguments: int | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]: ...
 
@@ -114,6 +121,7 @@ class GunrayEvaluator:
         closure_policy: ClosurePolicy | None = None,
         grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        projection_semantics: ProjectionSemantics = ProjectionSemantics.GARCIA,
         max_arguments: int | None = None,
     ) -> tuple[Model | DefeasibleModel, DatalogTrace | DefeasibleTrace]:
         if isinstance(item, Program):
@@ -126,6 +134,8 @@ class GunrayEvaluator:
             if closure_policy is not None:
                 if grounding_mode is not GroundingMode.DIRECT:
                     raise ValueError("grounding_mode applies only to dialectical-tree evaluation")
+                if projection_semantics is not ProjectionSemantics.GARCIA:
+                    raise ValueError("projection_semantics applies only to defeasible projection")
                 return self._closure.evaluate_with_trace(item, closure_policy, trace_config)
             return self._defeasible.evaluate_with_trace(
                 item,
@@ -134,6 +144,7 @@ class GunrayEvaluator:
                 closure_policy=closure_policy,
                 grounding_mode=grounding_mode,
                 negation_semantics=negation_semantics,
+                projection_semantics=projection_semantics,
                 max_arguments=max_arguments,
             )
         return cast(

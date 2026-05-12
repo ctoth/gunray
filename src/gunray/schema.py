@@ -102,6 +102,21 @@ class GroundingMode(str, Enum):
     DILLER_SIMPLIFIED = "diller_simplified"
 
 
+class ProjectionSemantics(str, Enum):
+    """Answer projection surfaces for defeasible-theory evaluation.
+
+    ``GARCIA`` keeps Gunray's default Garcia & Simari 2004 four-valued
+    dialectical-tree answer. ``SPINDLE`` uses the constructive defeasible
+    logic proof tags described by Lam and Governatori 2009 and Maher 1999:
+    syntactically defined heads whose bodies cannot be proved are projected
+    into the negative defeasible section, and superiority is applied at the
+    opposing-rule level instead of mutating ``SuperiorityPreference``.
+    """
+
+    GARCIA = "garcia"
+    SPINDLE = "spindle"
+
+
 @dataclass(frozen=True, slots=True)
 class Program:
     """Core Datalog program."""

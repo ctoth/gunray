@@ -47,6 +47,7 @@ from .schema import (
     MarkingPolicy,
     ModelFacts,
     NegationSemantics,
+    ProjectionSemantics,
 )
 from .schema import DefeasibleTheory as SchemaDefeasibleTheory
 from .schema import Program as SchemaProgram
@@ -76,6 +77,7 @@ class DefeasibleEvaluator:
         closure_policy: ClosurePolicy | None = None,
         grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        projection_semantics: ProjectionSemantics = ProjectionSemantics.GARCIA,
         max_arguments: int | None = None,
     ) -> DefeasibleModel:
         try:
@@ -85,6 +87,7 @@ class DefeasibleEvaluator:
                 closure_policy=closure_policy,
                 grounding_mode=grounding_mode,
                 negation_semantics=negation_semantics,
+                projection_semantics=projection_semantics,
                 max_arguments=max_arguments,
             )
         except EnumerationExceeded as exc:
@@ -101,11 +104,14 @@ class DefeasibleEvaluator:
         closure_policy: ClosurePolicy | None = None,
         grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
+        projection_semantics: ProjectionSemantics = ProjectionSemantics.GARCIA,
         max_arguments: int | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]:
         if closure_policy is not None:
             if grounding_mode is not GroundingMode.DIRECT:
                 raise ValueError("grounding_mode applies only to dialectical-tree evaluation")
+            if projection_semantics is not ProjectionSemantics.GARCIA:
+                raise ValueError("projection_semantics applies only to defeasible projection")
             return ClosureEvaluator().evaluate_with_trace(
                 theory,
                 closure_policy,
@@ -126,6 +132,16 @@ class DefeasibleEvaluator:
             )
         if marking_policy is not MarkingPolicy.BLOCKING:
             raise ValueError(f"Unsupported marking policy: {marking_policy.value}")
+        if projection_semantics is ProjectionSemantics.SPINDLE:
+            if grounding_mode is not GroundingMode.DIRECT:
+                raise ValueError("SPINdle projection requires direct grounding")
+            return _evaluate_spindle_projection(
+                theory,
+                actual_trace_config,
+                max_arguments=max_arguments,
+            )
+        if projection_semantics is not ProjectionSemantics.GARCIA:
+            raise ValueError(f"Unsupported projection semantics: {projection_semantics.value}")
 
         # Post-Block-2, MarkingPolicy.BLOCKING is the only dialectical-tree
         # policy. Argument preference is resolved by
@@ -336,6 +352,172 @@ def _evaluate_via_argument_pipeline(
         for atom, label in sorted(markings.items(), key=lambda item: _atom_sort_key(item[0]))
     }
     return model, trace
+
+
+def _evaluate_spindle_projection(
+    theory: SchemaDefeasibleTheory,
+    trace_config: TraceConfig,
+    *,
+    max_arguments: int | None = None,
+) -> tuple[DefeasibleModel, DefeasibleTrace]:
+    """Lam/Governatori SPINdle projection over Maher's defeasible proof tags."""
+
+    from ._internal import _ground_theory
+    from .dialectic import _theory_predicates
+
+    grounded = _ground_theory(theory)
+    try:
+        arguments = tuple(
+            sorted(
+                build_arguments(theory, max_arguments=max_arguments),
+                key=_argument_sort_key,
+            )
+        )
+    except EnumerationExceeded as exc:
+        trace = DefeasibleTrace(config=trace_config)
+        trace.grounding_inspection = grounded.inspection
+        trace.arguments = tuple(sorted(exc.partial_arguments, key=_argument_sort_key))
+        exc.partial_trace = trace
+        raise
+
+    strict_atoms: set[GroundAtom] = {arg.conclusion for arg in arguments if not arg.rules}
+    accepted: set[GroundAtom] = set(strict_atoms)
+    rules = tuple(grounded.grounded_defeasible_rules)
+    superiority = _superiority_closure(theory.superiority)
+    conflicts = grounded.conflicts
+
+    changed = True
+    while changed:
+        changed = False
+        for rule in rules:
+            if rule.head in accepted:
+                continue
+            if not all(atom in accepted for atom in rule.body):
+                continue
+            if not all(atom not in accepted for atom in rule.default_negated_body):
+                continue
+            if _spindle_rule_is_overruled(rule, rules, accepted, superiority, conflicts):
+                continue
+            accepted.add(rule.head)
+            changed = True
+
+    defined_atoms: set[GroundAtom] = {rule.head for rule in rules}
+    conclusions = set(defined_atoms | accepted)
+    conclusions.update(complement(atom) for atom in tuple(conclusions))
+    predicates = _theory_predicates(theory)
+
+    yes_atoms: set[GroundAtom] = set()
+    no_atoms: set[GroundAtom] = set()
+    undecided_atoms: set[GroundAtom] = set()
+    unknown_atoms: set[GroundAtom] = set()
+
+    for atom in conclusions:
+        if _strip_negation(atom.predicate) not in predicates:
+            unknown_atoms.add(atom)
+            continue
+        if atom in accepted:
+            yes_atoms.add(atom)
+            continue
+        if _has_accepted_conflict(atom, accepted, conflicts) or atom in defined_atoms:
+            no_atoms.add(atom)
+            continue
+        undecided_atoms.add(atom)
+
+    model = DefeasibleModel(
+        sections={
+            "yes": _atoms_to_section(yes_atoms),
+            "no": _atoms_to_section(no_atoms),
+            "undecided": _atoms_to_section(undecided_atoms),
+            "unknown": _atoms_to_section(unknown_atoms),
+        }
+    )
+    trace = DefeasibleTrace(config=trace_config)
+    trace.grounding_inspection = grounded.inspection
+    trace.strict = tuple(sorted(strict_atoms, key=_atom_sort_key))
+    trace.yes = tuple(sorted(yes_atoms, key=_atom_sort_key))
+    trace.arguments = arguments
+    return model, trace
+
+
+def _spindle_rule_is_overruled(
+    rule: "GroundDefeasibleRule",
+    rules: tuple["GroundDefeasibleRule", ...],
+    accepted: set[GroundAtom],
+    superiority: frozenset[tuple[str, str]],
+    conflicts: frozenset[tuple[str, str]],
+) -> bool:
+    for opponent in rules:
+        if not _atoms_conflict(rule.head, opponent.head, conflicts):
+            continue
+        if not all(atom in accepted for atom in opponent.body):
+            continue
+        if any(atom in accepted for atom in opponent.default_negated_body):
+            continue
+        if _spindle_opponent_is_defeated(opponent, rule.head, rules, accepted, superiority, conflicts):
+            continue
+        return True
+    return False
+
+
+def _spindle_opponent_is_defeated(
+    opponent: "GroundDefeasibleRule",
+    target: GroundAtom,
+    rules: tuple["GroundDefeasibleRule", ...],
+    accepted: set[GroundAtom],
+    superiority: frozenset[tuple[str, str]],
+    conflicts: frozenset[tuple[str, str]],
+) -> bool:
+    for defender in rules:
+        if not _atoms_conflict(defender.head, opponent.head, conflicts):
+            continue
+        if not _same_literal(defender.head, target):
+            continue
+        if (defender.rule_id, opponent.rule_id) not in superiority:
+            continue
+        if not all(atom in accepted for atom in defender.body):
+            continue
+        if any(atom in accepted for atom in defender.default_negated_body):
+            continue
+        return True
+    return False
+
+
+def _has_accepted_conflict(
+    atom: GroundAtom,
+    accepted: set[GroundAtom],
+    conflicts: frozenset[tuple[str, str]],
+) -> bool:
+    return any(_atoms_conflict(atom, other, conflicts) for other in accepted)
+
+
+def _atoms_conflict(
+    left: GroundAtom,
+    right: GroundAtom,
+    conflicts: frozenset[tuple[str, str]],
+) -> bool:
+    return left.arguments == right.arguments and (
+        _same_literal(complement(left), right) or (left.predicate, right.predicate) in conflicts
+    )
+
+
+def _same_literal(left: GroundAtom, right: GroundAtom) -> bool:
+    return left.predicate == right.predicate and left.arguments == right.arguments
+
+
+def _superiority_closure(
+    pairs: tuple[tuple[str, str], ...],
+) -> frozenset[tuple[str, str]]:
+    closure = set(pairs)
+    changed = True
+    while changed:
+        changed = False
+        for left, middle in tuple(closure):
+            for candidate_middle, right in tuple(closure):
+                if middle != candidate_middle or (left, right) in closure:
+                    continue
+                closure.add((left, right))
+                changed = True
+    return frozenset(closure)
 
 
 def _evaluate_antoniou_policy(
