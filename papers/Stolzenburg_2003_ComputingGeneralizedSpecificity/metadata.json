@@ -1,0 +1,19 @@
+{
+  "title": "Computing Generalized Specificity",
+  "authors": [
+    "Frieder Stolzenburg",
+    "Alejandro J. Garcia",
+    "Carlos I. Chesnevar",
+    "Guillermo R. Simari"
+  ],
+  "year": "2003",
+  "arxiv_id": null,
+  "doi": "10.3166/jancl.13.87-113",
+  "abstract": "The paper investigates generalized specificity as an autonomous, context-sensitive comparison criterion for contradictory conclusions in rule-based defeasible reasoning, using activation sets and derivation trees to obtain a computational characterization.",
+  "url": "https://www.semanticscholar.org/paper/33fb7003059fc83fe812c8e5125f1b70a0b6fab1",
+  "pdf_url": "https://cs.uns.edu.ar/~grs/Publications/2003-StolzenburgGarciaChesnevarSimari-JANCL.pdf",
+  "venue": "Journal of Applied Non-Classical Logics",
+  "volume": "13",
+  "issue": "1",
+  "pages": "87-113"
+}

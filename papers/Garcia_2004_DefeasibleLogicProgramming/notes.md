@@ -317,7 +317,7 @@ DeLP is the closest existing system to what propstore plans for quantified rule-
 ## Related Work Worth Reading
 - Simari, G. R. and Loui, R. P. (1992) "A Mathematical Treatment of Defeasible Reasoning and its Implementation" -- predecessor formalism *(already in collection)*
 - Prakken, H. and Sartor, G. (1997) "Argument-based extended logic programming with defeasible priorities" -- key comparison system *(p.35)*
-- Stolzenburg, F. et al. (2003) "Computing generalized specificity" -- formal details of the comparison criterion *(p.13)*
+- Stolzenburg, F. et al. (2003) "Computing generalized specificity" -- formal details of the comparison criterion *(p.13)* -> NOW IN COLLECTION: [Computing Generalized Specificity](../Stolzenburg_2003_ComputingGeneralizedSpecificity/notes.md)
 - Chesnevar, C. I. et al. (2003) "An abstract machine for defeasible argumentation" -- the ODAM implementation *(p.34)*
 - Garcia, A. J. et al. (2004) "Dialectical trees for DeLP" -- efficiency of warrant procedure
 - Brewka, G. (2001) "On the relation between defeasible logic and well-founded semantics" *(p.37)*
@@ -342,13 +342,15 @@ DeLP is the closest existing system to what propstore plans for quantified rule-
 - [[Amgoud_2013_Ranking-BasedSemanticsArgumentationFrameworks]] -- cites DeLP
 - [[Hunter_2021_ProbabilisticArgumentationSurvey]] -- cites DeLP in argumentation survey
 
+### Now in Collection (previously listed as leads)
+- [Computing Generalized Specificity](../Stolzenburg_2003_ComputingGeneralizedSpecificity/notes.md) -- gives the activation-set and derivation-tree/path-set machinery for the generalized-specificity comparison that Garcia 2004 uses when comparing conflicting DeLP arguments.
+
 ### Conceptual Links (not citation-based)
 - [[Caminada_2006_IssueReinstatementArgumentation]] -- DeLP's dialectical tree marking (U/D) is closely related to Caminada's three-valued labellings (in/out/undec); the marking procedure is essentially computing a labelling
 - [[Modgil_2018_ModifiedASPICFrameworkStructuredArgumentation]] -- ASPIC+ is the main modern successor framework; DeLP's modular comparison criterion maps to ASPIC+'s preference ordering, and DeLP's argument construction maps to ASPIC+'s strict/defeasible rule distinction
 - [[Cayrol_2005_AcceptabilityArgumentsBipolarArgumentation]] -- DeLP's supporting/interfering argument concordance conditions relate to Cayrol's bipolar framework treatment of support+attack
 
 ### New Leads (Not Yet in Collection)
-- Stolzenburg, F. et al. (2003) "Computing generalized specificity" -- formal algorithm for the specificity comparison criterion
 - Chesnevar, C. I. et al. (2003) "An abstract machine for defeasible argumentation" -- ODAM implementation details
 - Prakken, H. and Sartor, G. (1997) "Argument-based logic programming with defeasible priorities" -- primary comparison system, dialectical proof theory
 
