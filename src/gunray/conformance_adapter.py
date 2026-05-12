@@ -12,6 +12,7 @@ import yaml
 from .adapter import GunrayEvaluator
 from .schema import ClosurePolicy, DefeasibleTheory, MarkingPolicy, NegationSemantics, Program, Rule
 from .trace import TraceConfig
+from .types import GroundAtom
 
 RuleAttributeName: TypeAlias = str
 RuleAttributeMap: TypeAlias = Mapping[RuleAttributeName, object]
@@ -22,6 +23,7 @@ _suite_import_error: ImportError | None = None
 _datalog_conformance: Any | None = None
 _load_multi_case_file_func: Any | None = None
 SuiteDefeasibleTheory: type[Any] | None = None
+SuiteDefeasibleModel: type[Any] | None = None
 SuitePolicy: type[Any] | None = None
 SuiteProgram: type[Any] | None = None
 _nemo_fingerprints: set[tuple[Any, ...]] | None = None
@@ -29,12 +31,14 @@ _nemo_fingerprints: set[tuple[Any, ...]] | None = None
 try:
     import datalog_conformance as _raw_datalog_conformance
     from datalog_conformance.plugin import _load_multi_case_file as _raw_load_multi_case_file
+    from datalog_conformance.schema import DefeasibleModel as _SuiteDefeasibleModel
     from datalog_conformance.schema import DefeasibleTheory as _SuiteDefeasibleTheory
     from datalog_conformance.schema import Policy as _SuitePolicy
     from datalog_conformance.schema import Program as _SuiteProgram
 
     _datalog_conformance = _raw_datalog_conformance
     _load_multi_case_file_func = _raw_load_multi_case_file
+    SuiteDefeasibleModel = cast(type[Any], _SuiteDefeasibleModel)
     SuiteDefeasibleTheory = cast(type[Any], _SuiteDefeasibleTheory)
     SuitePolicy = cast(type[Any], _SuitePolicy)
     SuiteProgram = cast(type[Any], _SuiteProgram)
@@ -189,6 +193,32 @@ def _negation_semantics_for_suite_item(item: Any) -> NegationSemantics:
     return NegationSemantics.SAFE
 
 
+def _suite_defeasible_model(model: Any, strict_atoms: tuple[GroundAtom, ...]) -> Any:
+    _require_suite_support()
+    assert SuiteDefeasibleModel is not None
+    sections = getattr(model, "sections", model)
+    return SuiteDefeasibleModel(
+        sections={
+            "definitely": _ground_atoms_to_sections(strict_atoms),
+            "defeasibly": _copy_section(sections.get("yes", {})),
+            "not_defeasibly": _copy_section(sections.get("no", {})),
+            "undecided": _copy_section(sections.get("undecided", {})),
+            "unknown": _copy_section(sections.get("unknown", {})),
+        }
+    )
+
+
+def _copy_section(section: Mapping[str, Any]) -> dict[str, set[tuple[Any, ...]]]:
+    return {predicate: {tuple(row) for row in rows} for predicate, rows in section.items()}
+
+
+def _ground_atoms_to_sections(atoms: tuple[GroundAtom, ...]) -> dict[str, set[tuple[Any, ...]]]:
+    sections: dict[str, set[tuple[Any, ...]]] = {}
+    for atom in atoms:
+        sections.setdefault(atom.predicate, set()).add(tuple(atom.arguments))
+    return sections
+
+
 class GunrayConformanceEvaluator:
     """Bridge evaluator for datalog-conformance-suite runner inputs."""
 
@@ -220,12 +250,13 @@ class GunrayConformanceEvaluator:
             )
         if isinstance(item, SuiteDefeasibleTheory):
             marking_policy, closure_policy = _translate_policy(policy)
-            return self._core.evaluate(
+            model, trace = self._core.evaluate_with_trace(
                 _translate_theory(item),
                 marking_policy=marking_policy,
                 closure_policy=closure_policy,
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
+            return _suite_defeasible_model(model, trace.strict)
         raise TypeError(f"Unsupported input type: {type(item).__name__}")
 
     def evaluate_with_trace(
@@ -256,13 +287,14 @@ class GunrayConformanceEvaluator:
             )
         if isinstance(item, SuiteDefeasibleTheory):
             marking_policy, closure_policy = _translate_policy(policy)
-            return self._core.evaluate_with_trace(
+            model, trace = self._core.evaluate_with_trace(
                 _translate_theory(item),
                 trace_config,
                 marking_policy=marking_policy,
                 closure_policy=closure_policy,
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
+            return _suite_defeasible_model(model, trace.strict), trace
         raise TypeError(f"Unsupported input type: {type(item).__name__}")
 
     def satisfies_klm_property(

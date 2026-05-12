@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import inspect
 
+from datalog_conformance.schema import DefeasibleTheory as SuiteDefeasibleTheory
+from datalog_conformance.schema import Policy as SuitePolicy
+from datalog_conformance.schema import Rule as SuiteRule
+
 from gunray import DefeasibleModel, DefeasibleTheory, DefeasibleTrace, MarkingPolicy, Program
 from gunray.adapter import GunrayEvaluator
 from gunray.conformance_adapter import GunrayConformanceEvaluator
@@ -39,3 +43,24 @@ def test_evaluate_with_trace_returns_public_defeasible_types() -> None:
 
     assert isinstance(model, DefeasibleModel)
     assert isinstance(trace, DefeasibleTrace)
+
+
+def test_conformance_adapter_returns_suite_sections_for_suite_theory() -> None:
+    theory = SuiteDefeasibleTheory(
+        facts={"phd_member": [("bob",)]},
+        strict_rules=[
+            SuiteRule(id="r1", head="dept_member(X)", body=["phd_member(X)"]),
+        ],
+        defeasible_rules=[
+            SuiteRule(id="r2", head="teach_course(X)", body=["dept_member(X)"]),
+            SuiteRule(id="r3", head="~teach_course(X)", body=["phd_member(X)"]),
+        ],
+    )
+
+    model = GunrayConformanceEvaluator().evaluate(theory, SuitePolicy.BLOCKING)
+
+    assert model.sections["definitely"]["phd_member"] == {("bob",)}
+    assert model.sections["definitely"]["dept_member"] == {("bob",)}
+    assert model.sections["defeasibly"]["phd_member"] == {("bob",)}
+    assert model.sections["not_defeasibly"]["teach_course"] == {("bob",)}
+    assert "yes" not in model.sections
