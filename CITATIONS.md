@@ -117,7 +117,7 @@ via metaprograms and unfold/fold. Alternative compilation path
 considered and not taken; Gunray stays with the García 2004 direct
 pipeline.
 
-## Out-of-contract (explicitly not implemented)
+## Out-of-contract Boundaries
 
 ### Antoniou 2007 — *Defeasible Reasoning on the Semantic Web*
 DR-Prolog's ambiguity-propagating variant (c7' meta-rule) has no

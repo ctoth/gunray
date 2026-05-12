@@ -145,14 +145,14 @@ marked skip/deselect, not silently counted as passes:
   DR-Prolog meta-program and has no seam in this pipeline.
   `Policy.PROPAGATING` was deprecated — see
   [`notes/policy_propagating_fate.md`](notes/policy_propagating_fate.md).
-- **Spindle implicit-`not_defeasibly` projection** for zero-arity head
-  literals. This is a conformance-suite legacy expectation, not a
-  Gunray model section.
-- **Spindle partial-dominance superiority**, which relaxes García 04
-  §4.1's all-rules-dominate requirement.
 
 Re-introducing any of these requires an explicit semantic decision, a
 new seam, and paper citations. Do not "fix" the fixtures in place.
+
+SPINdle-style defeasible-logic projection is no longer out-of-contract:
+it is available only through the explicit `ProjectionSemantics.SPINDLE`
+surface, backed by Lam/Governatori 2009 and Maher 1999 page-image tests.
+The default remains García/Simari projection.
 
 ## Module layout
 
