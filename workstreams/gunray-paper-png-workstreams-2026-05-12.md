@@ -53,6 +53,9 @@ as completion for a workstream unless every phase in that workstream is done.
   - `papers/Goldszmidt_1992_DefeasibleStrictConsistency/pngs/page-003.png`
     gives the two-phase consistency procedure and bird/penguin and Nixon
     examples.
+  - `papers/Goldszmidt_1992_DefeasibleStrictConsistency/pngs/page-004.png`
+    continues the quaker/republican examples and distinguishes consistent
+    ambiguity from strict structural inconsistency.
 
 ## Global Execution Rules
 
@@ -658,6 +661,8 @@ This is not a replacement for Garcia/Simari argumentation answers.
   probability-assignment semantics.
 - Goldszmidt `page-003.png`: two-phase consistency procedure, complexity
   theorem, bird/penguin consistency example, and Nixon inconsistency example.
+- Goldszmidt `page-004.png`: continuation of the quaker/republican example,
+  including the consistent variant and strict structural inconsistency variant.
 
 ### Red Tests
 
