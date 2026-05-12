@@ -64,3 +64,21 @@ def test_conformance_adapter_returns_suite_sections_for_suite_theory() -> None:
     assert model.sections["defeasibly"]["phd_member"] == {("bob",)}
     assert model.sections["not_defeasibly"]["teach_course"] == {("bob",)}
     assert "yes" not in model.sections
+
+
+def test_conformance_adapter_routes_strict_only_suite_theory_as_datalog() -> None:
+    theory = SuiteDefeasibleTheory(
+        facts={
+            "main": [(1,), (2,)],
+            "blocked": [(2,)],
+        },
+        strict_rules=[
+            SuiteRule(id="r1", head="kept(X)", body=["main(X)", "not blocked(X)"]),
+        ],
+    )
+
+    model = GunrayConformanceEvaluator().evaluate(theory, SuitePolicy.BLOCKING)
+
+    assert model.sections["definitely"]["kept"] == {(1,)}
+    assert model.sections["defeasibly"]["kept"] == {(1,)}
+    assert "kept" not in model.sections["not_defeasibly"]

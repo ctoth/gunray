@@ -9,6 +9,7 @@ from typing import Any, Protocol, TypeAlias, cast
 
 import yaml
 
+from ._internal import _strict_rule_to_program_text
 from .adapter import GunrayEvaluator
 from .schema import ClosurePolicy, DefeasibleTheory, MarkingPolicy, NegationSemantics, Program, Rule
 from .trace import TraceConfig
@@ -208,6 +209,22 @@ def _suite_defeasible_model(model: Any, strict_atoms: tuple[GroundAtom, ...]) ->
     )
 
 
+def _suite_strict_only_model(model: Any) -> Any:
+    _require_suite_support()
+    assert SuiteDefeasibleModel is not None
+    facts = getattr(model, "facts", model)
+    definite = _copy_section(facts)
+    return SuiteDefeasibleModel(
+        sections={
+            "definitely": definite,
+            "defeasibly": _copy_section(definite),
+            "not_defeasibly": {},
+            "undecided": {},
+            "unknown": {},
+        }
+    )
+
+
 def _copy_section(section: Mapping[str, Any]) -> dict[str, set[tuple[Any, ...]]]:
     return {predicate: {tuple(row) for row in rows} for predicate, rows in section.items()}
 
@@ -217,6 +234,25 @@ def _ground_atoms_to_sections(atoms: tuple[GroundAtom, ...]) -> dict[str, set[tu
     for atom in atoms:
         sections.setdefault(atom.predicate, set()).add(tuple(atom.arguments))
     return sections
+
+
+def _is_suite_strict_only_theory(theory: Any) -> bool:
+    return (
+        not theory.defeasible_rules
+        and not theory.defeaters
+        and not theory.superiority
+        and not theory.conflicts
+    )
+
+
+def _suite_strict_only_program(theory: Any) -> Program:
+    return Program(
+        facts=_copy_facts(theory.facts),
+        rules=[
+            _strict_rule_to_program_text(rule.head, tuple(rule.body))
+            for rule in theory.strict_rules
+        ],
+    )
 
 
 class GunrayConformanceEvaluator:
@@ -249,6 +285,12 @@ class GunrayConformanceEvaluator:
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
         if isinstance(item, SuiteDefeasibleTheory):
+            if _is_suite_strict_only_theory(item):
+                model = self._core.evaluate(
+                    _suite_strict_only_program(item),
+                    negation_semantics=_negation_semantics_for_suite_item(item),
+                )
+                return _suite_strict_only_model(model)
             marking_policy, closure_policy = _translate_policy(policy)
             model, trace = self._core.evaluate_with_trace(
                 _translate_theory(item),
@@ -286,6 +328,13 @@ class GunrayConformanceEvaluator:
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
         if isinstance(item, SuiteDefeasibleTheory):
+            if _is_suite_strict_only_theory(item):
+                model, trace = self._core.evaluate_with_trace(
+                    _suite_strict_only_program(item),
+                    trace_config,
+                    negation_semantics=_negation_semantics_for_suite_item(item),
+                )
+                return _suite_strict_only_model(model), trace
             marking_policy, closure_policy = _translate_policy(policy)
             model, trace = self._core.evaluate_with_trace(
                 _translate_theory(item),
