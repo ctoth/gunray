@@ -67,6 +67,36 @@ as completion for a workstream unless every phase in that workstream is done.
   states an invariant, monotonicity property, equivalence, order property, or
   closure condition.
 
+## Downstream Adoption Rule
+
+Do not add knobs for their own sake.
+
+Each Gunray feature must declare whether downstream repos should consume it:
+
+- `../argumentation` should consume Gunray only where the feature changes the
+  Gunray-to-ASPIC grounding projection or supplies a reusable formal kernel for
+  existing `argumentation` modules. Its current seam is
+  `argumentation.datalog_grounding`, which depends on Gunray's public
+  `inspect_grounding` and `GroundingInspection` surfaces.
+- `../propstore` should consume Gunray where the feature improves repository
+  grounding, explanations, inspection reports, ASPIC bridge inputs, sidecar
+  evidence, fragility/provenance, or render-policy behavior. Its current seams
+  are `propstore.grounding.translator`, `propstore.grounding.grounder`,
+  `propstore.grounding.explanations`, `propstore.grounding.inspection`,
+  `propstore.aspic_bridge`, and sidecar persistence of Gunray arguments.
+
+For every new mode or surface, answer these before implementation:
+
+- What user-visible or repository-visible problem does this solve?
+- Which downstream repo can benefit immediately?
+- Is it a default semantic correction, an explicit optional semantics, or a
+  separate analysis surface?
+- What downstream API/config/documentation must change?
+- What test proves downstream consumption rather than mere availability?
+
+If no downstream or Gunray-internal consumer has a concrete reason to use the
+surface, keep it as a paper note or test-only oracle instead of a public knob.
+
 ## Dependency Order
 
 Execute in this order unless the user explicitly chooses a different one:
@@ -145,6 +175,19 @@ Expected red:
 - If the oracle exposes a behavior bug, fix `src/gunray/preference.py` without
   adding a compatibility-specificity mode.
 - Do not add a second generalized-specificity implementation in production.
+
+### Downstream Adoption
+
+- `../argumentation`: no direct adoption expected. Argumentation consumes
+  grounded Gunray theories as ASPIC+ rules; it should benefit only indirectly
+  if Gunray's default `GeneralizedSpecificity` behavior changes answers before
+  projection. Do not add an Argumentation knob.
+- `../propstore`: no new config. Propstore already constructs Gunray theories
+  and receives Gunray answers/arguments through `propstore.grounding.grounder`
+  and explanations. If specificity behavior changes, update Propstore boundary
+  tests and citations so repository explanations report the corrected
+  preference reason. The reason to update Propstore is explanation correctness,
+  not user choice.
 
 ### Gates
 
@@ -242,6 +285,23 @@ surface.
 - If a generated case is outside the Diller-supported fragment, reject it with
   an explicit typed error instead of silently falling back to direct mode.
 
+### Downstream Adoption
+
+- `../argumentation`: adopt when `GroundingMode.DILLER_SIMPLIFIED` changes the
+  ASPIC projection size or provenance. Update `argumentation.datalog_grounding`
+  to accept a grounding mode only if tests prove that simplified projection
+  preserves ASPIC accepted conclusions while reducing strict/fact scaffolding
+  or exposing non-approximated predicates more accurately. This is not a user
+  knob; it is an ASPIC grounding optimization and provenance improvement.
+- `../propstore`: adopt in `propstore.grounding.grounder` and ASPIC bridge when
+  it reduces bundle size, argument enumeration cost, or stale strict-rule
+  artifacts in sidecar output. Add a Propstore workstream phase that threads the
+  mode into `build_grounded_bundle` only as a documented render/build policy,
+  records `GroundingInspection.simplification` in reports, and proves that
+  `sections`, `arguments`, `projection_frames`, and `GroundedAspicProjection`
+  remain answer-equivalent. The reason to expose this downstream is cheaper and
+  clearer grounding evidence, not semantic variety.
+
 ### Gates
 
 ```powershell
@@ -317,6 +377,22 @@ Expected red:
   priority transformation if such a path exists.
 - Do not add a new default-negation policy unless the page-image evidence
   requires a semantics split.
+
+### Downstream Adoption
+
+- `../argumentation`: do not adopt default-negated rules into ASPIC projection
+  until `argumentation.datalog_grounding` has a page-backed representation for
+  Garcia default-negation attacks. Its current projection rejects
+  `default_negated_body`; that is better than silently projecting the wrong
+  attack relation. Adopt only if tests prove the translated ASPIC theory
+  preserves Definition 6.3 attack points.
+- `../propstore`: adopt through translator validation and diagnostics first.
+  Propstore already renders `not ...` into Gunray's surface, but ASPIC bridge
+  and sidecar consumers must not treat default-negation assumptions as ordinary
+  body atoms. Add Propstore tests showing repository grounding, explanation
+  prose, and any ASPIC projection either preserve Garcia Section 6.1 semantics
+  or reject the unsupported projection with an explicit message. The reason is
+  semantic honesty for authored rules, not a selectable mode.
 
 ### Gates
 
@@ -400,6 +476,21 @@ If page-image reread shows the conformance fixture is not actually the
 Antoniou semantics, do not implement it. Instead keep the skip, update its
 reason with the page-image contradiction, and add a test that enforces the
 skip rationale.
+
+### Downstream Adoption
+
+- `../argumentation`: likely no direct adoption. Antoniou propagation is a
+  defeasible-logic proof-theory policy, not an ASPIC grounding primitive. Do
+  not add an Argumentation policy unless a later paper-backed bridge proves a
+  faithful AF/ASPIC encoding of the propagation behavior.
+- `../propstore`: adopt only as an explicit render/build policy for users who
+  are importing defeasible-logic corpora that expect ambiguity propagation.
+  Propstore should expose it only where a repository can declare the intended
+  semantics for a rule set, and tests must show that `ground(...)`,
+  `inspect_grounding_explain(...)`, sidecar section storage, and conformance
+  tranche cases all preserve the chosen policy. The reason to expose it is
+  interoperability with Antoniou-style defeasible-logic datasets, not giving
+  users a vague "stricter/looser" toggle.
 
 ### Gates
 
@@ -493,6 +584,20 @@ If page-image evidence supports the current skips, keep the skips but replace
 generic reasons with primary-paper page refs and add tests asserting the
 fixture IDs stay skipped unless `ProjectionSemantics.SPINDLE` exists.
 
+### Downstream Adoption
+
+- `../argumentation`: no direct adoption unless SPINdle semantics is formalized
+  as an argumentation-theoretic projection in the processed Governatori paper.
+  If that happens, add it as a separate module or adapter, not as a mutation of
+  ASPIC+ preferences.
+- `../propstore`: adopt only for imported datasets or conformance fixtures that
+  explicitly declare SPINdle/defeasible-logic semantics. Propstore should keep
+  Garcia/Simari as the default repository semantics. If SPINdle is supported,
+  thread the semantics through `ground(...)`, sidecar section storage, and
+  conformance-tranche translation with clear metadata saying the sections are
+  SPINdle projections. The reason is faithful import/interoperability, not
+  broader truth or a convenience toggle.
+
 ### Gates
 
 ```powershell
@@ -568,6 +673,19 @@ def analyze_p_consistency(database: ConditionalDatabase) -> ConsistencyReport: .
 Define a small conditional-database value surface. Do not overload
 `DefeasibleEvaluator.evaluate` or `Answer`; this is a different paper
 semantics.
+
+### Downstream Adoption
+
+- `../argumentation`: possible adoption as a ranked-default or consistency
+  analysis helper only after a separate bridge workstream. Do not mix
+  p-consistency into Dung/ASPIC acceptance semantics.
+- `../propstore`: high-value adoption as a repository diagnostic, not a
+  grounding/evaluation mode. Propstore can use the report to distinguish
+  "defaults with legitimate exceptions" from "the strict/defeasible database is
+  inconsistent", surface offending sentence IDs in conflict diagnostics, and
+  cache the report in sidecar/build output. The reason is review and
+  authoring-quality feedback for mixed strict/defeasible rule sets, not another
+  way to answer individual DeLP queries.
 
 ### Gates
 
