@@ -80,7 +80,7 @@ class TrivialPreference:
 
 
 class GeneralizedSpecificity:
-    """Simari & Loui 1992 Lemma 2.4 generalized specificity over a theory.
+    """Generalized specificity over a theory.
 
     Simari & Loui 1992 Definition 2.6 defines strict specificity
     ``⟨T₁, h₁⟩ ≻_spec ⟨T₂, h₂⟩`` semantically: every "activation"
@@ -100,6 +100,18 @@ class GeneralizedSpecificity:
     literals with defeasible derivation and the "activating sets" of
     arguments. The two formulations are equivalent up to the DeLP
     renaming of ``K_N`` as ``Pi`` (strict rule context).
+
+    Stolzenburg, Garcia, Chesnevar, and Simari 2003 then supplies the
+    implementation-facing account Gunray relies on: page-007.png gives
+    the possible-facts definition, page-012.png defines completed
+    arguments and activation/non-trivial activation sets, and
+    page-013.png gives Figure 3's stack algorithm for computing
+    non-trivial activation sets. Gunray's implementation uses the
+    equivalent antecedent-coverage specialization already present in
+    Simari & Loui 1992 / Garcia & Simari 2004, while the
+    Stolzenburg page-image tests pin the strict-background and
+    activation-set edge cases that prevent reducing specificity to a
+    fixed pairwise rule-priority shortcut.
 
     Gunray specializes ``K_N`` to the strict rules of ``theory``
     (facts are deliberately excluded — if ``K_N`` included grounded
