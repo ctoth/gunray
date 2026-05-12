@@ -1,0 +1,14 @@
+{
+  "title": "A Semantic Decomposition of Defeasible Logics",
+  "authors": [
+    "Michael J. Maher",
+    "Guido Governatori"
+  ],
+  "year": "1999",
+  "doi": null,
+  "venue": "AAAI-99 Proceedings",
+  "pages": "299-305",
+  "pdf_url": "https://cdn.aaai.org/AAAI/1999/AAAI99-044.pdf",
+  "processed_with": "paper-retriever + paper-reader",
+  "reading_basis": "page images in pngs/page-*.png"
+}
