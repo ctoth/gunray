@@ -12,15 +12,9 @@ from gunray.consistency import (
     strictly_p_entails,
 )
 
-GOLDSZMIDT_PAGE_001 = (
-    "papers/Goldszmidt_1992_DefeasibleStrictConsistency/pngs/page-001.png"
-)
-GOLDSZMIDT_PAGE_003 = (
-    "papers/Goldszmidt_1992_DefeasibleStrictConsistency/pngs/page-003.png"
-)
-GOLDSZMIDT_PAGE_004 = (
-    "papers/Goldszmidt_1992_DefeasibleStrictConsistency/pngs/page-004.png"
-)
+GOLDSZMIDT_PAGE_001 = "papers/Goldszmidt_1992_DefeasibleStrictConsistency/pngs/page-001.png"
+GOLDSZMIDT_PAGE_003 = "papers/Goldszmidt_1992_DefeasibleStrictConsistency/pngs/page-003.png"
+GOLDSZMIDT_PAGE_004 = "papers/Goldszmidt_1992_DefeasibleStrictConsistency/pngs/page-004.png"
 
 
 def c(sentence_id: str, antecedent: tuple[str, ...], consequent: str) -> ConditionalSentence:
@@ -91,9 +85,7 @@ def small_database(draw: st.DrawFn) -> ConditionalDatabase:
     consequent = st.sampled_from(literals)
     strict_count = draw(st.integers(min_value=0, max_value=2))
     defeasible_count = draw(st.integers(min_value=0, max_value=3))
-    strict = tuple(
-        c(f"s{i}", draw(antecedents), draw(consequent)) for i in range(strict_count)
-    )
+    strict = tuple(c(f"s{i}", draw(antecedents), draw(consequent)) for i in range(strict_count))
     defeasible = tuple(
         c(f"d{i}", draw(antecedents), draw(consequent)) for i in range(defeasible_count)
     )
@@ -143,7 +135,9 @@ def test_tolerated_layer_members_do_not_depend_on_input_order(
 @settings(max_examples=40, deadline=None)
 def test_offending_ids_are_drawn_from_input(database: ConditionalDatabase) -> None:
     report = analyze_p_consistency(database)
-    input_ids = {item.id for item in database.strict_conditionals + database.defeasible_conditionals}
+    input_ids = {
+        item.id for item in database.strict_conditionals + database.defeasible_conditionals
+    }
 
     assert report.offending_sentence_ids <= input_ids
 
@@ -162,7 +156,9 @@ def _bruteforce_consistent(database: ConditionalDatabase) -> bool:
         return False
     remaining = set(database.defeasible_conditionals)
     while remaining:
-        tolerated = {sentence for sentence in remaining if _is_tolerated(sentence, strict + tuple(remaining))}
+        tolerated = {
+            sentence for sentence in remaining if _is_tolerated(sentence, strict + tuple(remaining))
+        }
         if not tolerated:
             return False
         remaining -= tolerated
@@ -181,10 +177,7 @@ def _is_tolerated(
         }
     )
     for mask in range(1 << len(atoms)):
-        assignment = {
-            atom: bool(mask & (1 << index))
-            for index, atom in enumerate(atoms)
-        }
+        assignment = {atom: bool(mask & (1 << index)) for index, atom in enumerate(atoms)}
         if not _verified(sentence, assignment):
             continue
         if all(_materially_satisfied(item, assignment) for item in constraints):
@@ -203,7 +196,9 @@ def _materially_satisfied(
     sentence: ConditionalSentence,
     assignment: dict[str, bool],
 ) -> bool:
-    return not all(_literal_value(item, assignment) for item in sentence.antecedent) or _literal_value(
+    return not all(
+        _literal_value(item, assignment) for item in sentence.antecedent
+    ) or _literal_value(
         sentence.consequent,
         assignment,
     )

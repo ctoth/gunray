@@ -96,11 +96,13 @@ def analyze_p_consistency(database: ConditionalDatabase) -> ConsistencyReport:
             offending_sentence_ids=strict_offenders,
         )
 
-    remaining = list(database.defeasible_conditionals)
+    remaining: list[ConditionalSentence] = list(database.defeasible_conditionals)
     tolerated_layers: list[tuple[str, ...]] = []
     while remaining:
-        constraints = (*strict, *remaining)
-        layer = tuple(sentence for sentence in remaining if _is_tolerated(sentence, constraints))
+        constraints: tuple[ConditionalSentence, ...] = (*strict, *remaining)
+        layer: tuple[ConditionalSentence, ...] = tuple(
+            sentence for sentence in remaining if _is_tolerated(sentence, constraints)
+        )
         if not layer:
             return ConsistencyReport(
                 is_consistent=False,
@@ -108,7 +110,7 @@ def analyze_p_consistency(database: ConditionalDatabase) -> ConsistencyReport:
                 offending_sentence_ids=frozenset(sentence.id for sentence in remaining),
             )
         tolerated_layers.append(tuple(sentence.id for sentence in layer))
-        layer_ids = {sentence.id for sentence in layer}
+        layer_ids: set[str] = {sentence.id for sentence in layer}
         remaining = [sentence for sentence in remaining if sentence.id not in layer_ids]
 
     return ConsistencyReport(
