@@ -525,16 +525,45 @@ The current Gunray corpus has Antoniou 2007 and Maher 2021, but not the
 primary SPINdle / Governatori papers needed to decide these fixture semantics
 from page images.
 
-Run paper-process for:
+Use paper-retriever and paper-reader, not paper-process, for:
 
 ```text
-/research-papers:paper-process Lam Governatori 2009 The making of SPINdle
-/research-papers:paper-process Governatori Maher 1999 A semantic decomposition of defeasible logics
-/research-papers:paper-process Governatori et al. 2004 Argumentation Semantics for Defeasible Logics
+/research-papers:paper-retriever Lam Governatori 2009 The making of SPINdle
+/research-papers:paper-reader papers/Lam_2009_MakingSPINdle/paper.pdf
+/research-papers:paper-retriever Governatori Maher 1999 A semantic decomposition of defeasible logics
+/research-papers:paper-reader papers/Maher_1999_SemanticDecomposition/paper.pdf
+/research-papers:paper-retriever Governatori et al. 2004 Argumentation Semantics for Defeasible Logics
+/research-papers:paper-reader papers/Governatori_2004_ArgumentationSemantics/paper.pdf
 ```
 
 Stop if any retrieval resolves to the wrong paper. After processing, reread
 the generated PNGs and record exact page refs before touching code.
+
+Completed page-image reads:
+
+- SPINdle:
+  - `papers/Lam_2009_MakingSPINdle/pngs/page-002.png` gives the four proof
+    tags and the `not_defeasibly` classification target.
+  - `papers/Lam_2009_MakingSPINdle/pngs/page-004.png` describes SPINdle's
+    preprocessing into an equivalent theory without superiority and defeaters.
+  - `papers/Lam_2009_MakingSPINdle/pngs/page-005.png` describes pending
+    conflicting heads and negative proof before conclusion generation.
+- Semantic decomposition:
+  - `papers/Maher_1999_SemanticDecomposition/pngs/page-001.png` gives the
+    constructive positive/negative defeasible proof rules.
+  - `papers/Maher_1999_SemanticDecomposition/pngs/page-003.png` gives the
+    executable metaprogram predicates, including `defeasibly`,
+    `not_defeasibly`, `overruled`, and `defeated`.
+  - `papers/Maher_1999_SemanticDecomposition/pngs/page-005.png` distinguishes
+    conventional defeasible logic from well-founded variants.
+- Argumentation semantics:
+  - `papers/Governatori_2004_ArgumentationSemantics/pngs/page-004.png`
+    defines the ambiguity example and the support predicate.
+  - `papers/Governatori_2004_ArgumentationSemantics/pngs/page-012.png`
+    states the ambiguity-blocking characterization.
+  - `papers/Governatori_2004_ArgumentationSemantics/pngs/page-027.png` gives
+    the Appendix B metaprogram split between ambiguity blocking and
+    propagation.
 
 ### Red Tests
 
