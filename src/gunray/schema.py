@@ -83,6 +83,19 @@ class NegationSemantics(str, Enum):
     NEMO = "nemo"
 
 
+class GroundingMode(str, Enum):
+    """Execution routes for defeasible-theory grounding.
+
+    ``DIRECT`` keeps the normal Garcia/Simari argument pipeline over the
+    source theory. ``DILLER_SIMPLIFIED`` evaluates the conservative
+    Diller 2025 strict/fact simplification report as a ground-only
+    theory, while keeping the original grounding inspection on the trace.
+    """
+
+    DIRECT = "direct"
+    DILLER_SIMPLIFIED = "diller_simplified"
+
+
 @dataclass(frozen=True, slots=True)
 class Program:
     """Core Datalog program."""

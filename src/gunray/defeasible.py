@@ -37,11 +37,12 @@ from .arguments import build_arguments
 from .closure import ClosureEvaluator
 from .errors import ContradictoryStrictTheoryError
 from .evaluator import SemiNaiveEvaluator
-from .grounding import inspect_grounding
+from .grounding import inspect_grounding, simplified_ground_theory
 from .schema import (
     ClosurePolicy,
     DefeasibleModel,
     FactTuple,
+    GroundingMode,
     MarkingPolicy,
     ModelFacts,
     NegationSemantics,
@@ -58,6 +59,7 @@ from .types import GroundAtom
 if TYPE_CHECKING:  # pragma: no cover - import-time only
     from .arguments import Argument
     from .dialectic import DialecticalNode
+    from .grounding_types import GroundingInspection
     from .types import GroundDefeasibleRule
 
 
@@ -70,6 +72,7 @@ class DefeasibleEvaluator:
         *,
         marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
         closure_policy: ClosurePolicy | None = None,
+        grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
         max_arguments: int | None = None,
     ) -> DefeasibleModel:
@@ -78,6 +81,7 @@ class DefeasibleEvaluator:
                 theory,
                 marking_policy=marking_policy,
                 closure_policy=closure_policy,
+                grounding_mode=grounding_mode,
                 negation_semantics=negation_semantics,
                 max_arguments=max_arguments,
             )
@@ -93,10 +97,13 @@ class DefeasibleEvaluator:
         *,
         marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
         closure_policy: ClosurePolicy | None = None,
+        grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
         max_arguments: int | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]:
         if closure_policy is not None:
+            if grounding_mode is not GroundingMode.DIRECT:
+                raise ValueError("grounding_mode applies only to dialectical-tree evaluation")
             return ClosureEvaluator().evaluate_with_trace(
                 theory,
                 closure_policy,
@@ -109,6 +116,35 @@ class DefeasibleEvaluator:
         # policy. Argument preference is resolved by
         # GeneralizedSpecificity (Simari 92 Lemma 2.4).
         actual_trace_config = trace_config or TraceConfig()
+        if grounding_mode is GroundingMode.DILLER_SIMPLIFIED:
+            grounding_inspection = inspect_grounding(theory)
+            simplified_theory = simplified_ground_theory(theory, grounding_inspection)
+            if _is_strict_only_theory(simplified_theory):
+                model, strict_trace = _evaluate_strict_only_theory_with_trace(
+                    simplified_theory,
+                    actual_trace_config,
+                    negation_semantics,
+                )
+                trace = DefeasibleTrace(config=actual_trace_config)
+                trace.strict_trace = strict_trace
+                trace.grounding_inspection = grounding_inspection
+                trace.strict = tuple(
+                    sorted(
+                        _section_to_atoms(model.sections.get("yes", {})),
+                        key=_atom_sort_key,
+                    )
+                )
+                trace.yes = trace.strict
+                _populate_strict_only_argument_view(simplified_theory, trace)
+                return model, trace
+            return _evaluate_via_argument_pipeline(
+                simplified_theory,
+                actual_trace_config,
+                max_arguments=max_arguments,
+                grounding_inspection=grounding_inspection,
+                specificity_theory=theory,
+            )
+
         if _is_strict_only_theory(theory):
             model, strict_trace = _evaluate_strict_only_theory_with_trace(
                 theory,
@@ -140,6 +176,8 @@ def _evaluate_via_argument_pipeline(
     trace_config: TraceConfig,
     *,
     max_arguments: int | None = None,
+    grounding_inspection: GroundingInspection | None = None,
+    specificity_theory: SchemaDefeasibleTheory | None = None,
 ) -> tuple[DefeasibleModel, DefeasibleTrace]:
     """Garcia & Simari 2004 §5 pipeline: enumerate, mark, project.
 
@@ -155,7 +193,8 @@ def _evaluate_via_argument_pipeline(
         SuperiorityPreference,
     )
 
-    grounding_inspection = inspect_grounding(theory)
+    if grounding_inspection is None:
+        grounding_inspection = inspect_grounding(theory)
     try:
         arguments = tuple(
             sorted(
@@ -179,7 +218,7 @@ def _evaluate_via_argument_pipeline(
     # a thin delegator.
     criterion = CompositePreference(
         SuperiorityPreference(theory),
-        GeneralizedSpecificity(theory),
+        GeneralizedSpecificity(specificity_theory or theory),
     )
     predicates = _theory_predicates(theory)
     dialectical_context = _dialectical_context(theory)

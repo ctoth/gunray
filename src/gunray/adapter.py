@@ -11,6 +11,7 @@ from .schema import (
     ClosurePolicy,
     DefeasibleModel,
     DefeasibleTheory,
+    GroundingMode,
     MarkingPolicy,
     Model,
     NegationSemantics,
@@ -50,6 +51,7 @@ class GunrayEvaluator:
         *,
         marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
         closure_policy: ClosurePolicy | None = None,
+        grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
         max_arguments: int | None = None,
     ) -> DefeasibleModel: ...
@@ -60,6 +62,7 @@ class GunrayEvaluator:
         *,
         marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
         closure_policy: ClosurePolicy | None = None,
+        grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
         max_arguments: int | None = None,
     ) -> Model | DefeasibleModel:
@@ -67,11 +70,14 @@ class GunrayEvaluator:
             return self._datalog.evaluate(item, negation_semantics=negation_semantics)
         if isinstance(item, DefeasibleTheory):
             if closure_policy is not None:
+                if grounding_mode is not GroundingMode.DIRECT:
+                    raise ValueError("grounding_mode applies only to dialectical-tree evaluation")
                 return self._closure.evaluate(item, closure_policy)
             return self._defeasible.evaluate(
                 item,
                 marking_policy=marking_policy,
                 closure_policy=closure_policy,
+                grounding_mode=grounding_mode,
                 negation_semantics=negation_semantics,
                 max_arguments=max_arguments,
             )
@@ -94,6 +100,7 @@ class GunrayEvaluator:
         *,
         marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
         closure_policy: ClosurePolicy | None = None,
+        grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
         max_arguments: int | None = None,
     ) -> tuple[DefeasibleModel, DefeasibleTrace]: ...
@@ -105,6 +112,7 @@ class GunrayEvaluator:
         *,
         marking_policy: MarkingPolicy = MarkingPolicy.BLOCKING,
         closure_policy: ClosurePolicy | None = None,
+        grounding_mode: GroundingMode = GroundingMode.DIRECT,
         negation_semantics: NegationSemantics = NegationSemantics.SAFE,
         max_arguments: int | None = None,
     ) -> tuple[Model | DefeasibleModel, DatalogTrace | DefeasibleTrace]:
@@ -116,12 +124,15 @@ class GunrayEvaluator:
             )
         if isinstance(item, DefeasibleTheory):
             if closure_policy is not None:
+                if grounding_mode is not GroundingMode.DIRECT:
+                    raise ValueError("grounding_mode applies only to dialectical-tree evaluation")
                 return self._closure.evaluate_with_trace(item, closure_policy, trace_config)
             return self._defeasible.evaluate_with_trace(
                 item,
                 trace_config,
                 marking_policy=marking_policy,
                 closure_policy=closure_policy,
+                grounding_mode=grounding_mode,
                 negation_semantics=negation_semantics,
                 max_arguments=max_arguments,
             )
