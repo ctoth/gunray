@@ -10,7 +10,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "datalog-conformance @ git+https://github.com/ctoth/datalog-conformance-suite",
+    "datalog-conformance>=0.1.0",
     "hypothesis>=6.0",
     "pyright>=1.1.0",
     "pytest>=8.0",
@@ -22,9 +22,6 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gunray"]
