@@ -14,7 +14,7 @@ wheels = [
 [[package]]
 name = "datalog-conformance"
 version = "0.1.0"
-source = { git = "https://github.com/ctoth/datalog-conformance-suite?rev=795f2a7e5bc8328ce273095d3a757631fa379a38#795f2a7e5bc8328ce273095d3a757631fa379a38" }
+source = { git = "https://github.com/ctoth/datalog-conformance-suite?rev=8df5474eb2510fbc65954159a5b206b70e7dd524#8df5474eb2510fbc65954159a5b206b70e7dd524" }
 dependencies = [
     { name = "hypothesis" },
     { name = "pytest" },
@@ -42,7 +42,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "datalog-conformance", marker = "extra == 'dev'", git = "https://github.com/ctoth/datalog-conformance-suite?rev=795f2a7e5bc8328ce273095d3a757631fa379a38" },
+    { name = "datalog-conformance", marker = "extra == 'dev'", git = "https://github.com/ctoth/datalog-conformance-suite?rev=8df5474eb2510fbc65954159a5b206b70e7dd524" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
