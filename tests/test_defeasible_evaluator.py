@@ -179,6 +179,39 @@ def test_tweety_sections_projection() -> None:
     assert ("opus",) not in undecided_flies
 
 
+def test_language_literal_without_constructible_argument_is_undecided() -> None:
+    """Garcia 04 Def 5.3 (p. 120): UNDECIDED covers the program language.
+
+    ``nests(tweety)`` depends on ``flies(tweety)``, whose only candidate
+    argument contradicts ``Π`` (``~flies(tweety)`` is strict via ``s2``),
+    so no argument for ``nests(tweety)`` is constructible at all. Def 5.3
+    classifies by warrant over the language — not over constructible
+    arguments — so with neither ``nests(tweety)`` nor its complement
+    warranted the answer is UNDECIDED. DePYsible agrees; regression from
+    conformance ``depysible_nests_in_trees_tina``/``_tweety``.
+    """
+    theory = DefeasibleTheory(
+        facts={"penguin": {("tweety",)}},
+        strict_rules=[
+            Rule(id="s1", head="bird(X)", body=["penguin(X)"]),
+            Rule(id="s2", head="~flies(X)", body=["penguin(X)"]),
+        ],
+        defeasible_rules=[
+            Rule(id="r1", head="flies(X)", body=["bird(X)"]),
+            Rule(id="r2", head="nests(X)", body=["flies(X)"]),
+        ],
+        defeaters=[],
+        superiority=[],
+        conflicts=[],
+    )
+    evaluator = GunrayEvaluator()
+    model = evaluator.evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
+
+    assert ("tweety",) in model.sections["undecided"].get("nests", set())
+    # The blocked literal itself stays NO: its strong complement is strict.
+    assert ("tweety",) in model.sections["no"].get("flies", set())
+
+
 def test_nixon_sections_projection() -> None:
     """Scout 5.2 direct Nixon: ``pacifist(nixon)`` and
     ``~pacifist(nixon)`` are mutually blocking under

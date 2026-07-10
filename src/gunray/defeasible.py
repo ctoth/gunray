@@ -293,6 +293,27 @@ def _evaluate_via_argument_pipeline(
 
     strict_atoms: set[GroundAtom] = {arg.conclusion for arg in arguments if not arg.rules}
     conclusions: set[GroundAtom] = {arg.conclusion for arg in arguments}
+    # Garcia & Simari 2004 Def 5.3 (p. 120) classifies every literal of the
+    # program language, not only conclusions of constructible arguments: a
+    # ground literal whose every candidate argument is Pi-contradictory
+    # (e.g. its subargument's complement is a strict consequence) has no
+    # argument at all, yet must still answer UNDECIDED when neither it nor
+    # its complement is warranted. Cover the ground language through the
+    # grounding report's fact atoms and grounded rule heads.
+    simplification = grounding_inspection.simplification
+    conclusions.update(simplification.definite_fact_atoms)
+    conclusions.update(
+        resolution.produced_fact for resolution in simplification.resolved_strict_rules
+    )
+    conclusions.update(
+        instance.head
+        for instances in (
+            simplification.strict_rules_for_argumentation,
+            simplification.defeasible_rules_for_argumentation,
+            simplification.defeater_rules_for_argumentation,
+        )
+        for instance in instances
+    )
     conclusions.update(complement(atom) for atom in tuple(conclusions))
 
     # Garcia & Simari 2004 Def 5.3 (p. 120):
@@ -300,8 +321,7 @@ def _evaluate_via_argument_pipeline(
     #             represented as strict-only arguments and therefore
     #             count as warranted here.
     #   NO        iff the strong complement is warranted.
-    #   UNDECIDED iff neither side is warranted but an argument exists
-    #             on at least one side.
+    #   UNDECIDED iff neither side is warranted.
     #   UNKNOWN   iff the predicate is absent from the theory language.
     yes_atoms: set[GroundAtom] = set()
     no_atoms: set[GroundAtom] = set()
