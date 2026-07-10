@@ -216,6 +216,11 @@ def _suite_spindle_projection_fingerprints() -> set[tuple[Any, ...]]:
         "spindle_racket_query_missing_premise_theory",
         "spindle_racket_simplified_penguin",
         "spindle_racket_penguin_exception",
+        # Inconsistent strict theories: SPINdle +Δ proves both complements
+        # definitely, so these must reach the SPINdle projection instead of
+        # the consistency-enforcing strict-only shortcut.
+        "spindle_racket_fact_conflict",
+        "spindle_racket_fact_vs_strict_rule_conflict",
     }
     fingerprints: set[tuple[Any, ...]] = set()
     for yaml_file in (
@@ -287,6 +292,17 @@ def _projection_semantics_for_suite_item(item: Any) -> ProjectionSemantics:
     if _item_fingerprint(item) in _suite_spindle_projection_fingerprints():
         return ProjectionSemantics.SPINDLE
     return ProjectionSemantics.GARCIA
+
+
+def _routes_to_spindle_projection(item: Any) -> bool:
+    """SPINdle-projection fixtures must skip the strict-only shortcut.
+
+    The shortcut enforces Π consistency (P1-T1), but SPINdle +Δ tolerates
+    inconsistent strict theories, so those fixtures go to the core, which
+    dispatches them to the SPINdle projection.
+    """
+
+    return _projection_semantics_for_suite_item(item) is ProjectionSemantics.SPINDLE
 
 
 def _suite_defeasible_model(model: Any, strict_atoms: tuple[GroundAtom, ...]) -> Any:
@@ -394,7 +410,7 @@ class GunrayConformanceEvaluator:
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
         if isinstance(item, SuiteDefeasibleTheory):
-            if _is_suite_strict_only_theory(item):
+            if _is_suite_strict_only_theory(item) and not _routes_to_spindle_projection(item):
                 model = self._core.evaluate(
                     _suite_strict_only_program(item),
                     negation_semantics=_negation_semantics_for_suite_item(item),
@@ -440,7 +456,7 @@ class GunrayConformanceEvaluator:
                 negation_semantics=_negation_semantics_for_suite_item(item),
             )
         if isinstance(item, SuiteDefeasibleTheory):
-            if _is_suite_strict_only_theory(item):
+            if _is_suite_strict_only_theory(item) and not _routes_to_spindle_projection(item):
                 model, trace = self._core.evaluate_with_trace(
                     _suite_strict_only_program(item),
                     trace_config,

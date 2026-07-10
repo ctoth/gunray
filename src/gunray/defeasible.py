@@ -386,21 +386,38 @@ def _evaluate_spindle_projection(
     from .dialectic import _theory_predicates
 
     grounded = _ground_theory(theory)
-    try:
-        arguments = tuple(
-            sorted(
-                build_arguments(theory, max_arguments=max_arguments),
-                key=_argument_sort_key,
-            )
+    if _is_strict_only_theory(theory):
+        # SPINdle definite provability (+Δ, Lam & Governatori 2009 p. 2) is
+        # monotonic strict derivation with no Π-consistency condition: an
+        # inconsistent strict theory still proves both complements
+        # definitely. Only the Garcia path enforces
+        # ``ContradictoryStrictTheoryError`` (P1-T1); here we take the
+        # plain strict closure without the consistency gate, which also
+        # sidesteps ``build_arguments``'s Π check.
+        program = SchemaProgram(
+            facts=theory.facts,
+            rules=[
+                _strict_rule_to_program_text(rule.head, rule.body) for rule in theory.strict_rules
+            ],
         )
-    except EnumerationExceeded as exc:
-        trace = DefeasibleTrace(config=trace_config)
-        trace.grounding_inspection = grounded.inspection
-        trace.arguments = tuple(sorted(exc.partial_arguments, key=_argument_sort_key))
-        exc.partial_trace = trace
-        raise
-
-    strict_atoms: set[GroundAtom] = {arg.conclusion for arg in arguments if not arg.rules}
+        datalog_model = SemiNaiveEvaluator().evaluate(program)
+        arguments = ()
+        strict_atoms = _section_to_atoms(datalog_model.facts)
+    else:
+        try:
+            arguments = tuple(
+                sorted(
+                    build_arguments(theory, max_arguments=max_arguments),
+                    key=_argument_sort_key,
+                )
+            )
+        except EnumerationExceeded as exc:
+            trace = DefeasibleTrace(config=trace_config)
+            trace.grounding_inspection = grounded.inspection
+            trace.arguments = tuple(sorted(exc.partial_arguments, key=_argument_sort_key))
+            exc.partial_trace = trace
+            raise
+        strict_atoms = {arg.conclusion for arg in arguments if not arg.rules}
     accepted: set[GroundAtom] = set(strict_atoms)
     rules = tuple(grounded.grounded_defeasible_rules)
     superiority = _superiority_closure(theory.superiority)

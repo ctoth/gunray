@@ -87,6 +87,26 @@ def test_conformance_adapter_routes_strict_only_suite_theory_as_datalog() -> Non
 
 
 def test_conformance_adapter_strict_only_route_preserves_contradiction_error() -> None:
+    # The extra ``bystander`` fact keeps this theory's fingerprint distinct
+    # from the SPINdle inconsistency fixtures, which are deliberately routed
+    # around this consistency gate (see the tests below). Generic
+    # contradictory strict theories must keep raising (P1-T1).
+    theory = SuiteDefeasibleTheory(
+        facts={
+            "p": [()],
+            "~p": [()],
+            "bystander": [()],
+        },
+    )
+
+    with pytest.raises(ContradictoryStrictTheoryError):
+        GunrayConformanceEvaluator().evaluate(theory, SuitePolicy.BLOCKING)
+
+
+def test_conformance_adapter_routes_spindle_fact_conflict_fixture() -> None:
+    """The ``spindle_racket_fact_conflict`` fixture theory answers both
+    complements definitely under SPINdle +Δ instead of raising."""
+
     theory = SuiteDefeasibleTheory(
         facts={
             "p": [()],
@@ -94,5 +114,27 @@ def test_conformance_adapter_strict_only_route_preserves_contradiction_error() -
         },
     )
 
-    with pytest.raises(ContradictoryStrictTheoryError):
-        GunrayConformanceEvaluator().evaluate(theory, SuitePolicy.BLOCKING)
+    model = GunrayConformanceEvaluator().evaluate(theory, SuitePolicy.BLOCKING)
+
+    assert () in model.sections["definitely"]["p"]
+    assert () in model.sections["definitely"]["~p"]
+
+
+def test_conformance_adapter_routes_spindle_fact_vs_strict_rule_fixture() -> None:
+    """The ``spindle_racket_fact_vs_strict_rule_conflict`` fixture keeps a
+    fact and a conflicting strict-rule conclusion definitely provable."""
+
+    theory = SuiteDefeasibleTheory(
+        facts={
+            "p": [()],
+            "q": [()],
+        },
+        strict_rules=[SuiteRule(id="r1", head="~p", body=["q"])],
+        conflicts=[("p", "~p")],
+    )
+
+    model = GunrayConformanceEvaluator().evaluate(theory, SuitePolicy.BLOCKING)
+
+    assert () in model.sections["definitely"]["p"]
+    assert () in model.sections["definitely"]["~p"]
+    assert () in model.sections["definitely"]["q"]

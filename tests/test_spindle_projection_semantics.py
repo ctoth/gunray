@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from gunray import DefeasibleEvaluator, DefeasibleTheory, ProjectionSemantics, Rule
 from gunray.arguments import Argument
+from gunray.errors import ContradictoryStrictTheoryError
 from gunray.preference import SuperiorityPreference
 from gunray.types import GroundAtom, GroundDefeasibleRule
 
@@ -65,6 +67,47 @@ def test_spindle_negative_projection_is_consistent_for_defined_unprovable_heads(
 
     assert not _has(garcia, "no", head)
     assert _has(spindle, "no", head)
+
+
+def test_spindle_projection_tolerates_contradictory_strict_facts() -> None:
+    """Page-image source: ``SPINDLE_PAGE_002`` — definite provability (+Δ)
+    is monotonic strict derivation with no Π-consistency condition, so an
+    inconsistent strict theory still answers YES on both complements. The
+    Garcia path keeps its ``ContradictoryStrictTheoryError`` bright line
+    (P1-T1); only the SPINdle projection tolerates the inconsistency.
+    Conformance sources: ``spindle_racket_fact_conflict`` and
+    ``spindle_racket_fact_vs_strict_rule_conflict``."""
+
+    theory = DefeasibleTheory(
+        facts={"p": {()}, "~p": {()}},
+    )
+
+    spindle = _model(theory, ProjectionSemantics.SPINDLE)
+    assert _has(spindle, "yes", "p")
+    assert _has(spindle, "yes", "~p")
+
+    with pytest.raises(ContradictoryStrictTheoryError):
+        _model(theory, ProjectionSemantics.GARCIA)
+
+
+def test_spindle_projection_tolerates_fact_versus_strict_rule_conflict() -> None:
+    """Page-image source: ``SPINDLE_PAGE_002``; conformance source:
+    ``spindle_racket_fact_vs_strict_rule_conflict`` (fact ``p`` and strict
+    ``~p :- q`` both definitely provable)."""
+
+    theory = DefeasibleTheory(
+        facts={"p": {()}, "q": {()}},
+        strict_rules=[Rule(id="r1", head="~p", body=["q"])],
+        conflicts=[("p", "~p")],
+    )
+
+    spindle = _model(theory, ProjectionSemantics.SPINDLE)
+    assert _has(spindle, "yes", "p")
+    assert _has(spindle, "yes", "~p")
+    assert _has(spindle, "yes", "q")
+
+    with pytest.raises(ContradictoryStrictTheoryError):
+        _model(theory, ProjectionSemantics.GARCIA)
 
 
 def test_spindle_projection_keeps_default_garcia_path_unchanged() -> None:
