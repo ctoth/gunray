@@ -9,6 +9,9 @@ dependencies = [
     "pyyaml>=6.0.3",
 ]
 
+[project.scripts]
+gunray = "gunray.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "datalog-conformance @ git+https://github.com/ctoth/datalog-conformance-suite@795f2a7e5bc8328ce273095d3a757631fa379a38",
