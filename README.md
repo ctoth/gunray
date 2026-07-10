@@ -76,6 +76,29 @@ cd gunray
 uv sync --extra dev
 ```
 
+## CLI and REPL
+
+The `gunray` command consumes the existing `DefeasibleTheory` schema in YAML
+or JSON. It does not introduce a second rule language. JSON output is stable
+and contains no explanatory prose, which makes it suitable for scripts and
+agents.
+
+```bash
+gunray answer theory.yaml 'flies("tweety")'
+gunray explain theory.yaml 'flies("tweety")'
+gunray tree theory.yaml 'flies("tweety")' --format text
+gunray model theory.yaml --format json
+```
+
+The default tree format is indented text. Use `--format unicode` for the
+box-drawing renderer, `--format mermaid` for a flowchart, or `--format json`
+for structured output. Pass `-` instead of a file path to read a theory from
+standard input.
+
+Start the interactive shell with `python -m gunray`. It can load and save
+YAML/JSON theories, inspect schema sections, answer queries, render
+explanations and trees, and incrementally add or remove schema-backed rules.
+
 ## Three evaluators, one dispatcher
 
 `GunrayEvaluator.evaluate` dispatches on the input type.
