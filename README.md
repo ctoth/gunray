@@ -2,12 +2,18 @@
 
 *(named for Donald Nute, by way of Nute Gunray)*
 
-A defeasible logic engine in pure Python. Tell it rules that contradict
-each other and it works out which conclusions survive — and, if you ask,
-exactly why. Zero runtime dependencies, MIT, Python 3.11+.
+A pure-Python engine for defeasible reasoning, stratified Datalog, and
+propositional default closure. Give it rules that conflict and it works out
+which conclusions survive — then lets you inspect the argument-and-defeater
+chain behind the result. MIT licensed; Python 3.11+.
+
+Use Gunray when a plain true/false result is not enough: policy exceptions,
+conflicting evidence, defaults with explicit overrides, or Datalog rules that
+need a traceable result. It keeps unresolved conflicts visible rather than
+silently choosing a winner.
 
 ```python
-from gunray import DefeasibleTheory, GunrayEvaluator, ClosurePolicy, MarkingPolicy, Rule
+from gunray import DefeasibleTheory, GunrayEvaluator, MarkingPolicy, Rule
 
 theory = DefeasibleTheory(
     facts={"bird": {("tweety",), ("opus",)}, "penguin": {("opus",)}},
@@ -19,13 +25,12 @@ theory = DefeasibleTheory(
 )
 
 model = GunrayEvaluator().evaluate(theory, marking_policy=MarkingPolicy.BLOCKING)
-# model.sections["defeasibly"] contains flies(tweety) and ~flies(opus).
+# `model.sections` records the four-valued result for each ground literal.
 ```
 
-`~flies(X) :- penguin(X)` is a *defeasible* rule, not a strict one. It's
-weaker than anything classical logic would let you write — but strong
-enough to win against `flies(X) :- bird(X)` on the penguin case without
-contradicting the strict fact that penguins are still birds.
+`~flies(X) :- penguin(X)` is a *defeasible* rule, not a strict one. It is
+strong enough to defeat `flies(X) :- bird(X)` for the penguin case without
+changing the strict conclusion that penguins are birds.
 
 ## `UNDECIDED` is a first-class answer
 
@@ -62,9 +67,9 @@ language of the theory). This is García & Simari 2004 Def 5.3.
 
 ## Install
 
+Add it to an existing `uv` project:
+
 ```bash
-pip install git+https://github.com/ctoth/gunray.git
-# or
 uv add git+https://github.com/ctoth/gunray.git
 ```
 
@@ -83,19 +88,40 @@ or JSON. It does not introduce a second rule language. JSON output is stable
 and contains no explanatory prose, which makes it suitable for scripts and
 agents.
 
-```bash
-gunray answer theory.yaml 'flies("tweety")'
-gunray explain theory.yaml 'flies("tweety")'
-gunray tree theory.yaml 'flies("tweety")' --format text
-gunray model theory.yaml --format json
+For example, save this as `theory.yaml`:
+
+```yaml
+facts:
+  bird:
+    - [tweety]
+  penguin:
+    - [opus]
+defeasible_rules:
+  - id: r1
+    head: flies(X)
+    body: [bird(X)]
+  - id: r2
+    head: ~flies(X)
+    body: [penguin(X)]
 ```
+
+```bash
+uv run gunray answer theory.yaml 'flies("tweety")'
+uv run gunray explain theory.yaml 'flies("tweety")'
+uv run gunray tree theory.yaml 'flies("tweety")' --format text
+uv run gunray model theory.yaml --format json
+```
+
+String constants in CLI queries must be quoted; `flies(opus)` is rejected,
+while `flies("opus")` is valid. Pass `--input-format json` when a JSON input
+does not use a `.json` filename.
 
 The default tree format is indented text. Use `--format unicode` for the
 box-drawing renderer, `--format mermaid` for a flowchart, or `--format json`
 for structured output. Pass `-` instead of a file path to read a theory from
 standard input.
 
-Start the interactive shell with `python -m gunray`. It can load and save
+Start the interactive shell with `uv run python -m gunray`. It can load and save
 YAML/JSON theories, inspect schema sections, answer queries, render
 explanations and trees, and incrementally add or remove schema-backed rules.
 
