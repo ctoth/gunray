@@ -63,6 +63,40 @@ def test_compiled_matcher_handles_constants_wildcards_and_same_row_equalities() 
     ]
 
 
+def test_compiled_matcher_same_row_equality_when_repeated_atom_leads() -> None:
+    # The repeated-variable atom is evaluated FIRST, so the variable is not
+    # bound by any earlier atom; the equality must hold within the row
+    # itself. Regression: conformance nemo_negation projectedX/projectedY,
+    # where diagonal rules like s3AnyDiagY(C) :- s3(P, P, C) matched nothing.
+    atoms = (Atom("s3", (Variable("p"), Variable("p"), Variable("c"))),)
+    model = {
+        "s3": IndexedRelation({(2, 2, 9), (1, 2, 3), (4, 4, 0)}),
+    }
+    overrides: dict[int, IndexedRelation] = {}
+    ordered_atoms = _order_positive_body(atoms, model, overrides)
+    compiled = compile_simple_matcher(ordered_atoms)
+
+    assert compiled is not None
+    actual = _sorted_bindings(list(iter_compiled_bindings(compiled, model, overrides)))
+    expected = _sorted_bindings(
+        list(_iter_generic_positive_body_matches(ordered_atoms, model, overrides))
+    )
+    assert actual == expected
+    assert actual == [
+        (("c", 0), ("p", 4)),
+        (("c", 9), ("p", 2)),
+    ]
+
+
+def test_evaluator_diagonal_self_join_in_leading_atom() -> None:
+    program = Program(
+        facts={"s3": {(2, 2, 9), (1, 2, 3), (4, 4, 0)}},
+        rules=["diag(C) :- s3(P, P, C)."],
+    )
+    model = SemiNaiveEvaluator().evaluate(program)
+    assert model.facts["diag"] == {(9,), (0,)}
+
+
 def test_compiled_matcher_rejects_expression_terms() -> None:
     atoms = [
         (

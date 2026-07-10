@@ -22,7 +22,10 @@ class CompiledSimpleAtom:
     assigned_columns: tuple[int, ...]
     assigned_slots: tuple[int, ...]
     equality_columns: tuple[int, ...]
-    equality_slots: tuple[int, ...]
+    # A repeated variable whose first occurrence is in this same atom is not
+    # bound in `slots` yet when the row is checked, so the equality must
+    # compare against the first-occurrence column of the row itself.
+    equality_source_columns: tuple[int, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,8 +57,8 @@ def compile_simple_matcher(
         assigned_columns: list[int] = []
         assigned_slots: list[int] = []
         equality_columns: list[int] = []
-        equality_slots: list[int] = []
-        assigned_this_atom: set[int] = set()
+        equality_source_columns: list[int] = []
+        first_column_by_slot: dict[int, int] = {}
 
         for column, term in enumerate(atom.terms):
             if isinstance(term, Constant):
@@ -72,13 +75,14 @@ def compile_simple_matcher(
                 slot = len(slot_names)
                 slot_indexes[term.name] = slot
                 slot_names.append(term.name)
-                assigned_this_atom.add(slot)
+                first_column_by_slot[slot] = column
                 assigned_columns.append(column)
                 assigned_slots.append(slot)
                 continue
-            if slot in assigned_this_atom:
+            first_column = first_column_by_slot.get(slot)
+            if first_column is not None:
                 equality_columns.append(column)
-                equality_slots.append(slot)
+                equality_source_columns.append(first_column)
                 continue
             lookup_columns.append(column)
             lookup_slots.append(slot)
@@ -93,7 +97,7 @@ def compile_simple_matcher(
                 assigned_columns=tuple(assigned_columns),
                 assigned_slots=tuple(assigned_slots),
                 equality_columns=tuple(equality_columns),
-                equality_slots=tuple(equality_slots),
+                equality_source_columns=tuple(equality_source_columns),
             )
         )
 
@@ -169,7 +173,7 @@ def _iter_compiled_matches(
             return
 
     for row in candidates:
-        if not _row_equalities_hold(atom, row, slots):
+        if not _row_equalities_hold(atom, row):
             continue
         for column, slot in zip(atom.assigned_columns, atom.assigned_slots, strict=True):
             slots[slot] = row[column]
@@ -215,7 +219,7 @@ def _iter_compiled_head_matches(
             return
 
     for row in candidates:
-        if not _row_equalities_hold(atom, row, slots):
+        if not _row_equalities_hold(atom, row):
             continue
         for column, slot in zip(atom.assigned_columns, atom.assigned_slots, strict=True):
             slots[slot] = row[column]
@@ -227,9 +231,10 @@ def _iter_compiled_head_matches(
 def _row_equalities_hold(
     atom: CompiledSimpleAtom,
     row: tuple[object, ...],
-    slots: list[object],
 ) -> bool:
-    for column, slot in zip(atom.equality_columns, atom.equality_slots, strict=True):
-        if not values_equal(row[column], slots[slot]):
+    for column, source_column in zip(
+        atom.equality_columns, atom.equality_source_columns, strict=True
+    ):
+        if not values_equal(row[column], row[source_column]):
             return False
     return True
